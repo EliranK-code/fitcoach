@@ -1,0 +1,10 @@
+{
+  "name": "@fitcoach/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fitcoach/core": "*",
+    "bidi-js": "^1.1.0"
+  }
+}

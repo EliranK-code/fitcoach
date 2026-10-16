@@ -1,0 +1,14 @@
+node_modules/
+.data/
+.env
+.env.*
+!.env.example
+dist/
+.next/
+coverage/
+*.log
+__pycache__/
+
+# Local agent skills (tooling, not project code)
+.agents/
+.claude/skills/

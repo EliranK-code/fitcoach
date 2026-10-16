@@ -1,0 +1,32 @@
+{
+  "name": "fitcoach",
+  "private": true,
+  "type": "module",
+  "description": "בוט AI בוואטסאפ שמשמש מאמן כושר דיגיטלי עבור מאמני כושר אמיתיים",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "tsx apps/cli/src/index.ts setup",
+    "seed": "tsx apps/cli/src/index.ts seed",
+    "chat": "tsx apps/cli/src/index.ts chat",
+    "coach:import": "tsx apps/cli/src/index.ts coach:import",
+    "admin": "tsx apps/cli/src/index.ts",
+    "db:generate": "drizzle-kit generate --config packages/core/drizzle.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:live": "vitest run --config vitest.live.config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
