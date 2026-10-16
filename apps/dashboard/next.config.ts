@@ -11,6 +11,7 @@ const config: NextConfig = {
     "pino",
     "unpdf",
     "mammoth",
+    "sharp",
   ],
   // Type checking runs separately (npm run typecheck): TypeScript 7 is the native compiler.
   typescript: { ignoreBuildErrors: true },

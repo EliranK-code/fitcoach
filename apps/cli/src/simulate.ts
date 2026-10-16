@@ -1,6 +1,8 @@
 import { createHmac, randomBytes } from "node:crypto";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { extname, join, resolve } from "node:path";
 import { styleText } from "node:util";
-import type { AppConfig } from "@fitcoach/core";
+import { simulatedMediaDir, type AppConfig } from "@fitcoach/core";
 
 export interface SimulateOptions {
   phoneNumberId: string;
@@ -8,6 +10,9 @@ export interface SimulateOptions {
   text: string;
   buttonId?: string;
   type?: string;
+  /** A local photo or voice file; copied where the dry-run API can "download" it. */
+  file?: string;
+  mediaId?: string;
 }
 
 /** Builds a webhook payload shaped like Meta's for one inbound message. */
@@ -21,7 +26,7 @@ export function buildWebhookPayload(opts: SimulateOptions, now = new Date()) {
   if (opts.buttonId) {
     message = { ...base, type: "interactive", interactive: { type: "button_reply", button_reply: { id: opts.buttonId, title: opts.text || opts.buttonId } } };
   } else if (opts.type && opts.type !== "text") {
-    message = { ...base, type: opts.type, [opts.type]: { id: "sim-media", mime_type: "application/octet-stream", caption: opts.text || undefined } };
+    message = { ...base, type: opts.type, [opts.type]: { id: opts.mediaId ?? "sim-media", mime_type: "application/octet-stream", caption: opts.text || undefined } };
   } else {
     message = { ...base, type: "text", text: { body: opts.text } };
   }
@@ -49,6 +54,17 @@ export function buildWebhookPayload(opts: SimulateOptions, now = new Date()) {
 /** Sends a signed fake webhook to the local server: tests the whole pipeline without Meta. */
 export async function simulateWebhook(cfg: AppConfig, opts: SimulateOptions): Promise<void> {
   if (!cfg.WHATSAPP_APP_SECRET) throw new Error("WHATSAPP_APP_SECRET חסר ב-.env (כל מחרוזת מתאימה לבדיקה מקומית)");
+  if (opts.file) {
+    const src = resolve(opts.file);
+    if (!existsSync(src)) throw new Error(`הקובץ לא נמצא: ${opts.file}`);
+    const ext = extname(src).toLowerCase();
+    const isImage = [".jpg", ".jpeg", ".png", ".webp"].includes(ext);
+    if (!isImage && ![".ogg", ".opus", ".mp3", ".m4a", ".wav"].includes(ext)) throw new Error("נתמכים: jpg, png, webp, ogg, mp3, m4a, wav");
+    mkdirSync(simulatedMediaDir(), { recursive: true });
+    const mediaId = `sim-${randomBytes(6).toString("hex")}${ext}`;
+    copyFileSync(src, join(simulatedMediaDir(), mediaId));
+    opts = { ...opts, type: isImage ? "image" : "audio", mediaId };
+  }
   if (!opts.text && !opts.buttonId && !opts.type) throw new Error('חסר טקסט: npm run wa:simulate -- "היי"');
   const body = JSON.stringify(buildWebhookPayload(opts));
   const signature = `sha256=${createHmac("sha256", cfg.WHATSAPP_APP_SECRET).update(body).digest("hex")}`;

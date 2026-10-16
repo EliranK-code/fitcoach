@@ -5,7 +5,10 @@ import { logger } from "../logger";
 import { clientPhone, getClient } from "../repos/clients";
 import { createAlert } from "../repos/ops";
 import { openTenant, type TenantContext } from "../tenancy";
-import type { WhatsAppApi } from "./api";
+import { ImageError, prepareImage } from "../media/images";
+import type { Transcriber } from "../media/transcribe";
+import { recordUsage } from "../repos/ops";
+import { WhatsAppApiError, type WhatsAppApi } from "./api";
 import {
   claimDueJobs,
   failJob,
@@ -24,6 +27,8 @@ export interface WorkerDeps {
   engine: ConversationEngine;
   /** Resolves the sending API for a coach's number (real Graph API, or dry run). */
   apiFor(t: TenantContext, phoneNumberId: string): Promise<WhatsAppApi>;
+  /** Voice-message transcription; without one, voice notes get a "please write" reply. */
+  transcriber?: Transcriber | null;
   now?: () => Date;
   pollMs?: number;
   leaseMs?: number;
@@ -32,7 +37,9 @@ export interface WorkerDeps {
 /** A unit the engine handles as one turn: consecutive texts merge; buttons and media stand alone. */
 export interface InboundGroup {
   messages: PendingInbound[];
-  input: Pick<InboundMessage, "text" | "buttonId" | "unsupported" | "externalId">;
+  input: Pick<InboundMessage, "text" | "buttonId" | "unsupported" | "externalId" | "image" | "voice">;
+  /** A photo or voice note still to be downloaded (and transcribed) before the engine sees it. */
+  media?: { kind: "image" | "audio"; mediaId: string };
 }
 
 const UNSUPPORTED: Record<string, UnsupportedKind> = {
@@ -58,7 +65,9 @@ export function groupInbound(pending: PendingInbound[]): InboundGroup[] {
     }
     if (m.kind === "text") groups.push({ messages: [m], input: { text: m.text, externalId: m.externalId } });
     else if (m.kind === "button") groups.push({ messages: [m], input: { text: m.text, buttonId: m.buttonId, externalId: m.externalId } });
-    else groups.push({ messages: [m], input: { text: m.text, unsupported: UNSUPPORTED[m.kind] ?? "other", externalId: m.externalId } });
+    else if ((m.kind === "image" || m.kind === "audio") && m.mediaId) {
+      groups.push({ messages: [m], input: { text: m.text, externalId: m.externalId }, media: { kind: m.kind, mediaId: m.mediaId } });
+    } else groups.push({ messages: [m], input: { text: m.text, unsupported: UNSUPPORTED[m.kind] ?? "other", externalId: m.externalId } });
   }
   return groups;
 }
@@ -126,6 +135,41 @@ export class InboundWorker {
     return jobs.length;
   }
 
+  /**
+   * Downloads a photo (normalized for Claude) or a voice note (transcribed). Media that's gone or unreadable
+   * becomes an "unsupported" message; network errors propagate so the job is retried.
+   */
+  private async resolveMedia(t: TenantContext, clientId: string, api: WhatsAppApi, group: InboundGroup): Promise<InboundGroup["input"]> {
+    const { kind, mediaId } = group.media!;
+    const unsupported: InboundGroup["input"] = { ...group.input, unsupported: kind };
+    if (kind === "audio" && !this.deps.transcriber) return unsupported;
+    let file: { data: Buffer; mimeType: string };
+    try {
+      file = await api.downloadMedia(mediaId);
+    } catch (err) {
+      if (err instanceof WhatsAppApiError && (err.status === 404 || err.status === 413)) return unsupported;
+      throw err;
+    }
+    if (kind === "image") {
+      try {
+        return { ...group.input, image: await prepareImage(file.data) };
+      } catch (err) {
+        if (err instanceof ImageError) return unsupported;
+        throw err;
+      }
+    }
+    const transcriber = this.deps.transcriber!;
+    const res = await transcriber.transcribe(file.data, file.mimeType);
+    await recordUsage(this.deps.db, t, {
+      clientId,
+      kind: "transcription",
+      model: transcriber.model,
+      inputTokens: res.inputTokens,
+      outputTokens: res.outputTokens,
+    });
+    return res.text ? { ...group.input, text: res.text, voice: true } : unsupported;
+  }
+
   private async process(job: TurnJob): Promise<void> {
     const { db, engine } = this.deps;
     try {
@@ -142,7 +186,8 @@ export class InboundWorker {
       api.markRead(pending.at(-1)!.externalId, true).catch((err) => logger.warn({ err }, "markRead failed"));
 
       for (const group of groupInbound(pending)) {
-        const result = await engine.handleInbound({ coachId: t.coachId, phone, channel: "whatsapp", ...group.input });
+        const input = group.media ? await this.resolveMedia(t, client.id, api, group) : group.input;
+        const result = await engine.handleInbound({ coachId: t.coachId, phone, channel: "whatsapp", ...input });
         await markInbound(db, group.messages.map((m) => m.id), "done");
         if (result.clientId === null) {
           // The client asked to be deleted: their rows are gone, so confirm directly without logging.

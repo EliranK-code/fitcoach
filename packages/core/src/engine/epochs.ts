@@ -1,9 +1,10 @@
+import { createHash } from "node:crypto";
 import type { AppConfig } from "../config";
 import type { Db } from "../db/client";
 import type { Embedder } from "../knowledge/embeddings";
 import { buildKnowledgePrompt } from "../knowledge/store";
 import { textOf, type BetaMessageParam, type LlmClient } from "../llm/client";
-import { buildSystemBlocks, renderClientContext, SUMMARY_SYSTEM } from "../llm/prompts";
+import { buildSystemBlocks, PLATFORM_RULES, renderClientContext, SUMMARY_SYSTEM } from "../llm/prompts";
 import { logger } from "../logger";
 import { isMinor } from "../profile";
 import { getMemory, saveMemory } from "../repos/clients";
@@ -13,7 +14,7 @@ import { getActiveMealPlan, getActiveWorkoutPlan } from "../repos/tracking";
 import { calorieFloor } from "../safety/calories";
 import type { TenantContext } from "../tenancy";
 import { localDate } from "../time";
-import type { TurnContext } from "./tools";
+import { TOOLS, type TurnContext } from "./tools";
 
 export interface EngineDeps {
   db: Db;
@@ -24,9 +25,17 @@ export interface EngineDeps {
   now: () => Date;
 }
 
-export type RolloverReason = "knowledge_updated" | "size" | "idle" | "manual";
+export type RolloverReason = "knowledge_updated" | "platform_updated" | "size" | "idle" | "manual";
+
+/**
+ * Fingerprint of everything frozen into an epoch that comes from code: the platform rules and the tool
+ * definitions. A deploy that changes either rolls conversations over instead of replaying old history
+ * against a different prefix.
+ */
+export const PLATFORM_HASH = createHash("sha256").update(PLATFORM_RULES).update(JSON.stringify(TOOLS)).digest("hex").slice(0, 16);
 
 export function rolloverReason(epoch: Epoch, t: TenantContext, cfg: AppConfig, now: Date): RolloverReason | null {
+  if (epoch.row.platformHash !== PLATFORM_HASH) return "platform_updated";
   if (epoch.row.knowledgeVersion !== t.knowledgeVersion) return "knowledge_updated";
   if (epoch.row.lastContextTokens > cfg.EPOCH_MAX_TOKENS) return "size";
   const idleHours = (now.getTime() - epoch.row.lastActivityAt.getTime()) / 3600_000;
@@ -150,7 +159,7 @@ export async function ensureEpoch(
     await closeWithSummary(deps, t, active, reason);
   }
   const system = await buildEpochSystem(deps, t, ctx);
-  const epoch = await createEpoch(deps.db, t, ctx.client.id, system);
+  const epoch = await createEpoch(deps.db, t, ctx.client.id, system, PLATFORM_HASH);
   ctx.events.push({ type: "epoch", action: active ? "rolled_over" : "created", reason: reason ?? "first" });
   return epoch;
 }

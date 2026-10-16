@@ -3,7 +3,10 @@ import {
   createAnthropicLlm,
   createApiForAccount,
   createEmbedder,
+  createTranscriber,
   findAccountByPhoneNumberId,
+  getCoachAccount,
+  ReminderScheduler,
   InboundWorker,
   loadConfig,
   logger,
@@ -46,10 +49,25 @@ async function init(): Promise<Services> {
     return createApiForAccount(t, account, cfg, (e) => logger.info({ dryRun: e.type, to: e.to }, "WhatsApp dry run"));
   };
 
-  // The dashboard process also runs the WhatsApp worker, so one process serves everything (and the
-  // single-process local database works). Set DASHBOARD_RUN_WORKER=false when a separate server runs it.
-  const worker = process.env.DASHBOARD_RUN_WORKER === "false" ? null : new InboundWorker({ db: handle.db, cfg, engine, apiFor: whatsappApi });
+  // The dashboard process also runs the WhatsApp worker and the reminder scheduler, so one process serves
+  // everything (and the single-process local database works). Set DASHBOARD_RUN_WORKER=false when a
+  // separate server runs them.
+  const runBackground = process.env.DASHBOARD_RUN_WORKER !== "false";
+  const worker = runBackground
+    ? new InboundWorker({ db: handle.db, cfg, engine, apiFor: whatsappApi, transcriber: createTranscriber(cfg) })
+    : null;
   worker?.start();
+  const scheduler = runBackground
+    ? new ReminderScheduler({
+        db: handle.db,
+        cfg,
+        async apiFor(t) {
+          const account = await getCoachAccount(handle.db, t);
+          return account ? createApiForAccount(t, account, cfg, (e) => logger.info({ dryRun: e.type, to: e.to }, "WhatsApp dry run")) : null;
+        },
+      })
+    : null;
+  scheduler?.start();
 
   return { cfg, handle, engine, embedder, llm: getLlm, whatsappApi, worker };
 }

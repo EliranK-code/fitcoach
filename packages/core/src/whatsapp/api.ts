@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import { extname, join } from "node:path";
+import { projectRoot } from "../config";
 import { logger } from "../logger";
 
 // Thin client for the official WhatsApp Business Cloud API (Graph API). No unofficial libraries:
@@ -22,7 +25,11 @@ export interface WhatsAppApi {
   sendTemplate(to: string, name: string, languageCode: string, bodyParams: string[]): Promise<SendResult>;
   /** Blue ticks on the client's message, optionally with a "typing…" indicator until we reply. */
   markRead(messageId: string, typing: boolean): Promise<void>;
+  /** Fetches a photo or voice note the client sent (two steps: media URL lookup, then authenticated download). */
+  downloadMedia(mediaId: string): Promise<{ data: Buffer; mimeType: string }>;
 }
+
+export const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
 
 export const BUTTON_BODY_MAX = 1024;
 export const BUTTON_TITLE_MAX = 20;
@@ -131,7 +138,42 @@ export function createGraphApi(opts: GraphApiOptions): WhatsAppApi {
     async markRead(id, typing) {
       await post({ status: "read", message_id: id, ...(typing ? { typing_indicator: { type: "text" } } : {}) });
     },
+    async downloadMedia(mediaId) {
+      const auth = { Authorization: `Bearer ${opts.token}` };
+      const metaRes = await doFetch(`https://graph.facebook.com/${opts.version}/${encodeURIComponent(mediaId)}`, {
+        headers: auth,
+        signal: AbortSignal.timeout(15_000),
+      });
+      const meta = (await metaRes.json().catch(() => ({}))) as { url?: string; mime_type?: string; file_size?: number; error?: { message?: string; code?: number } };
+      if (!metaRes.ok || !meta.url) {
+        throw new WhatsAppApiError(meta.error?.message ?? `media lookup HTTP ${metaRes.status}`, metaRes.status, meta.error?.code ?? null);
+      }
+      if (meta.file_size && meta.file_size > MAX_MEDIA_BYTES) throw new WhatsAppApiError("media too large", 413, null);
+      // The media URL also requires the token, and is only valid for a few minutes.
+      const fileRes = await doFetch(meta.url, { headers: auth, signal: AbortSignal.timeout(30_000) });
+      if (!fileRes.ok) throw new WhatsAppApiError(`media download HTTP ${fileRes.status}`, fileRes.status, null);
+      const data = Buffer.from(await fileRes.arrayBuffer());
+      if (data.length > MAX_MEDIA_BYTES) throw new WhatsAppApiError("media too large", 413, null);
+      return { data, mimeType: meta.mime_type ?? fileRes.headers.get("content-type") ?? "application/octet-stream" };
+    },
   };
+}
+
+const SIM_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".ogg": "audio/ogg",
+  ".opus": "audio/ogg",
+  ".mp3": "audio/mpeg",
+  ".m4a": "audio/mp4",
+  ".wav": "audio/wav",
+};
+
+/** Where `wa:simulate --file` puts media for the dry-run API to "download". */
+export function simulatedMediaDir(): string {
+  return join(projectRoot(), ".data", "sim-media");
 }
 
 export interface DryRunEntry {
@@ -169,6 +211,13 @@ export function createDryRunApi(
     },
     async markRead(id) {
       record({ phoneNumberId, type: "read", body: id });
+    },
+    async downloadMedia(mediaId) {
+      // Only plain file names inside the simulator folder: a webhook can't make us read arbitrary paths.
+      if (!/^[\w.-]+$/.test(mediaId) || mediaId.startsWith(".")) throw new WhatsAppApiError("unknown simulated media", 404, null);
+      const path = join(simulatedMediaDir(), mediaId);
+      if (!existsSync(path)) throw new WhatsAppApiError("unknown simulated media", 404, null);
+      return { data: readFileSync(path), mimeType: SIM_MIME[extname(mediaId).toLowerCase()] ?? "application/octet-stream" };
     },
   };
 }

@@ -44,7 +44,7 @@ const USAGE = `שימוש: npm run <פקודה> -- [אפשרויות]
   coach:import <dir> [--slug x]  מייבא מאמן מתיקייה (coach.yaml + docs/)
   chat [--coach demo] [--phone id] [--debug] [--no-bidi] [--new]
   server                         שרת הוואטסאפ (webhook + worker)
-  wa:simulate -- [--from 972...] [--pnid id] [--button id] [--type image] "טקסט"
+  wa:simulate -- [--from 972...] [--pnid id] [--button id] [--file photo.jpg|voice.ogg] "טקסט"
                                  שולח לשרת webhook חתום כאילו מוואטסאפ (בלי Meta)
 
 פקודות ניהול (npm run admin -- <פקודה> [--coach demo]):
@@ -156,6 +156,7 @@ async function main() {
       from: { type: "string" },
       button: { type: "string" },
       type: { type: "string" },
+      file: { type: "string" },
       lang: { type: "string", default: "he" },
       params: { type: "string" },
       email: { type: "string" },
@@ -177,6 +178,7 @@ async function main() {
       text: positionals.join(" "),
       buttonId: values.button,
       type: values.type,
+      file: values.file,
     });
   }
 

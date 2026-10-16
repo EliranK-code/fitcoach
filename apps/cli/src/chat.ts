@@ -1,9 +1,12 @@
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { extname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { styleText } from "node:util";
 import {
   audit,
+  createTranscriber,
+  prepareImage,
+  type InboundMessage,
   describeProfile,
   exportClientData,
   logChatMessage,
@@ -35,6 +38,8 @@ const HELP = `פקודות:
 /summary   הזיכרון ארוך הטווח (סיכום השיחות)
 /compact   לסכם עכשיו ולפתוח אפיזודה חדשה
 /export    לייצא את כל המידע של הלקוח לקובץ JSON
+/image <קובץ> [כיתוב]  לשלוח תמונה (למשל של ארוחה)
+/voice <קובץ>  לשלוח הודעה קולית (דורש OPENAI_API_KEY)
 /delete-me לבקש מחיקת מידע (כמו לקוח אמיתי)
 /debug     להציג או להסתיר קריאות לכלים ושימוש בטוקנים
 /new       להתחיל כלקוח חדש
@@ -102,6 +107,11 @@ export async function runChat(app: App, opts: ChatOptions): Promise<void> {
     if (line.startsWith("/")) {
       const cmd = line.slice(1).split(/\s+/)[0]?.toLowerCase() ?? "";
       if (cmd === "quit" || cmd === "exit") break;
+      if (cmd === "image" || cmd === "voice") {
+        await sendMedia(cmd, line.slice(cmd.length + 1).trim());
+        rl.prompt();
+        continue;
+      }
       try {
         const result = await runCommand(app, t, phone, cmd, line.slice(cmd.length + 1).trim(), { print, debug });
         if (result === "toggle-debug") {
@@ -127,13 +137,49 @@ export async function runChat(app: App, opts: ChatOptions): Promise<void> {
 
   rl.close();
 
-  async function send(text: string) {
-    print(`את/ה: ${text}`, "cyan");
-    toTranscript("לקוח/ה", text);
+  /** /image path [caption] and /voice path: the same paths WhatsApp photos and voice notes take. */
+  async function sendMedia(kind: "image" | "voice", arg: string) {
+    const [rawPath = "", ...captionParts] = arg.match(/"[^"]+"|\S+/g) ?? [];
+    const path = resolve(rawPath.replace(/^"|"$/g, ""));
+    if (!rawPath || !existsSync(path)) {
+      print(`הקובץ לא נמצא: ${rawPath || "(לא צוין)"}`, "red");
+      return;
+    }
+    const data = readFileSync(path);
+    if (kind === "image") {
+      try {
+        const image = await prepareImage(data);
+        const caption = captionParts.join(" ");
+        print(`📷 תמונה ${image.width}×${image.height}${caption ? ` עם הכיתוב: ${caption}` : ""}`, "cyan");
+        await send(caption, { image });
+      } catch (err) {
+        print(`שגיאה בתמונה: ${err instanceof Error ? err.message : String(err)}`, "red");
+      }
+      return;
+    }
+    const transcriber = createTranscriber(app.cfg);
+    if (!transcriber) {
+      print("תמלול הודעות קוליות דורש OPENAI_API_KEY בקובץ .env", "red");
+      return;
+    }
+    const mime = { ".ogg": "audio/ogg", ".opus": "audio/ogg", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav" }[extname(path).toLowerCase()] ?? "audio/ogg";
+    print("🎙️ מתמלל…", "gray");
+    try {
+      const { text } = await transcriber.transcribe(data, mime);
+      print(`תמלול: ${text}`, "gray");
+      await send(text, { voice: true });
+    } catch (err) {
+      print(`שגיאה בתמלול: ${err instanceof Error ? err.message : String(err)}`, "red");
+    }
+  }
+
+  async function send(text: string, media: Pick<InboundMessage, "image" | "voice"> = {}) {
+    if (!media.image && !media.voice) print(`את/ה: ${text}`, "cyan");
+    toTranscript("לקוח/ה", media.image ? `[תמונה] ${text}` : media.voice ? `[הודעה קולית] ${text}` : text);
     if (tty) process.stdout.write(styleText("gray", "…\n"));
     let res: TurnResult;
     try {
-      res = await app.engine.handleInbound({ coachId: t.coachId, phone, text, channel: "cli", isTest: true });
+      res = await app.engine.handleInbound({ coachId: t.coachId, phone, text, channel: "cli", isTest: true, ...media });
     } catch (err) {
       eraseLine();
       print(`שגיאה: ${err instanceof Error ? err.message : String(err)}`, "red");

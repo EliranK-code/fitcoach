@@ -44,6 +44,15 @@ export const NUTRITION_APPROACH_LABEL: Record<string, string> = {
 
 export const TONE_LABEL: Record<string, string> = { tough: "קשוח", warm: "חם", humorous: "הומוריסטי", professional: "מקצועי" };
 
+export const REMINDER_KIND_LABEL: Record<string, string> = {
+  weigh_in: "שקילה",
+  workout: "יום אימון",
+  checkin: "check-in שבועי",
+  inactivity: "check-in אחרי חוסר פעילות",
+};
+
+export const DAY_NAMES = ["א'", "ב'", "ג'", "ד'", "ה'", "ו'", "ש'"];
+
 export function formatDateTime(date: Date | string, timeZone: string): string {
   return new Intl.DateTimeFormat("he-IL", { timeZone, dateStyle: "short", timeStyle: "short" }).format(new Date(date));
 }

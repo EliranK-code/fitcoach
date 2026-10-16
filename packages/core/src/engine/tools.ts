@@ -1,6 +1,6 @@
 import type { AppConfig } from "../config";
 import type { Db } from "../db/client";
-import type { LoggedExercise, PlannedDay } from "../db/schema";
+import { REMINDER_KINDS, type LoggedExercise, type PlannedDay, type ReminderKind } from "../db/schema";
 import type { Embedder } from "../knowledge/embeddings";
 import type { CoachKnowledge } from "../knowledge/schema";
 import { searchKnowledge } from "../knowledge/store";
@@ -35,7 +35,9 @@ import {
 import { calorieFloor, MAX_DAILY_CALORIES } from "../safety/calories";
 import { containsNutritionNumbers } from "../safety/outputGuards";
 import type { TenantContext } from "../tenancy";
-import { addDays, isIsoDate } from "../time";
+import { isValidTime } from "../reminders/schedule";
+import { disableClientReminders, setClientReminders, type ReminderSpec } from "../reminders/store";
+import { addDays, isIsoDate, localStamp } from "../time";
 
 export type TurnEvent =
   | { type: "tool"; name: string; input: unknown; ok: boolean; result: string }
@@ -190,6 +192,23 @@ Value formats per field:
     description: "Search the coach's documents (programs, menus, guides) for passages relevant to a question.",
     strict: true,
     input_schema: obj({ query: { type: "string" } }),
+  },
+  {
+    name: "set_reminder_preferences",
+    description:
+      "Save which proactive reminders the client wants. Send the COMPLETE set; it replaces the previous one. days: 0=Sunday … 6=Saturday. time: HH:MM in the client's local time. kinds: weigh_in (weigh-in), workout (training days), checkin (weekly check-in). If the client doesn't want any proactive messages, send opt_out_all=true and an empty list.",
+    strict: true,
+    input_schema: obj({
+      opt_out_all: { type: "boolean" },
+      reminders: {
+        type: "array",
+        items: obj({
+          kind: { type: "string", enum: [...REMINDER_KINDS] },
+          days: { type: "array", items: { type: "integer" } },
+          time: { type: "string", description: "HH:MM, 24-hour." },
+        }),
+      },
+    }),
   },
   {
     name: "escalate_to_coach",
@@ -461,6 +480,43 @@ const handlers: Record<string, (ctx: TurnContext, input: Input) => Promise<ToolO
     const hits = await searchKnowledge(ctx.db, ctx.t, query, ctx.embedder, 5);
     if (!hits.length) return ok("No matching passages in the coach's documents.");
     return ok(hits.map((h, i) => `[${i + 1}] from "${h.documentTitle}":\n${h.content}`).join("\n\n"));
+  },
+
+  async set_reminder_preferences(ctx, input) {
+    if (input.opt_out_all === true) {
+      ctx.client = await setClientFlags(ctx.db, ctx.t, ctx.client, { remindersOptOut: true });
+      await disableClientReminders(ctx.db, ctx.t, ctx.client.id);
+      return ok("All proactive reminders are off for this client.");
+    }
+    const raw = Array.isArray(input.reminders) ? (input.reminders as Input[]) : [];
+    const specs: ReminderSpec[] = [];
+    const errors: string[] = [];
+    for (const r of raw) {
+      const kind = str(r.kind) as ReminderKind;
+      const days = (Array.isArray(r.days) ? r.days : []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+      const time = str(r.time).trim();
+      if (!REMINDER_KINDS.includes(kind)) errors.push(`unknown kind ${kind}`);
+      else if (days.length === 0) errors.push(`${kind}: no valid days`);
+      else if (!isValidTime(time)) errors.push(`${kind}: time must be HH:MM`);
+      else specs.push({ kind, days, time });
+    }
+    if (errors.length && specs.length === 0) return fail(`Nothing saved: ${errors.join("; ")}`);
+    if (ctx.client.flags.remindersOptOut) ctx.client = await setClientFlags(ctx.db, ctx.t, ctx.client, { remindersOptOut: undefined });
+    const rows = await setClientReminders(ctx.db, ctx.t, ctx.cfg, ctx.client.id, specs, new Date());
+    const tz = ctx.t.settings.timezone ?? ctx.cfg.TIMEZONE;
+    const summary = rows
+      .map((r) => {
+        const next = r.nextRunAt ? localStamp(r.nextRunAt, tz) : "none in the next two weeks (all chosen times fall in quiet hours or Shabbat)";
+        return `${r.kind} on days ${r.days.join(",")} at ${r.time}, next: ${next}`;
+      })
+      .join("; ");
+    const notes = [
+      rows.length ? `Saved: ${summary}.` : "Saved: no reminders.",
+      errors.length ? `Rejected: ${errors.join("; ")}.` : "",
+      "Reminders are not sent during quiet hours or (by default) on Shabbat.",
+      ctx.client.channel !== "whatsapp" ? "Note: this client isn't on WhatsApp, so reminders won't actually be sent." : "",
+    ];
+    return ok(notes.filter(Boolean).join(" "));
   },
 
   async escalate_to_coach(ctx, input) {

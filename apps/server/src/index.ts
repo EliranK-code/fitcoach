@@ -4,6 +4,9 @@ import {
   createAnthropicLlm,
   createApiForAccount,
   createEmbedder,
+  createTranscriber,
+  getCoachAccount,
+  ReminderScheduler,
   findAccountByPhoneNumberId,
   InboundWorker,
   loadConfig,
@@ -47,10 +50,20 @@ async function main() {
       if (!account || account.coachId !== t.coachId) throw new WhatsAppConfigError(`No WhatsApp account ${phoneNumberId} for this coach`);
       return createApiForAccount(t, account, cfg, printDryRun);
     },
+    transcriber: createTranscriber(cfg),
+  });
+  const scheduler = new ReminderScheduler({
+    db: handle.db,
+    cfg,
+    async apiFor(t) {
+      const account = await getCoachAccount(handle.db, t);
+      return account ? createApiForAccount(t, account, cfg, printDryRun) : null;
+    },
   });
 
   const server = buildServer({ db: handle.db, cfg });
   worker.start();
+  scheduler.start();
   await server.listen({ port: cfg.PORT, host: "0.0.0.0" });
 
   console.log(styleText("bold", `FitCoach server: http://localhost:${cfg.PORT}  (webhook: /webhook)`));
@@ -67,6 +80,7 @@ async function main() {
   const shutdown = async (signal: string) => {
     logger.info({ signal }, "shutting down");
     await server.close();
+    scheduler.stop();
     await worker.stop();
     await handle.close();
     process.exit(0);

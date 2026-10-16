@@ -42,6 +42,26 @@ export interface CoachSettings {
   consentText?: string;
   /** Recorded with every consent, so it's clear which wording a client agreed to. */
   consentVersion?: string;
+  reminders?: ReminderSettings;
+}
+
+export const REMINDER_KINDS = ["weigh_in", "workout", "checkin"] as const;
+export type ReminderKind = (typeof REMINDER_KINDS)[number];
+/** Everything a reminder message can be about: the client-scheduled kinds plus the automatic inactivity check-in. */
+export type ReminderMessageKind = ReminderKind | "inactivity";
+
+export interface ReminderSettings {
+  /** No reminders between these local times ("HH:MM"). Default 21:30–08:00. */
+  quietStart?: string;
+  quietEnd?: string;
+  /** Skip Friday afternoon to Saturday night. Default true. */
+  skipShabbat?: boolean;
+  /** Send a check-in after this many days without a message from the client; 0 = off. Default 4. */
+  inactivityDays?: number;
+  /** Free-form texts used inside the 24-hour window; {name} is replaced with the client's first name. */
+  texts?: Partial<Record<ReminderMessageKind, string>>;
+  /** Approved WhatsApp templates used outside the window ({{1}} = first name). Without one, that reminder is skipped. */
+  templates?: Partial<Record<ReminderMessageKind, { name: string; language: string }>>;
 }
 
 export const coachKnowledge = pgTable(
@@ -140,6 +160,10 @@ export interface ClientFlags {
   eatingDisorderRisk?: boolean;
   /** When the consent notice was sent; a "yes" only counts as consent after the client has seen it. */
   consentPromptedAt?: string;
+  /** The client asked not to receive any proactive messages. */
+  remindersOptOut?: boolean;
+  /** Last automatic inactivity check-in, so one quiet stretch gets one nudge. */
+  lastCheckinAt?: string;
   /** Set when the client asked to delete their data and we are waiting for confirmation. */
   pendingDeletionAt?: string;
 }
@@ -181,6 +205,8 @@ export const conversationEpochs = pgTable(
     status: text("status").notNull().default("active"),
     systemEnc: text("system_enc").notNull(),
     knowledgeVersion: integer("knowledge_version").notNull(),
+    /** Fingerprint of the platform rules and tool definitions the epoch was frozen with. */
+    platformHash: text("platform_hash").notNull().default(""),
     lastContextTokens: integer("last_context_tokens").notNull().default(0),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     lastActivityAt: timestamp("last_activity_at", { withTimezone: true }).notNull().defaultNow(),
@@ -428,6 +454,30 @@ export const usageEvents = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("usage_events_coach").on(t.coachId, t.createdAt)],
+);
+
+/**
+ * Proactive reminders a client asked for (weigh-in, workout days, weekly check-in). next_run_at is the
+ * next allowed occurrence in the coach's time zone, already skipping quiet hours and Shabbat.
+ */
+export const reminders = pgTable(
+  "reminders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    coachId: uuid("coach_id").notNull().references(() => coaches.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<ReminderKind>().notNull(),
+    /** 0 = Sunday … 6 = Saturday. */
+    days: jsonb("days").$type<number[]>().notNull(),
+    time: text("time").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    lastSentAt: timestamp("last_sent_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("reminders_client_kind").on(t.clientId, t.kind), index("reminders_next_run").on(t.nextRunAt)],
 );
 
 /** People who log into a coach's dashboard. Passwords are scrypt hashes; never stored or logged in clear. */

@@ -45,6 +45,7 @@ export async function createEpoch(
   t: TenantContext,
   clientId: string,
   system: SystemBlock[],
+  platformHash: string,
 ): Promise<Epoch> {
   const [last] = await db
     .select({ seq: max(conversationEpochs.seq) })
@@ -58,17 +59,26 @@ export async function createEpoch(
       seq: (last?.seq ?? 0) + 1,
       systemEnc: encryptJson(t, system),
       knowledgeVersion: t.knowledgeVersion,
+      platformHash,
     })
     .returning();
   if (!row) throw new Error("Epoch insert failed");
   return { row, system, messages: [] };
 }
 
+/**
+ * Closes an epoch and drops its raw history (messages, photos, the frozen profile snapshot): once it has
+ * been summarized into long-term memory nothing replays it, and keeping health data we no longer need
+ * isn't data minimization. The readable conversation stays in chat_messages.
+ */
 export async function closeEpoch(db: Db, t: TenantContext, epochId: string, reason: string): Promise<void> {
-  await db
-    .update(conversationEpochs)
-    .set({ status: "closed", closedAt: new Date(), closeReason: reason })
-    .where(and(eq(conversationEpochs.coachId, t.coachId), eq(conversationEpochs.id, epochId)));
+  await db.transaction(async (tx) => {
+    await tx.delete(llmMessages).where(and(eq(llmMessages.coachId, t.coachId), eq(llmMessages.epochId, epochId)));
+    await tx
+      .update(conversationEpochs)
+      .set({ status: "closed", closedAt: new Date(), closeReason: reason, systemEnc: encryptJson(t, []) })
+      .where(and(eq(conversationEpochs.coachId, t.coachId), eq(conversationEpochs.id, epochId)));
+  });
 }
 
 /**
@@ -80,7 +90,7 @@ export async function appendEpochMessages(
   t: TenantContext,
   epoch: Epoch,
   newMessages: MessageParam[],
-  stats: { contextTokens: number },
+  stats: { contextTokens: number; now: Date },
 ): Promise<void> {
   if (newMessages.length === 0) return;
   const startSeq = epoch.messages.length;
@@ -97,11 +107,11 @@ export async function appendEpochMessages(
     );
     await tx
       .update(conversationEpochs)
-      .set({ lastContextTokens: stats.contextTokens, lastActivityAt: new Date() })
+      .set({ lastContextTokens: stats.contextTokens, lastActivityAt: stats.now })
       .where(and(eq(conversationEpochs.coachId, t.coachId), eq(conversationEpochs.id, epoch.row.id)));
   });
   epoch.messages.push(...newMessages);
-  epoch.row = { ...epoch.row, lastContextTokens: stats.contextTokens, lastActivityAt: new Date() };
+  epoch.row = { ...epoch.row, lastContextTokens: stats.contextTokens, lastActivityAt: stats.now };
 }
 
 export type ChatSender = "client" | "bot" | "coach" | "system";

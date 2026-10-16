@@ -20,7 +20,7 @@ const SENDER: Record<ChatItem["sender"], { label: string; bubble: string }> = {
   client: { label: "לקוח/ה", bubble: "bg-white ring-1 ring-slate-200" },
   bot: { label: "בוט", bubble: "bg-emerald-50 ring-1 ring-emerald-100" },
   coach: { label: "את/ה (מאמן)", bubble: "bg-violet-50 ring-1 ring-violet-100" },
-  system: { label: "מערכת", bubble: "bg-slate-100" },
+  system: { label: "תזכורת אוטומטית", bubble: "bg-sky-50 ring-1 ring-sky-100" },
 };
 
 export function Conversation(props: {

@@ -6,7 +6,8 @@ import { DeleteClient } from "@/components/delete-client";
 import { Badge, Button, Card, SEVERITY_TONE, WhatsAppText } from "@/components/ui";
 import { WeightChart } from "@/components/weight-chart";
 import { clearFlagsAction, setPausedAction } from "@/lib/actions/clients";
-import { ALERT_TYPE_LABEL, CHANNEL_LABEL, CONSENT_LABEL, formatDateTime, GOAL_LABEL, SEVERITY_LABEL } from "@/lib/labels";
+import { stopClientRemindersAction } from "@/lib/actions/reminders";
+import { ALERT_TYPE_LABEL, CHANNEL_LABEL, DAY_NAMES, REMINDER_KIND_LABEL, CONSENT_LABEL, formatDateTime, GOAL_LABEL, SEVERITY_LABEL } from "@/lib/labels";
 import { clientDetail } from "@/lib/queries";
 import { requireSession } from "@/lib/session";
 
@@ -148,6 +149,36 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
         </div>
 
         <div className="space-y-6 lg:col-span-2">
+          <Card
+            title="תזכורות"
+            actions={
+              !d.client.flags.remindersOptOut && d.reminders.some((r) => r.enabled) ? (
+                <form action={stopClientRemindersAction.bind(null, id)}>
+                  <Button size="sm" variant="ghost">
+                    עצירת תזכורות
+                  </Button>
+                </form>
+              ) : undefined
+            }
+          >
+            {d.client.flags.remindersOptOut ? (
+              <p className="text-sm text-slate-500">הלקוח/ה ביקש/ה לא לקבל הודעות יזומות.</p>
+            ) : d.reminders.length === 0 ? (
+              <p className="text-sm text-slate-500">אין תזכורות. הבוט מציע אותן אחרי האונבורדינג.</p>
+            ) : (
+              <ul className="space-y-1.5 text-sm">
+                {d.reminders.map((r) => (
+                  <li key={r.id} className={r.enabled ? "" : "text-slate-400"}>
+                    <strong>{REMINDER_KIND_LABEL[r.kind] ?? r.kind}</strong> · ימים {r.days.map((day) => DAY_NAMES[day]).join(" ")} ·{" "}
+                    <span dir="ltr">{r.time}</span>
+                    {r.nextRunAt && <span className="text-slate-500"> · הבאה: {formatDateTime(r.nextRunAt, tz)}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {d.client.channel !== "whatsapp" && <p className="mt-2 text-xs text-slate-500">תזכורות נשלחות רק ללקוחות בוואטסאפ.</p>}
+          </Card>
+
           <Card title="פרופיל">
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
               {PROFILE_FIELDS.filter((f) => f.spec.kind !== "note").map((f) => {

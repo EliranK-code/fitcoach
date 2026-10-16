@@ -241,10 +241,10 @@ describe("WhatsApp pipeline", () => {
   it("answers media it can't read yet without calling the model", async () => {
     await consent();
     const before = app.llm.requests.length;
-    await receive(incoming("", { kind: "image", mediaId: "m1" }));
+    await receive(incoming("", { kind: "video", mediaId: "m1" }));
     await runDue();
     expect(app.llm.requests.length).toBe(before);
-    expect(textsSent().at(-1)?.body).toContain("רק הודעות טקסט");
+    expect(textsSent().at(-1)?.body).toContain("עוד לא יודע לקרוא");
   });
 
   it("human takeover: silent while paused, then the bot gets the record of what the coach said", async () => {

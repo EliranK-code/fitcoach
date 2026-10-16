@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
-import { CONSENT_VERSION, consentText, listAudit, PLATFORM_FLOOR, schema } from "@fitcoach/core";
+import { CONSENT_VERSION, consentText, listAudit, PLATFORM_FLOOR, resolveReminderSettings, schema } from "@fitcoach/core";
+import { ReminderSettingsForm } from "@/components/reminder-settings-form";
 import { CoachSettingsForm, ConsentForm, PasswordForm, WhatsAppConnectForm } from "@/components/settings-forms";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/labels";
@@ -67,6 +68,10 @@ export default async function SettingsPage() {
             version={s.t.settings.consentVersion ?? CONSENT_VERSION}
             custom={Boolean(s.t.settings.consentText)}
           />
+        </Card>
+
+        <Card title="תזכורות יזומות" className="lg:col-span-2">
+          <ReminderSettingsForm values={resolveReminderSettings(s.t.settings.reminders)} />
         </Card>
 
         <Card title="שימוש ב-30 הימים האחרונים">
