@@ -49,7 +49,12 @@ export async function loginAction(_prev: FormState, form: FormData): Promise<For
   const { handle } = await services();
   const result = await authenticate(handle.db, email, password);
   if (!result.ok) {
-    return { error: result.reason === "locked" ? "החשבון ננעל זמנית אחרי כמה ניסיונות כושלים. נסו שוב בעוד 15 דקות." : "אימייל או סיסמה שגויים" };
+    const errors = {
+      locked: "החשבון ננעל זמנית אחרי כמה ניסיונות כושלים. נסו שוב בעוד 15 דקות.",
+      suspended: "החשבון מושהה, והבוט לא עונה ללקוחות כרגע. לפרטים פנו לתמיכה.",
+      invalid: "אימייל או סיסמה שגויים",
+    };
+    return { error: errors[result.reason] };
   }
   const { token, expiresAt } = await createSession(handle.db, result.user);
   await setSessionCookie(token, expiresAt);

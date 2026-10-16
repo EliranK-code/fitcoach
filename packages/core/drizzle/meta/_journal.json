@@ -43,6 +43,13 @@
       "when": 1792175548402,
       "tag": "0005_tenant_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792180571645,
+      "tag": "0006_coach_lifecycle",
+      "breakpoints": true
     }
   ]
 }

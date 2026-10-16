@@ -73,10 +73,19 @@ export async function disableClientReminders(db: Db, t: TenantContext, clientId:
  */
 export async function claimDueReminders(db: Db, cfg: Pick<AppConfig, "TIMEZONE">, now: Date, limit = 50): Promise<ReminderRow[]> {
   return db.transaction(async (tx) => {
+    // A suspended coach's reminders stay put; resuming moves them to their next occurrence.
+    const activeCoaches = tx.select({ id: coaches.id }).from(coaches).where(eq(coaches.status, "active"));
     const due = await tx
       .select()
       .from(reminders)
-      .where(and(eq(reminders.enabled, true), isNotNull(reminders.nextRunAt), lte(reminders.nextRunAt, now)))
+      .where(
+        and(
+          eq(reminders.enabled, true),
+          isNotNull(reminders.nextRunAt),
+          lte(reminders.nextRunAt, now),
+          inArray(reminders.coachId, activeCoaches),
+        ),
+      )
       .orderBy(asc(reminders.nextRunAt))
       .limit(limit)
       .for("update", { skipLocked: true });

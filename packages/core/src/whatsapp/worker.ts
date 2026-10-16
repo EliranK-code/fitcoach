@@ -2,7 +2,9 @@ import type { AppConfig } from "../config";
 import type { Db } from "../db/client";
 import type { ConversationEngine, InboundMessage, UnsupportedKind } from "../engine/conversation";
 import { logger } from "../logger";
-import { clientPhone, getClient } from "../repos/clients";
+import { suspendedNoticeText, suspensionNoticeDue } from "../platform";
+import { clientPhone, getClient, setClientFlags } from "../repos/clients";
+import { logChatMessage } from "../repos/conversation";
 import { createAlert } from "../repos/ops";
 import { openTenant, type TenantContext } from "../tenancy";
 import { ImageError, prepareImage } from "../media/images";
@@ -173,7 +175,7 @@ export class InboundWorker {
   private async process(job: TurnJob): Promise<void> {
     const { db, engine } = this.deps;
     try {
-      const t = await openTenant(db, job.coachId);
+      const t = await openTenant(db, job.coachId, { allowSuspended: true });
       const client = await getClient(db, t, job.clientId);
       if (!client) return; // Deleted meanwhile; the job row went with it.
       const pending = await listPendingInbound(db, t, client.id);
@@ -183,6 +185,18 @@ export class InboundWorker {
       }
       const api = await this.deps.apiFor(t, job.phoneNumberId);
       const phone = clientPhone(t, client);
+      if (t.status === "suspended") {
+        // The coach was suspended: one fixed notice per suspension, no engine, no AI.
+        if (suspensionNoticeDue(t, client)) {
+          const notice = suspendedNoticeText(t.coachName);
+          const sent = await api.sendText(phone, notice);
+          await logChatMessage(db, t, { clientId: client.id, direction: "out", sender: "system", body: notice, externalId: sent.messageId ?? undefined, status: "sent" });
+          await setClientFlags(db, t, client, { suspensionNoticeAt: this.now().toISOString() });
+        }
+        await markInbound(db, pending.map((m) => m.id), "done");
+        await finishJob(db, client.id);
+        return;
+      }
       api.markRead(pending.at(-1)!.externalId, true).catch((err) => logger.warn({ err }, "markRead failed"));
 
       for (const group of groupInbound(pending)) {

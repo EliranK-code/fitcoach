@@ -15,9 +15,13 @@ export interface TenantContext extends CipherScope {
   coachName: string;
   settings: CoachSettings;
   knowledgeVersion: number;
+  status: "active" | "suspended";
+  suspendedAt: Date | null;
 }
 
 export class TenantNotFoundError extends Error {}
+/** The coach exists but is suspended: no logins, no AI. Only platform paths open it (allowSuspended). */
+export class CoachSuspendedError extends TenantNotFoundError {}
 
 const dekCache = new Map<string, Buffer>();
 
@@ -48,20 +52,32 @@ async function toContext(row: typeof coaches.$inferSelect): Promise<TenantContex
     coachName: row.name,
     settings: row.settings,
     knowledgeVersion: row.knowledgeVersion,
+    status: row.status === "suspended" ? "suspended" : "active",
+    suspendedAt: row.suspendedAt,
     dek,
   };
 }
 
-export async function openTenant(db: Db, coachId: string): Promise<TenantContext> {
-  const [row] = await db.select().from(coaches).where(eq(coaches.id, coachId));
-  if (!row || row.status !== "active") throw new TenantNotFoundError(`Coach ${coachId} not found`);
-  return toContext(row);
+interface OpenOptions {
+  /** For platform paths that act on a suspended coach (the "service unavailable" notice). */
+  allowSuspended?: boolean;
 }
 
-export async function openTenantBySlug(db: Db, slug: string): Promise<TenantContext> {
+function checkOpen(row: typeof coaches.$inferSelect | undefined, label: string, opts: OpenOptions): typeof coaches.$inferSelect {
+  if (!row) throw new TenantNotFoundError(`Coach ${label} not found`);
+  if (row.status === "suspended" && !opts.allowSuspended) throw new CoachSuspendedError(`המאמן ${row.slug} מושהה`);
+  if (row.status !== "active" && row.status !== "suspended") throw new TenantNotFoundError(`Coach ${label} not found`);
+  return row;
+}
+
+export async function openTenant(db: Db, coachId: string, opts: OpenOptions = {}): Promise<TenantContext> {
+  const [row] = await db.select().from(coaches).where(eq(coaches.id, coachId));
+  return toContext(checkOpen(row, coachId, opts));
+}
+
+export async function openTenantBySlug(db: Db, slug: string, opts: OpenOptions = {}): Promise<TenantContext> {
   const [row] = await db.select().from(coaches).where(eq(coaches.slug, slug));
-  if (!row || row.status !== "active") throw new TenantNotFoundError(`Coach "${slug}" not found`);
-  return toContext(row);
+  return toContext(checkOpen(row, `"${slug}"`, opts));
 }
 
 /** Updates the coach's display name and/or merges settings (undefined values remove a setting). */
@@ -90,4 +106,9 @@ export async function refreshTenant(db: Db, tenant: TenantContext): Promise<Tena
 
 export function forgetTenantKeys(): void {
   dekCache.clear();
+}
+
+/** Drops one coach's unwrapped key from this process (after the coach is deleted). */
+export function forgetTenantKey(coachId: string): void {
+  dekCache.delete(coachId);
 }

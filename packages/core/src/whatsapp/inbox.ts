@@ -4,9 +4,10 @@ import type { Db } from "../db/client";
 import { withTenant } from "../db/scope";
 import { inboundMessages, turnJobs } from "../db/schema";
 import { logger } from "../logger";
-import { findOrCreateClient } from "../repos/clients";
+import { suspensionNoticeDue } from "../platform";
+import { findClientByPhone, findOrCreateClient } from "../repos/clients";
 import { applyDeliveryStatus } from "../repos/conversation";
-import { openTenant, type TenantContext } from "../tenancy";
+import { openTenant, TenantNotFoundError, type TenantContext } from "../tenancy";
 import { findAccountByPhoneNumberId } from "./accounts";
 import type { InboundKind, InboundWaMessage, StatusUpdate } from "./webhook";
 
@@ -28,6 +29,8 @@ export interface EnqueueStats {
   duplicates: number;
   ignored: number;
   unknownNumber: number;
+  /** Messages to a suspended coach that need no notice (already sent, or not an existing client). */
+  suspended: number;
 }
 
 export async function enqueueInbound(
@@ -35,9 +38,9 @@ export async function enqueueInbound(
   messages: InboundWaMessage[],
   opts: { debounceMs: number; now?: Date },
 ): Promise<EnqueueStats> {
-  const stats: EnqueueStats = { queued: 0, duplicates: 0, ignored: 0, unknownNumber: 0 };
+  const stats: EnqueueStats = { queued: 0, duplicates: 0, ignored: 0, unknownNumber: 0, suspended: 0 };
   const now = opts.now ?? new Date();
-  const tenants = new Map<string, TenantContext>();
+  const tenants = new Map<string, TenantContext | null>();
 
   for (const msg of messages) {
     if (IGNORED_KINDS.has(msg.kind)) {
@@ -45,18 +48,31 @@ export async function enqueueInbound(
       continue;
     }
     const account = await findAccountByPhoneNumberId(db, msg.phoneNumberId);
-    if (!account) {
+    let t = account ? tenants.get(account.coachId) : null;
+    if (account && t === undefined) {
+      // A coach deleted between the lookup and here is just an unknown number: never fail the whole batch.
+      t = await openTenant(db, account.coachId, { allowSuspended: true }).catch((err) => {
+        if (err instanceof TenantNotFoundError) return null;
+        throw err;
+      });
+      tenants.set(account.coachId, t);
+    }
+    if (!t) {
       stats.unknownNumber++;
       logger.warn({ phoneNumberId: msg.phoneNumberId }, "message for a number that isn't connected to any coach");
       continue;
     }
-    let t = tenants.get(account.coachId);
-    if (!t) {
-      t = await openTenant(db, account.coachId);
-      tenants.set(account.coachId, t);
+
+    // While a coach is suspended: no AI and nothing new stored. An existing client gets one fixed notice from the worker.
+    const suspended = t.status === "suspended";
+    const client = suspended
+      ? await findClientByPhone(db, t, msg.from)
+      : (await findOrCreateClient(db, t, { phone: msg.from, channel: "whatsapp" })).client;
+    if (!client || (suspended && !suspensionNoticeDue(t, client))) {
+      stats.suspended++;
+      continue;
     }
-    const { client } = await findOrCreateClient(db, t, { phone: msg.from, channel: "whatsapp" });
-    const body: StoredBody = { text: msg.text, buttonId: msg.buttonId, mediaId: msg.mediaId, mimeType: msg.mimeType };
+    const body: StoredBody = suspended ? {} : { text: msg.text, buttonId: msg.buttonId, mediaId: msg.mediaId, mimeType: msg.mimeType };
     const runAt = new Date(now.getTime() + opts.debounceMs);
 
     const queued = await withTenant(db, t, async (tx) => {

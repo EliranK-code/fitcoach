@@ -7,7 +7,7 @@ import type { AppConfig } from "../config";
 import type { Db } from "../db/client";
 import { textOf, type LlmClient } from "../llm/client";
 import { recordUsage } from "../repos/ops";
-import { createCoach, openTenant, openTenantBySlug, TenantNotFoundError, type TenantContext } from "../tenancy";
+import { CoachSuspendedError, createCoach, openTenant, openTenantBySlug, TenantNotFoundError, type TenantContext } from "../tenancy";
 import type { Embedder } from "./embeddings";
 import { coachKnowledgeSchema } from "./schema";
 import { publishKnowledge, type KnowledgeDocumentInput } from "./store";
@@ -110,7 +110,7 @@ export async function importCoachFromDir(
   try {
     tenant = await openTenantBySlug(db, slug);
   } catch (err) {
-    if (!(err instanceof TenantNotFoundError)) throw err;
+    if (!(err instanceof TenantNotFoundError) || err instanceof CoachSuspendedError) throw err;
     tenant = await openTenant(db, await createCoach(db, { slug, name: data.coach.name }));
     created = true;
   }

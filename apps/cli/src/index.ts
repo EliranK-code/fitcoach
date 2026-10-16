@@ -13,6 +13,11 @@ import {
   createApiForAccount,
   createEmbedder,
   deleteClientData,
+  deleteCoach,
+  findCoachBySlug,
+  listCoaches,
+  resumeCoach,
+  suspendCoach,
   exportClientData,
   findClientByPhone,
   generateKeyBase64,
@@ -66,7 +71,14 @@ const USAGE = `שימוש: npm run <פקודה> -- [אפשרויות]
   export <phone>                 ייצוא כל המידע של לקוח
   delete <phone>                 מחיקה מלאה של לקוח
   purge                          מחיקת לקוחות לא פעילים לפי RETENTION_MONTHS
-  sample-data [--remove]         לקוחות לדוגמה לדשבורד (בלי AI), או הסרתם`;
+  sample-data [--remove]         לקוחות לדוגמה לדשבורד (בלי AI), או הסרתם
+
+ניהול מאמנים (פלטפורמה):
+  coach:list                     כל המאמנים: סטטוס, לקוחות ושימוש החודש
+  coach:suspend <slug>           השעיה: הבוט לא עונה (הודעה קבועה אחת ללקוח), אין התחברות, התזכורות נעצרות
+  coach:resume <slug>            ביטול ההשעיה
+  coach:delete <slug> --confirm <slug>
+                                 מחיקה לצמיתות של מאמן מושהה וכל המידע שלו`;
 
 function setup() {
   if (!existsSync(".env")) {
@@ -160,6 +172,7 @@ async function main() {
       lang: { type: "string", default: "he" },
       params: { type: "string" },
       email: { type: "string" },
+      confirm: { type: "string" },
       debug: { type: "boolean", default: false },
       "no-bidi": { type: "boolean", default: false },
       new: { type: "boolean", default: false },
@@ -196,6 +209,34 @@ async function main() {
       case "chat": {
         const phone = values.new ? `cli-${Math.random().toString(36).slice(2, 8)}` : (values.phone ?? "cli-demo-1");
         return await runChat(app, { coach: values.coach!, phone, debug: values.debug!, bidi: !values["no-bidi"] });
+      }
+      case "coach:list": {
+        for (const c of await listCoaches(db)) {
+          const status = c.status === "suspended" ? styleText("yellow", `מושהה מ-${c.suspendedAt?.toISOString().slice(0, 10)}`) : "פעיל";
+          console.log(`${c.slug}  ${c.name}  ${status}  לקוחות:${c.clients}  טוקנים החודש:${c.monthTokens.toLocaleString("he-IL")}`);
+        }
+        return;
+      }
+      case "coach:suspend":
+      case "coach:resume":
+      case "coach:delete": {
+        // The slug is positional on purpose: these never fall back to the default --coach.
+        const slug = positionals[0];
+        if (!slug) throw new Error(`חסר slug: npm run admin -- ${command} <slug>`);
+        const coach = await findCoachBySlug(db, slug);
+        if (command === "coach:suspend") {
+          const done = await suspendCoach(db, coach.id, "cli");
+          return console.log(done ? `${coach.name} (${slug}) הושעה. הסשנים נותקו, והתור והתזכורות נעצרו.` : `${slug} כבר מושהה.`);
+        }
+        if (command === "coach:resume") {
+          const done = await resumeCoach(db, coach.id, "cli", app.cfg);
+          return console.log(done ? `${coach.name} (${slug}) פעיל שוב.` : `${slug} לא היה מושהה.`);
+        }
+        const summary = await deleteCoach(db, coach.id, { actor: "cli", confirmSlug: values.confirm ?? "" });
+        const tokens = summary.usage.reduce((sum, u) => sum + u.inputTokens + u.outputTokens, 0);
+        return console.log(
+          `${summary.name} (${slug}) נמחק לצמיתות, עם ${summary.clients} לקוחות. סיכום השימוש (${tokens.toLocaleString("he-IL")} טוקנים) נשמר ב-platform_audit.`,
+        );
       }
     }
 

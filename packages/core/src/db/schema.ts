@@ -23,7 +23,9 @@ export const coaches = pgTable("coaches", {
   id: uuid("id").primaryKey().defaultRandom(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
+  /** active | suspended. A suspended coach can't log in and the bot doesn't answer their clients. */
   status: text("status").notNull().default("active"),
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
   /** Coach-level settings: calorie floors, consent text version, timezone. */
   settings: jsonb("settings").$type<CoachSettings>().notNull().default({}),
   /** The coach's data-encryption key, wrapped by the master key. Deleting it crypto-shreds the coach's data. */
@@ -164,6 +166,8 @@ export interface ClientFlags {
   remindersOptOut?: boolean;
   /** Last automatic inactivity check-in, so one quiet stretch gets one nudge. */
   lastCheckinAt?: string;
+  /** When this client got the "service unavailable" notice, so one suspension gets one notice. */
+  suspensionNoticeAt?: string;
   /** Set when the client asked to delete their data and we are waiting for confirmation. */
   pendingDeletionAt?: string;
 }
@@ -527,5 +531,23 @@ export const auditLog = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("audit_log_coach").on(t.coachId, t.createdAt)],
+);
+
+/**
+ * Platform operations on coaches (suspend, resume, delete). No FK to coaches: a deletion record, with the
+ * usage summary needed for billing, outlives the coach. Tenants have no access to it (migration 0006).
+ */
+export const platformAudit = pgTable(
+  "platform_audit",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    actor: text("actor").notNull(),
+    action: text("action").notNull(),
+    coachId: uuid("coach_id"),
+    coachSlug: text("coach_slug"),
+    meta: jsonb("meta").notNull().default(sql`'{}'::jsonb`),
+    createdAt: createdAt(),
+  },
+  (t) => [index("platform_audit_created").on(t.createdAt)],
 );
 

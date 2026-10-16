@@ -1,7 +1,7 @@
 import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from "node:crypto";
 import { and, eq, gt, lt } from "drizzle-orm";
 import type { Db } from "./db/client";
-import { coachUsers, sessions } from "./db/schema";
+import { coaches, coachUsers, sessions } from "./db/schema";
 
 // Dashboard authentication: email + password, server-side sessions. Kept in our own database so the
 // dashboard works the same on local PGlite and on Supabase, and every session is bound to one coach.
@@ -81,7 +81,7 @@ export async function setPassword(db: Db, userId: string, password: string): Pro
 // Equalizes timing between "no such user" and "wrong password", so the login form can't probe for emails.
 let dummyHash: Promise<string> | undefined;
 
-export type LoginResult = { ok: true; user: CoachUser } | { ok: false; reason: "invalid" | "locked" };
+export type LoginResult = { ok: true; user: CoachUser } | { ok: false; reason: "invalid" | "locked" | "suspended" };
 
 export async function authenticate(db: Db, email: string, password: string, now = new Date()): Promise<LoginResult> {
   const user = await findUserByEmail(db, email);
@@ -101,6 +101,9 @@ export async function authenticate(db: Db, email: string, password: string, now 
       .where(eq(coachUsers.id, user.id));
     return { ok: false, reason: locked ? "locked" : "invalid" };
   }
+  // Checked only after the password, so the account's status isn't revealed to someone guessing.
+  const [coach] = await db.select({ status: coaches.status }).from(coaches).where(eq(coaches.id, user.coachId));
+  if (coach?.status !== "active") return { ok: false, reason: "suspended" };
 
   await db.update(coachUsers).set({ failedAttempts: 0, lockedUntil: null, lastLoginAt: now }).where(eq(coachUsers.id, user.id));
   return { ok: true, user };
@@ -130,7 +133,8 @@ export async function validateSession(db: Db, token: string | undefined, now = n
     .select({ session: sessions, user: coachUsers })
     .from(sessions)
     .innerJoin(coachUsers, eq(coachUsers.id, sessions.userId))
-    .where(and(eq(sessions.id, tokenId(token)), gt(sessions.expiresAt, now)));
+    .innerJoin(coaches, eq(coaches.id, sessions.coachId))
+    .where(and(eq(sessions.id, tokenId(token)), gt(sessions.expiresAt, now), eq(coaches.status, "active")));
   if (!row) return null;
   if (now.getTime() - row.session.lastSeenAt.getTime() > 5 * 60_000) {
     await db.update(sessions).set({ lastSeenAt: now }).where(eq(sessions.id, row.session.id));

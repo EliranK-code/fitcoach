@@ -17,6 +17,7 @@ export * from "./knowledge/store";
 export * from "./llm/client";
 export * from "./llm/prompts";
 export * from "./logger";
+export * from "./platform";
 export * from "./privacy";
 export * from "./profile";
 export * from "./repos/clients";
