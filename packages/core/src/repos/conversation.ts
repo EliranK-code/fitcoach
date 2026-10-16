@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { and, asc, desc, eq, max } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
 import { decryptJson, decryptOptional, encryptJson, encryptOptional } from "../crypto.js";
 import type { Db } from "../db/client.js";
 import { chatMessages, conversationEpochs, llmMessages } from "../db/schema.js";
@@ -112,9 +112,11 @@ export interface ChatMessage {
   sender: ChatSender;
   kind: string;
   body: string | null;
+  status: string | null;
   createdAt: Date;
 }
 
+/** Logs a message to the readable conversation and returns its id (used to attach delivery status later). */
 export async function logChatMessage(
   db: Db,
   t: TenantContext,
@@ -125,18 +127,85 @@ export async function logChatMessage(
     body: string | null;
     kind?: string;
     externalId?: string;
+    status?: string;
+    botSeen?: boolean;
   },
-): Promise<void> {
-  await db.insert(chatMessages).values({
-    coachId: t.coachId,
-    clientId: input.clientId,
-    direction: input.direction,
-    sender: input.sender,
-    kind: input.kind ?? "text",
-    bodyEnc: encryptOptional(t, input.body),
-    externalId: input.externalId,
-  });
+): Promise<string> {
+  const [row] = await db
+    .insert(chatMessages)
+    .values({
+      coachId: t.coachId,
+      clientId: input.clientId,
+      direction: input.direction,
+      sender: input.sender,
+      kind: input.kind ?? "text",
+      bodyEnc: encryptOptional(t, input.body),
+      externalId: input.externalId,
+      status: input.status,
+      botSeen: input.botSeen ?? true,
+    })
+    .returning({ id: chatMessages.id });
+  if (!row) throw new Error("Chat message insert failed");
+  return row.id;
 }
+
+/** Records the provider's message id and status after an outbound message was handed to WhatsApp. */
+export async function setChatDelivery(
+  db: Db,
+  t: TenantContext,
+  messageId: string,
+  delivery: { externalId: string | null; status: string },
+): Promise<void> {
+  await db
+    .update(chatMessages)
+    .set({ externalId: delivery.externalId, status: delivery.status })
+    .where(and(eq(chatMessages.coachId, t.coachId), eq(chatMessages.id, messageId)));
+}
+
+const STATUS_RANK: Record<string, number> = { sent: 1, delivered: 2, read: 3, failed: 4 };
+
+/**
+ * Applies a WhatsApp status webhook. Statuses can arrive out of order, so a status only replaces a "lower"
+ * one (sent < delivered < read; failed always wins). Not tenant-scoped: the provider id is globally unique.
+ */
+export async function applyDeliveryStatus(db: Db, externalId: string, status: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: chatMessages.id, status: chatMessages.status })
+    .from(chatMessages)
+    .where(eq(chatMessages.externalId, externalId));
+  if (!row) return false;
+  if ((STATUS_RANK[status] ?? 0) <= (STATUS_RANK[row.status ?? ""] ?? 0)) return true;
+  await db.update(chatMessages).set({ status }).where(eq(chatMessages.id, row.id));
+  return true;
+}
+
+/** Messages the model hasn't seen yet (coach messages, messages during a pause), oldest first. */
+export async function listUnseenChatMessages(db: Db, t: TenantContext, clientId: string): Promise<ChatMessage[]> {
+  const rows = await db
+    .select()
+    .from(chatMessages)
+    .where(and(eq(chatMessages.coachId, t.coachId), eq(chatMessages.clientId, clientId), eq(chatMessages.botSeen, false)))
+    .orderBy(asc(chatMessages.createdAt));
+  return rows.map(toChatMessage(t));
+}
+
+export async function markChatMessagesSeen(db: Db, t: TenantContext, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db
+    .update(chatMessages)
+    .set({ botSeen: true })
+    .where(and(eq(chatMessages.coachId, t.coachId), inArray(chatMessages.id, ids)));
+}
+
+const toChatMessage = (t: TenantContext) => (r: typeof chatMessages.$inferSelect): ChatMessage => ({
+  id: r.id,
+  direction: r.direction as "in" | "out",
+  sender: r.sender as ChatSender,
+  kind: r.kind,
+  body: decryptOptional(t, r.bodyEnc),
+  status: r.status,
+  createdAt: r.createdAt,
+});
 
 export async function listChatMessages(
   db: Db,
@@ -150,12 +219,5 @@ export async function listChatMessages(
     .where(and(eq(chatMessages.coachId, t.coachId), eq(chatMessages.clientId, clientId)))
     .orderBy(desc(chatMessages.createdAt))
     .limit(limit);
-  return rows.reverse().map((r) => ({
-    id: r.id,
-    direction: r.direction as "in" | "out",
-    sender: r.sender as ChatSender,
-    kind: r.kind,
-    body: decryptOptional(t, r.bodyEnc),
-    createdAt: r.createdAt,
-  }));
+  return rows.reverse().map(toChatMessage(t));
 }

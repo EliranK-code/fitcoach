@@ -16,6 +16,8 @@
     "chat": "tsx apps/cli/src/index.ts chat",
     "coach:import": "tsx apps/cli/src/index.ts coach:import",
     "admin": "tsx apps/cli/src/index.ts",
+    "server": "tsx apps/server/src/index.ts",
+    "wa:simulate": "tsx apps/cli/src/index.ts wa:simulate",
     "db:generate": "drizzle-kit generate --config packages/core/drizzle.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

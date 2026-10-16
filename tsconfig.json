@@ -15,5 +15,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["packages/*/src", "packages/*/test", "apps/cli/src", "apps/cli/test", "packages/core/drizzle.config.ts", "vitest.config.ts", "vitest.live.config.ts"]
+  "include": ["packages/*/src", "packages/*/test", "apps/cli/src", "apps/cli/test", "apps/server/src", "apps/server/test", "packages/core/drizzle.config.ts", "vitest.config.ts", "vitest.live.config.ts"]
 }

@@ -134,6 +134,8 @@ export const clients = pgTable(
 export interface ClientFlags {
   minor?: boolean;
   eatingDisorderRisk?: boolean;
+  /** When the consent notice was sent; a "yes" only counts as consent after the client has seen it. */
+  consentPromptedAt?: string;
   /** Set when the client asked to delete their data and we are waiting for confirmation. */
   pendingDeletionAt?: string;
 }
@@ -220,10 +222,61 @@ export const chatMessages = pgTable(
     kind: text("kind").notNull().default("text"),
     bodyEnc: text("body_enc"),
     externalId: text("external_id").unique(),
+    /** Delivery status from WhatsApp for outbound messages: sent, delivered, read, failed. */
     status: text("status"),
+    /**
+     * false for messages the bot's model hasn't seen: the coach's own messages and client messages that
+     * arrived while the bot was paused. They are handed to the model as a record on its next turn.
+     */
+    botSeen: boolean("bot_seen").notNull().default(true),
     createdAt: createdAt(),
   },
   (t) => [index("chat_messages_client").on(t.clientId, t.createdAt)],
+);
+
+/**
+ * Raw inbound WhatsApp messages, stored by the webhook before it answers Meta. The external id makes
+ * redelivered webhooks a no-op. Bodies are cleared once processed; chat_messages keeps the readable log.
+ */
+export const inboundMessages = pgTable(
+  "inbound_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    coachId: uuid("coach_id").notNull().references(() => coaches.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    phoneNumberId: text("phone_number_id").notNull(),
+    externalId: text("external_id").notNull().unique(),
+    kind: text("kind").notNull(),
+    bodyEnc: text("body_enc"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+    status: text("status").notNull().default("pending"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("inbound_messages_client_status").on(t.clientId, t.status, t.sentAt)],
+);
+
+/**
+ * One row per client with unprocessed inbound messages. The webhook pushes run_at forward on every new
+ * message (debounce), and the worker claims rows with FOR UPDATE SKIP LOCKED, so each client's messages
+ * are handled one turn at a time, in order. Works the same on PGlite and on Supabase.
+ */
+export const turnJobs = pgTable(
+  "turn_jobs",
+  {
+    clientId: uuid("client_id")
+      .primaryKey()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    coachId: uuid("coach_id").notNull().references(() => coaches.id, { onDelete: "cascade" }),
+    phoneNumberId: text("phone_number_id").notNull(),
+    runAt: timestamp("run_at", { withTimezone: true }).notNull(),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("turn_jobs_run_at").on(t.runAt)],
 );
 
 export const weightLogs = pgTable(

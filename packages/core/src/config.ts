@@ -30,6 +30,21 @@ const envSchema = z.object({
   RETENTION_MONTHS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(24)),
   TIMEZONE: z.preprocess(emptyToUndefined, z.string().default("Asia/Jerusalem")),
   LOG_LEVEL: z.preprocess(emptyToUndefined, z.string().default("warn")),
+
+  // WhatsApp Cloud API (stage 2)
+  /** System-user token for numbers managed under the platform's Meta account. */
+  WHATSAPP_ACCESS_TOKEN: optionalString,
+  /** App secret: verifies X-Hub-Signature-256 on every webhook. Without it the webhook rejects everything. */
+  WHATSAPP_APP_SECRET: optionalString,
+  /** Shared secret Meta echoes when you register the webhook URL. */
+  WHATSAPP_VERIFY_TOKEN: optionalString,
+  WHATSAPP_GRAPH_VERSION: z.preprocess(emptyToUndefined, z.string().default("v23.0")),
+  /** Log outgoing messages instead of calling Meta: lets you run the whole pipeline locally. */
+  WHATSAPP_DRY_RUN: z.preprocess((v) => v === "true" || v === "1", z.boolean()),
+  PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(3000)),
+  /** Wait this long after a client's last message before answering, so bursts become one turn. */
+  INBOUND_DEBOUNCE_MS: z.preprocess(emptyToUndefined, z.coerce.number().int().nonnegative().default(4000)),
+  WORKER_CONCURRENCY: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(4)),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

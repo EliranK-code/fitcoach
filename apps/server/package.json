@@ -1,0 +1,10 @@
+{
+  "name": "@fitcoach/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fitcoach/core": "*",
+    "fastify": "^5.12.7"
+  }
+}

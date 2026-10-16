@@ -3,8 +3,11 @@ import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { styleText } from "node:util";
 import {
+  audit,
   describeProfile,
   exportClientData,
+  logChatMessage,
+  updateClient,
   findClientByPhone,
   getActiveMealPlan,
   getActiveWorkoutPlan,
@@ -36,7 +39,12 @@ const HELP = `פקודות:
 /debug     להציג או להסתיר קריאות לכלים ושימוש בטוקנים
 /new       להתחיל כלקוח חדש
 /help      העזרה הזאת
-/quit      יציאה`;
+/quit      יציאה
+
+בתפקיד המאמן (השתלטות על השיחה):
+/pause         להשהות את הבוט ללקוח הזה
+/coach <טקסט>  לכתוב ללקוח הודעה בשם המאמן
+/resume        להחזיר את הבוט (הוא יקבל את מה שנאמר בזמן ההשהיה)`;
 
 const SEVERITY_HE: Record<string, string> = { low: "נמוכה", medium: "בינונית", high: "גבוהה", urgent: "דחופה" };
 
@@ -95,7 +103,7 @@ export async function runChat(app: App, opts: ChatOptions): Promise<void> {
       const cmd = line.slice(1).split(/\s+/)[0]?.toLowerCase() ?? "";
       if (cmd === "quit" || cmd === "exit") break;
       try {
-        const result = await runCommand(app, t, phone, cmd, { print, debug });
+        const result = await runCommand(app, t, phone, cmd, line.slice(cmd.length + 1).trim(), { print, debug });
         if (result === "toggle-debug") {
           debug = !debug;
           print(debug ? "מצב debug פעיל" : "מצב debug כבוי", "gray");
@@ -172,6 +180,7 @@ async function runCommand(
   t: TenantContext,
   phone: string,
   cmd: string,
+  arg: string,
   ui: { print: (text: string, color?: Color) => void; debug: boolean },
 ): Promise<"toggle-debug" | "new-client" | "delete-me" | void> {
   const { db } = app.handle;
@@ -233,6 +242,24 @@ async function runCommand(
       print("מסכם ופותח אפיזודה חדשה…", "gray");
       const events = await app.engine.compact(t.coachId, client.id);
       return print(events.length ? "בוצע. השתמשו ב-/summary כדי לראות את הסיכום." : "אין מה לסכם.", "gray");
+    }
+    case "pause":
+    case "resume": {
+      const paused = cmd === "pause";
+      await updateClient(db, t, client.id, { botPaused: paused, pausedAt: paused ? new Date() : null });
+      await audit(db, t, { actor: "cli-coach", action: paused ? "bot_paused" : "bot_resumed", targetType: "client", targetId: client.id });
+      return print(
+        paused
+          ? "(מאמן) הבוט מושהה. הודעות הלקוח יגיעו כהתראות; ענו עם /coach <טקסט>."
+          : "(מאמן) הבוט חזר. בהודעה הבאה הוא יקבל את מה שנאמר בזמן ההשהיה.",
+        "magenta",
+      );
+    }
+    case "coach": {
+      if (!arg) return print("כתבו: /coach <ההודעה של המאמן>", "gray");
+      // In the CLI there's no WhatsApp to send through: log it the way a real coach message is logged.
+      await logChatMessage(db, t, { clientId: client.id, direction: "out", sender: "coach", body: arg, botSeen: false });
+      return print(`👤 ${t.coachName} (מאמן): ${arg}`, "magenta");
     }
     case "export": {
       const data = await exportClientData(db, t, client.id, "cli");
