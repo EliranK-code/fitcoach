@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, max } from "drizzle-orm";
 import { decryptOptional, decryptText, encryptOptional, encryptText } from "../crypto";
 import type { Db } from "../db/client";
+import { withTenant } from "../db/scope";
 import {
   mealLogs,
   mealPlans,
@@ -16,18 +17,20 @@ const scope = <T extends { coachId: unknown; clientId: unknown }>(table: T, t: T
   and(eq(table.coachId as never, t.coachId), eq(table.clientId as never, clientId));
 
 export async function addWeight(db: Db, t: TenantContext, clientId: string, weightKg: number, measuredOn: string) {
-  await db.insert(weightLogs).values({ coachId: t.coachId, clientId, weightKg, measuredOn });
+  await withTenant(db, t, (db) => db.insert(weightLogs).values({ coachId: t.coachId, clientId, weightKg, measuredOn }));
 }
 
 export async function listWeights(db: Db, t: TenantContext, clientId: string, sinceDate?: string) {
   const where = sinceDate
     ? and(scope(weightLogs, t, clientId), gte(weightLogs.measuredOn, sinceDate))
     : scope(weightLogs, t, clientId);
-  return db
-    .select({ weightKg: weightLogs.weightKg, measuredOn: weightLogs.measuredOn })
-    .from(weightLogs)
-    .where(where)
-    .orderBy(asc(weightLogs.measuredOn), asc(weightLogs.createdAt));
+  return withTenant(db, t, (db) =>
+    db
+      .select({ weightKg: weightLogs.weightKg, measuredOn: weightLogs.measuredOn })
+      .from(weightLogs)
+      .where(where)
+      .orderBy(asc(weightLogs.measuredOn), asc(weightLogs.createdAt)),
+  );
 }
 
 export async function addMeal(
@@ -36,22 +39,26 @@ export async function addMeal(
   clientId: string,
   meal: { eatenOn: string; mealType: string; description: string; estCalories: number | null; estProteinG: number | null },
 ) {
-  await db.insert(mealLogs).values({
-    coachId: t.coachId,
-    clientId,
-    eatenOn: meal.eatenOn,
-    mealType: meal.mealType,
-    descriptionEnc: encryptText(t, meal.description),
-    estCalories: meal.estCalories,
-    estProteinG: meal.estProteinG,
-  });
+  await withTenant(db, t, (db) =>
+    db.insert(mealLogs).values({
+      coachId: t.coachId,
+      clientId,
+      eatenOn: meal.eatenOn,
+      mealType: meal.mealType,
+      descriptionEnc: encryptText(t, meal.description),
+      estCalories: meal.estCalories,
+      estProteinG: meal.estProteinG,
+    }),
+  );
 }
 
 export async function listMeals(db: Db, t: TenantContext, clientId: string, sinceDate?: string) {
   const where = sinceDate
     ? and(scope(mealLogs, t, clientId), gte(mealLogs.eatenOn, sinceDate))
     : scope(mealLogs, t, clientId);
-  const rows = await db.select().from(mealLogs).where(where).orderBy(asc(mealLogs.eatenOn), asc(mealLogs.createdAt));
+  const rows = await withTenant(db, t, (db) =>
+    db.select().from(mealLogs).where(where).orderBy(asc(mealLogs.eatenOn), asc(mealLogs.createdAt)),
+  );
   return rows.map((r) => ({
     eatenOn: r.eatenOn,
     mealType: r.mealType,
@@ -67,26 +74,30 @@ export async function addWorkout(
   clientId: string,
   w: { performedOn: string; title: string; durationMin: number | null; exercises: LoggedExercise[]; notes: string | null },
 ) {
-  await db.insert(workoutLogs).values({
-    coachId: t.coachId,
-    clientId,
-    performedOn: w.performedOn,
-    title: w.title,
-    durationMin: w.durationMin,
-    exercises: w.exercises,
-    notesEnc: encryptOptional(t, w.notes),
-  });
+  await withTenant(db, t, (db) =>
+    db.insert(workoutLogs).values({
+      coachId: t.coachId,
+      clientId,
+      performedOn: w.performedOn,
+      title: w.title,
+      durationMin: w.durationMin,
+      exercises: w.exercises,
+      notesEnc: encryptOptional(t, w.notes),
+    }),
+  );
 }
 
 export async function listWorkouts(db: Db, t: TenantContext, clientId: string, sinceDate?: string) {
   const where = sinceDate
     ? and(scope(workoutLogs, t, clientId), gte(workoutLogs.performedOn, sinceDate))
     : scope(workoutLogs, t, clientId);
-  const rows = await db
-    .select()
-    .from(workoutLogs)
-    .where(where)
-    .orderBy(asc(workoutLogs.performedOn), asc(workoutLogs.createdAt));
+  const rows = await withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(workoutLogs)
+      .where(where)
+      .orderBy(asc(workoutLogs.performedOn), asc(workoutLogs.createdAt)),
+  );
   return rows.map((r) => ({
     performedOn: r.performedOn,
     title: r.title,
@@ -104,7 +115,7 @@ export interface MealPlanInput {
 }
 
 export async function saveMealPlan(db: Db, t: TenantContext, clientId: string, plan: MealPlanInput): Promise<number> {
-  return db.transaction(async (tx) => {
+  return withTenant(db, t, async (tx) => {
     const [last] = await tx.select({ v: max(mealPlans.version) }).from(mealPlans).where(scope(mealPlans, t, clientId));
     const version = (last?.v ?? 0) + 1;
     await tx.update(mealPlans).set({ status: "archived" }).where(scope(mealPlans, t, clientId));
@@ -122,12 +133,14 @@ export async function saveMealPlan(db: Db, t: TenantContext, clientId: string, p
 }
 
 export async function getActiveMealPlan(db: Db, t: TenantContext, clientId: string) {
-  const [row] = await db
-    .select()
-    .from(mealPlans)
-    .where(and(scope(mealPlans, t, clientId), eq(mealPlans.status, "active")))
-    .orderBy(desc(mealPlans.version))
-    .limit(1);
+  const [row] = await withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(mealPlans)
+      .where(and(scope(mealPlans, t, clientId), eq(mealPlans.status, "active")))
+      .orderBy(desc(mealPlans.version))
+      .limit(1),
+  );
   if (!row) return null;
   return {
     version: row.version,
@@ -146,7 +159,7 @@ export interface WorkoutPlanInput {
 }
 
 export async function saveWorkoutPlan(db: Db, t: TenantContext, clientId: string, plan: WorkoutPlanInput): Promise<number> {
-  return db.transaction(async (tx) => {
+  return withTenant(db, t, async (tx) => {
     const [last] = await tx
       .select({ v: max(workoutPlans.version) })
       .from(workoutPlans)
@@ -166,12 +179,14 @@ export async function saveWorkoutPlan(db: Db, t: TenantContext, clientId: string
 }
 
 export async function getActiveWorkoutPlan(db: Db, t: TenantContext, clientId: string) {
-  const [row] = await db
-    .select()
-    .from(workoutPlans)
-    .where(and(scope(workoutPlans, t, clientId), eq(workoutPlans.status, "active")))
-    .orderBy(desc(workoutPlans.version))
-    .limit(1);
+  const [row] = await withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(workoutPlans)
+      .where(and(scope(workoutPlans, t, clientId), eq(workoutPlans.status, "active")))
+      .orderBy(desc(workoutPlans.version))
+      .limit(1),
+  );
   if (!row) return null;
   return {
     version: row.version,

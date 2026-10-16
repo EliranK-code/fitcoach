@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
-import { CONSENT_VERSION, consentText, listAudit, PLATFORM_FLOOR, resolveReminderSettings, schema } from "@fitcoach/core";
+import { CONSENT_VERSION, consentText, listAudit, PLATFORM_FLOOR, resolveReminderSettings, schema, withTenant } from "@fitcoach/core";
 import { ReminderSettingsForm } from "@/components/reminder-settings-form";
 import { CoachSettingsForm, ConsentForm, PasswordForm, WhatsAppConnectForm } from "@/components/settings-forms";
 import { Badge, Card, PageHeader } from "@/components/ui";
@@ -14,7 +14,9 @@ export default async function SettingsPage() {
   const s = await requireSession();
   const db = s.handle.db;
   const tz = s.t.settings.timezone ?? s.cfg.TIMEZONE;
-  const accounts = await db.select().from(schema.whatsappAccounts).where(eq(schema.whatsappAccounts.coachId, s.t.coachId));
+  const accounts = await withTenant(db, s.t, (db) =>
+    db.select().from(schema.whatsappAccounts).where(eq(schema.whatsappAccounts.coachId, s.t.coachId)),
+  );
   const usage = await usageSummary(db, s.t);
   const auditRows = await listAudit(db, s.t, 15);
   const h = await headers();

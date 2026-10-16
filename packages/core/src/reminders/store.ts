@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNotNull, lte, notInArray } from "drizzle-orm";
 import type { AppConfig } from "../config";
 import type { Db } from "../db/client";
+import { withTenant } from "../db/scope";
 import { coaches, reminders, type ReminderKind } from "../db/schema";
 import type { TenantContext } from "../tenancy";
 import { nextOccurrence, resolveReminderSettings } from "./schedule";
@@ -27,7 +28,7 @@ export async function setClientReminders(
   const settings = resolveReminderSettings(t.settings.reminders);
   const tz = zoneOf(t, cfg);
   const kinds = specs.map((s) => s.kind);
-  await db.transaction(async (tx) => {
+  await withTenant(db, t, async (tx) => {
     const scope = and(eq(reminders.coachId, t.coachId), eq(reminders.clientId, clientId));
     await tx.delete(reminders).where(kinds.length ? and(scope, notInArray(reminders.kind, kinds)) : scope);
     for (const spec of specs) {
@@ -47,23 +48,28 @@ export async function setClientReminders(
 }
 
 export async function listClientReminders(db: Db, t: TenantContext, clientId: string): Promise<ReminderRow[]> {
-  return db
-    .select()
-    .from(reminders)
-    .where(and(eq(reminders.coachId, t.coachId), eq(reminders.clientId, clientId)))
-    .orderBy(asc(reminders.kind));
+  return withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(reminders)
+      .where(and(eq(reminders.coachId, t.coachId), eq(reminders.clientId, clientId)))
+      .orderBy(asc(reminders.kind)),
+  );
 }
 
 export async function disableClientReminders(db: Db, t: TenantContext, clientId: string): Promise<void> {
-  await db
-    .update(reminders)
-    .set({ enabled: false, nextRunAt: null })
-    .where(and(eq(reminders.coachId, t.coachId), eq(reminders.clientId, clientId)));
+  await withTenant(db, t, (db) =>
+    db
+      .update(reminders)
+      .set({ enabled: false, nextRunAt: null })
+      .where(and(eq(reminders.coachId, t.coachId), eq(reminders.clientId, clientId))),
+  );
 }
 
 /**
  * Claims due reminders and, in the same transaction, moves each to its next occurrence, so a reminder
- * can't be picked twice (SKIP LOCKED also keeps parallel schedulers apart).
+ * can't be picked twice (SKIP LOCKED also keeps parallel schedulers apart). Platform path: it spans all
+ * coaches, so it runs unscoped; sending each reminder is scoped to its coach.
  */
 export async function claimDueReminders(db: Db, cfg: Pick<AppConfig, "TIMEZONE">, now: Date, limit = 50): Promise<ReminderRow[]> {
   return db.transaction(async (tx) => {

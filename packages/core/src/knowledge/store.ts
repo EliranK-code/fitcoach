@@ -1,5 +1,6 @@
 import { and, asc, cosineDistance, desc, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
 import type { Db } from "../db/client";
+import { withTenant } from "../db/scope";
 import { coaches, coachKnowledge, knowledgeChunks, knowledgeDocuments } from "../db/schema";
 import type { TenantContext } from "../tenancy";
 import { chunkText } from "./chunker";
@@ -48,7 +49,7 @@ export async function publishKnowledge(
     vectors = await embedder.embed(prepared.flatMap((p) => p.chunks));
   }
 
-  return db.transaction(async (tx) => {
+  return withTenant(db, t, async (tx) => {
     const [coach] = await tx
       .select({ v: coaches.knowledgeVersion })
       .from(coaches)
@@ -103,27 +104,31 @@ export async function publishKnowledge(
 }
 
 export async function getKnowledge(db: Db, t: TenantContext): Promise<{ data: CoachKnowledge; version: number } | null> {
-  const [row] = await db
-    .select()
-    .from(coachKnowledge)
-    .where(eq(coachKnowledge.coachId, t.coachId))
-    .orderBy(desc(coachKnowledge.version))
-    .limit(1);
+  const [row] = await withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(coachKnowledge)
+      .where(eq(coachKnowledge.coachId, t.coachId))
+      .orderBy(desc(coachKnowledge.version))
+      .limit(1),
+  );
   if (!row) return null;
   return { data: coachKnowledgeSchema.parse(row.data), version: row.version };
 }
 
 export async function listDocuments(db: Db, t: TenantContext) {
-  return db
-    .select({
-      id: knowledgeDocuments.id,
-      title: knowledgeDocuments.title,
-      filename: knowledgeDocuments.filename,
-      tokenEstimate: knowledgeDocuments.tokenEstimate,
-    })
-    .from(knowledgeDocuments)
-    .where(eq(knowledgeDocuments.coachId, t.coachId))
-    .orderBy(asc(knowledgeDocuments.title));
+  return withTenant(db, t, (db) =>
+    db
+      .select({
+        id: knowledgeDocuments.id,
+        title: knowledgeDocuments.title,
+        filename: knowledgeDocuments.filename,
+        tokenEstimate: knowledgeDocuments.tokenEstimate,
+      })
+      .from(knowledgeDocuments)
+      .where(eq(knowledgeDocuments.coachId, t.coachId))
+      .orderBy(asc(knowledgeDocuments.title)),
+  );
 }
 
 export interface KnowledgePrompt {
@@ -137,11 +142,13 @@ export interface KnowledgePrompt {
 export async function buildKnowledgePrompt(db: Db, t: TenantContext, inlineMaxTokens: number): Promise<KnowledgePrompt> {
   const knowledge = await getKnowledge(db, t);
   if (!knowledge) throw new Error("Coach has no knowledge base. Run the seed or import a coach first.");
-  const docs = await db
-    .select({ title: knowledgeDocuments.title, text: knowledgeDocuments.extractedText })
-    .from(knowledgeDocuments)
-    .where(eq(knowledgeDocuments.coachId, t.coachId))
-    .orderBy(asc(knowledgeDocuments.title));
+  const docs = await withTenant(db, t, (db) =>
+    db
+      .select({ title: knowledgeDocuments.title, text: knowledgeDocuments.extractedText })
+      .from(knowledgeDocuments)
+      .where(eq(knowledgeDocuments.coachId, t.coachId))
+      .orderBy(asc(knowledgeDocuments.title)),
+  );
 
   const structured = renderCoachKnowledge(knowledge.data, knowledge.version, []);
   const docTokens = docs.reduce((sum, d) => sum + estimateTokens(d.text), 0);
@@ -181,22 +188,27 @@ export async function searchKnowledge(
   limit = 5,
 ): Promise<SearchHit[]> {
   if (embedder) {
-    const [hasVectors] = await db
-      .select({ id: knowledgeChunks.id })
-      .from(knowledgeChunks)
-      .where(and(eq(knowledgeChunks.coachId, t.coachId), isNotNull(knowledgeChunks.embedding)))
-      .limit(1);
+    const [hasVectors] = await withTenant(db, t, (db) =>
+      db
+        .select({ id: knowledgeChunks.id })
+        .from(knowledgeChunks)
+        .where(and(eq(knowledgeChunks.coachId, t.coachId), isNotNull(knowledgeChunks.embedding)))
+        .limit(1),
+    );
     if (hasVectors) {
+      // Embed outside the scope: it's a network call.
       const [vec] = await embedder.embed([query]);
       if (vec) {
         const distance = cosineDistance(knowledgeChunks.embedding, vec);
-        const rows = await db
-          .select({ content: knowledgeChunks.content, title: knowledgeDocuments.title, distance })
-          .from(knowledgeChunks)
-          .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgeChunks.documentId))
-          .where(and(eq(knowledgeChunks.coachId, t.coachId), isNotNull(knowledgeChunks.embedding)))
-          .orderBy(distance)
-          .limit(limit);
+        const rows = await withTenant(db, t, (db) =>
+          db
+            .select({ content: knowledgeChunks.content, title: knowledgeDocuments.title, distance })
+            .from(knowledgeChunks)
+            .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgeChunks.documentId))
+            .where(and(eq(knowledgeChunks.coachId, t.coachId), isNotNull(knowledgeChunks.embedding)))
+            .orderBy(distance)
+            .limit(limit),
+        );
         return rows.map((r) => ({ content: r.content, documentTitle: r.title, score: 1 - Number(r.distance) }));
       }
     }
@@ -204,12 +216,14 @@ export async function searchKnowledge(
 
   const terms = keywordTerms(query);
   if (terms.length === 0) return [];
-  const rows = await db
-    .select({ content: knowledgeChunks.content, title: knowledgeDocuments.title })
-    .from(knowledgeChunks)
-    .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgeChunks.documentId))
-    .where(and(eq(knowledgeChunks.coachId, t.coachId), or(...terms.map((term) => ilike(knowledgeChunks.content, `%${term}%`)))))
-    .limit(50);
+  const rows = await withTenant(db, t, (db) =>
+    db
+      .select({ content: knowledgeChunks.content, title: knowledgeDocuments.title })
+      .from(knowledgeChunks)
+      .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgeChunks.documentId))
+      .where(and(eq(knowledgeChunks.coachId, t.coachId), or(...terms.map((term) => ilike(knowledgeChunks.content, `%${term}%`)))))
+      .limit(50),
+  );
   return rows
     .map((r) => {
       const lower = r.content.toLowerCase();
@@ -223,10 +237,12 @@ export async function searchKnowledge(
 
 /** Published versions, newest first (the dashboard shows the history). */
 export async function listKnowledgeVersions(db: Db, t: TenantContext, limit = 20) {
-  return db
-    .select({ version: coachKnowledge.version, createdAt: coachKnowledge.createdAt })
-    .from(coachKnowledge)
-    .where(eq(coachKnowledge.coachId, t.coachId))
-    .orderBy(desc(coachKnowledge.version))
-    .limit(limit);
+  return withTenant(db, t, (db) =>
+    db
+      .select({ version: coachKnowledge.version, createdAt: coachKnowledge.createdAt })
+      .from(coachKnowledge)
+      .where(eq(coachKnowledge.coachId, t.coachId))
+      .orderBy(desc(coachKnowledge.version))
+      .limit(limit),
+  );
 }

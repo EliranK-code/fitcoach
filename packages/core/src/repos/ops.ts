@@ -1,6 +1,7 @@
 import { and, desc, eq, gte } from "drizzle-orm";
 import { decryptOptional, decryptText, encryptOptional, encryptText } from "../crypto";
 import type { Db } from "../db/client";
+import { withTenant } from "../db/scope";
 import { alerts, auditLog, usageEvents } from "../db/schema";
 import type { TenantContext } from "../tenancy";
 
@@ -52,37 +53,39 @@ export async function createAlert(
   input: AlertInput,
   dedupeHours = 24,
 ): Promise<{ id: string; deduped: boolean }> {
-  if (input.type !== "unknown_question") {
-    const since = new Date(Date.now() - dedupeHours * 3600_000);
-    const [existing] = await db
-      .select({ id: alerts.id })
-      .from(alerts)
-      .where(
-        and(
-          eq(alerts.coachId, t.coachId),
-          eq(alerts.clientId, input.clientId),
-          eq(alerts.type, input.type),
-          eq(alerts.status, "open"),
-          gte(alerts.createdAt, since),
-        ),
-      )
-      .limit(1);
-    if (existing) return { id: existing.id, deduped: true };
-  }
-  const [row] = await db
-    .insert(alerts)
-    .values({
-      coachId: t.coachId,
-      clientId: input.clientId,
-      type: input.type,
-      severity: input.severity,
-      source: input.source,
-      summaryEnc: encryptText(t, input.summary),
-      questionEnc: encryptOptional(t, input.question),
-    })
-    .returning({ id: alerts.id });
-  if (!row) throw new Error("Alert insert failed");
-  return { id: row.id, deduped: false };
+  return withTenant(db, t, async (db) => {
+    if (input.type !== "unknown_question") {
+      const since = new Date(Date.now() - dedupeHours * 3600_000);
+      const [existing] = await db
+        .select({ id: alerts.id })
+        .from(alerts)
+        .where(
+          and(
+            eq(alerts.coachId, t.coachId),
+            eq(alerts.clientId, input.clientId),
+            eq(alerts.type, input.type),
+            eq(alerts.status, "open"),
+            gte(alerts.createdAt, since),
+          ),
+        )
+        .limit(1);
+      if (existing) return { id: existing.id, deduped: true };
+    }
+    const [row] = await db
+      .insert(alerts)
+      .values({
+        coachId: t.coachId,
+        clientId: input.clientId,
+        type: input.type,
+        severity: input.severity,
+        source: input.source,
+        summaryEnc: encryptText(t, input.summary),
+        questionEnc: encryptOptional(t, input.question),
+      })
+      .returning({ id: alerts.id });
+    if (!row) throw new Error("Alert insert failed");
+    return { id: row.id, deduped: false };
+  });
 }
 
 export async function listAlerts(
@@ -93,11 +96,13 @@ export async function listAlerts(
   const conditions = [eq(alerts.coachId, t.coachId)];
   if (opts.status) conditions.push(eq(alerts.status, opts.status));
   if (opts.clientId) conditions.push(eq(alerts.clientId, opts.clientId));
-  const rows = await db
-    .select()
-    .from(alerts)
-    .where(and(...conditions))
-    .orderBy(desc(alerts.createdAt));
+  const rows = await withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(alerts)
+      .where(and(...conditions))
+      .orderBy(desc(alerts.createdAt)),
+  );
   return rows.map((r) => ({
     id: r.id,
     clientId: r.clientId,
@@ -113,10 +118,12 @@ export async function listAlerts(
 }
 
 export async function resolveAlert(db: Db, t: TenantContext, alertId: string, resolution: string | null): Promise<void> {
-  await db
-    .update(alerts)
-    .set({ status: "resolved", resolvedAt: new Date(), resolutionEnc: encryptOptional(t, resolution) })
-    .where(and(eq(alerts.coachId, t.coachId), eq(alerts.id, alertId)));
+  await withTenant(db, t, (db) =>
+    db
+      .update(alerts)
+      .set({ status: "resolved", resolvedAt: new Date(), resolutionEnc: encryptOptional(t, resolution) })
+      .where(and(eq(alerts.coachId, t.coachId), eq(alerts.id, alertId))),
+  );
 }
 
 export interface UsageInput {
@@ -130,16 +137,18 @@ export interface UsageInput {
 }
 
 export async function recordUsage(db: Db, t: TenantContext, u: UsageInput): Promise<void> {
-  await db.insert(usageEvents).values({
-    coachId: t.coachId,
-    clientId: u.clientId ?? null,
-    kind: u.kind,
-    model: u.model,
-    inputTokens: u.inputTokens ?? 0,
-    outputTokens: u.outputTokens ?? 0,
-    cacheReadTokens: u.cacheReadTokens ?? 0,
-    cacheWriteTokens: u.cacheWriteTokens ?? 0,
-  });
+  await withTenant(db, t, (db) =>
+    db.insert(usageEvents).values({
+      coachId: t.coachId,
+      clientId: u.clientId ?? null,
+      kind: u.kind,
+      model: u.model,
+      inputTokens: u.inputTokens ?? 0,
+      outputTokens: u.outputTokens ?? 0,
+      cacheReadTokens: u.cacheReadTokens ?? 0,
+      cacheWriteTokens: u.cacheWriteTokens ?? 0,
+    }),
+  );
 }
 
 export async function audit(
@@ -147,21 +156,25 @@ export async function audit(
   t: TenantContext,
   entry: { actor: string; action: string; targetType: string; targetId?: string; meta?: Record<string, unknown> },
 ): Promise<void> {
-  await db.insert(auditLog).values({
-    coachId: t.coachId,
-    actor: entry.actor,
-    action: entry.action,
-    targetType: entry.targetType,
-    targetId: entry.targetId ?? null,
-    meta: entry.meta ?? {},
-  });
+  await withTenant(db, t, (db) =>
+    db.insert(auditLog).values({
+      coachId: t.coachId,
+      actor: entry.actor,
+      action: entry.action,
+      targetType: entry.targetType,
+      targetId: entry.targetId ?? null,
+      meta: entry.meta ?? {},
+    }),
+  );
 }
 
 export async function listAudit(db: Db, t: TenantContext, limit = 100) {
-  return db
-    .select()
-    .from(auditLog)
-    .where(eq(auditLog.coachId, t.coachId))
-    .orderBy(desc(auditLog.createdAt))
-    .limit(limit);
+  return withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.coachId, t.coachId))
+      .orderBy(desc(auditLog.createdAt))
+      .limit(limit),
+  );
 }

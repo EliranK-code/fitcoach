@@ -2,11 +2,13 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { newDataKey, unwrapDataKey, wrapDataKey, type CipherScope } from "./crypto";
 import type { Db } from "./db/client";
+import { withTenant } from "./db/scope";
 import { coaches, type CoachSettings } from "./db/schema";
 
 /**
  * Every data access in the system goes through a TenantContext. Repositories take it as a required
  * argument and filter every query by `coachId`, so one coach's data cannot be read through another's context.
+ * They also run under row-level security for that coach (db/scope.ts), which catches a missing filter.
  */
 export interface TenantContext extends CipherScope {
   coachId: string;
@@ -72,10 +74,12 @@ export async function updateCoach(
   for (const key of Object.keys(settings) as (keyof CoachSettings)[]) {
     if (settings[key] === undefined) delete settings[key];
   }
-  await db
-    .update(coaches)
-    .set({ ...(patch.name ? { name: patch.name } : {}), settings, updatedAt: new Date() })
-    .where(eq(coaches.id, t.coachId));
+  await withTenant(db, t, (db) =>
+    db
+      .update(coaches)
+      .set({ ...(patch.name ? { name: patch.name } : {}), settings, updatedAt: new Date() })
+      .where(eq(coaches.id, t.coachId)),
+  );
   return openTenant(db, t.coachId);
 }
 

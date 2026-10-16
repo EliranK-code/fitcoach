@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import type { AppConfig } from "../config";
 import { decryptOptional, encryptOptional } from "../crypto";
 import type { Db } from "../db/client";
+import { withTenant } from "../db/scope";
 import { whatsappAccounts } from "../db/schema";
 import type { TenantContext } from "../tenancy";
 import { createDryRunApi, createGraphApi, type DryRunEntry, type WhatsAppApi } from "./api";
@@ -20,7 +21,8 @@ export async function connectWhatsAppNumber(
   t: TenantContext,
   input: { phoneNumberId: string; displayPhone?: string; wabaId?: string; accessToken?: string; mode?: "managed" | "embedded" },
 ): Promise<WhatsAppAccount> {
-  const existing = await findAccountByPhoneNumberId(db, input.phoneNumberId);
+  // Unscoped on purpose: the number may belong to another coach, including an inactive one.
+  const [existing] = await db.select().from(whatsappAccounts).where(eq(whatsappAccounts.phoneNumberId, input.phoneNumberId));
   if (existing && existing.coachId !== t.coachId) {
     throw new WhatsAppConfigError(`Phone number ${input.phoneNumberId} is already connected to another coach`);
   }
@@ -33,11 +35,13 @@ export async function connectWhatsAppNumber(
     accessTokenEnc: encryptOptional(t, input.accessToken),
     status: "active",
   };
-  const [row] = await db
-    .insert(whatsappAccounts)
-    .values(values)
-    .onConflictDoUpdate({ target: whatsappAccounts.phoneNumberId, set: values })
-    .returning();
+  const [row] = await withTenant(db, t, (db) =>
+    db
+      .insert(whatsappAccounts)
+      .values(values)
+      .onConflictDoUpdate({ target: whatsappAccounts.phoneNumberId, set: values })
+      .returning(),
+  );
   if (!row) throw new Error("WhatsApp account upsert failed");
   return row;
 }
@@ -49,11 +53,13 @@ export async function findAccountByPhoneNumberId(db: Db, phoneNumberId: string):
 }
 
 export async function getCoachAccount(db: Db, t: TenantContext): Promise<WhatsAppAccount | undefined> {
-  const [row] = await db
-    .select()
-    .from(whatsappAccounts)
-    .where(and(eq(whatsappAccounts.coachId, t.coachId), eq(whatsappAccounts.status, "active")))
-    .limit(1);
+  const [row] = await withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(whatsappAccounts)
+      .where(and(eq(whatsappAccounts.coachId, t.coachId), eq(whatsappAccounts.status, "active")))
+      .limit(1),
+  );
   return row;
 }
 

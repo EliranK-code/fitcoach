@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, lt } from "drizzle-orm";
 import type { AppConfig } from "../config";
 import type { Db } from "../db/client";
+import { withTenant } from "../db/scope";
 import { clients, coaches, type ReminderMessageKind } from "../db/schema";
 import { splitForWhatsApp } from "../format/whatsapp";
 import { logger } from "../logger";
@@ -151,20 +152,22 @@ export class ReminderScheduler {
       if (time < CHECKIN_FROM || time >= CHECKIN_UNTIL || isQuietTime(now, tz, settings)) continue;
 
       const cutoff = new Date(now.getTime() - settings.inactivityDays * 24 * 3600_000);
-      const quiet = await db
-        .select()
-        .from(clients)
-        .where(
-          and(
-            eq(clients.coachId, coach.id),
-            eq(clients.channel, "whatsapp"),
-            eq(clients.consentStatus, "granted"),
-            eq(clients.isTest, false),
-            eq(clients.botPaused, false),
-            isNotNull(clients.lastInboundAt),
-            lt(clients.lastInboundAt, cutoff),
+      const quiet = await withTenant(db, { coachId: coach.id }, (db) =>
+        db
+          .select()
+          .from(clients)
+          .where(
+            and(
+              eq(clients.coachId, coach.id),
+              eq(clients.channel, "whatsapp"),
+              eq(clients.consentStatus, "granted"),
+              eq(clients.isTest, false),
+              eq(clients.botPaused, false),
+              isNotNull(clients.lastInboundAt),
+              lt(clients.lastInboundAt, cutoff),
+            ),
           ),
-        );
+      );
       const t = await tenant(coach.id);
       const api = await this.deps.apiFor(t);
       for (const client of quiet) {

@@ -3,6 +3,7 @@ export * from "./config";
 export * from "./consent";
 export * from "./crypto";
 export * from "./db/client";
+export * from "./db/scope";
 export * as schema from "./db/schema";
 export * from "./engine/conversation";
 export * from "./engine/epochs";

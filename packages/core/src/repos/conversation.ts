@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
 import { decryptJson, decryptOptional, encryptJson, encryptOptional } from "../crypto";
 import type { Db } from "../db/client";
+import { withTenant } from "../db/scope";
 import { chatMessages, conversationEpochs, llmMessages } from "../db/schema";
 import type { TenantContext } from "../tenancy";
 
@@ -17,27 +18,29 @@ export interface Epoch {
 }
 
 export async function getActiveEpoch(db: Db, t: TenantContext, clientId: string): Promise<Epoch | null> {
-  const [row] = await db
-    .select()
-    .from(conversationEpochs)
-    .where(
-      and(
-        eq(conversationEpochs.coachId, t.coachId),
-        eq(conversationEpochs.clientId, clientId),
-        eq(conversationEpochs.status, "active"),
-      ),
-    );
-  if (!row) return null;
-  const msgs = await db
-    .select()
-    .from(llmMessages)
-    .where(and(eq(llmMessages.coachId, t.coachId), eq(llmMessages.epochId, row.id)))
-    .orderBy(asc(llmMessages.seq));
-  return {
-    row,
-    system: decryptJson<SystemBlock[]>(t, row.systemEnc),
-    messages: msgs.map((m) => decryptJson<MessageParam>(t, m.contentEnc)),
-  };
+  return withTenant(db, t, async (db) => {
+    const [row] = await db
+      .select()
+      .from(conversationEpochs)
+      .where(
+        and(
+          eq(conversationEpochs.coachId, t.coachId),
+          eq(conversationEpochs.clientId, clientId),
+          eq(conversationEpochs.status, "active"),
+        ),
+      );
+    if (!row) return null;
+    const msgs = await db
+      .select()
+      .from(llmMessages)
+      .where(and(eq(llmMessages.coachId, t.coachId), eq(llmMessages.epochId, row.id)))
+      .orderBy(asc(llmMessages.seq));
+    return {
+      row,
+      system: decryptJson<SystemBlock[]>(t, row.systemEnc),
+      messages: msgs.map((m) => decryptJson<MessageParam>(t, m.contentEnc)),
+    };
+  });
 }
 
 export async function createEpoch(
@@ -47,23 +50,25 @@ export async function createEpoch(
   system: SystemBlock[],
   platformHash: string,
 ): Promise<Epoch> {
-  const [last] = await db
-    .select({ seq: max(conversationEpochs.seq) })
-    .from(conversationEpochs)
-    .where(and(eq(conversationEpochs.coachId, t.coachId), eq(conversationEpochs.clientId, clientId)));
-  const [row] = await db
-    .insert(conversationEpochs)
-    .values({
-      coachId: t.coachId,
-      clientId,
-      seq: (last?.seq ?? 0) + 1,
-      systemEnc: encryptJson(t, system),
-      knowledgeVersion: t.knowledgeVersion,
-      platformHash,
-    })
-    .returning();
-  if (!row) throw new Error("Epoch insert failed");
-  return { row, system, messages: [] };
+  return withTenant(db, t, async (db) => {
+    const [last] = await db
+      .select({ seq: max(conversationEpochs.seq) })
+      .from(conversationEpochs)
+      .where(and(eq(conversationEpochs.coachId, t.coachId), eq(conversationEpochs.clientId, clientId)));
+    const [row] = await db
+      .insert(conversationEpochs)
+      .values({
+        coachId: t.coachId,
+        clientId,
+        seq: (last?.seq ?? 0) + 1,
+        systemEnc: encryptJson(t, system),
+        knowledgeVersion: t.knowledgeVersion,
+        platformHash,
+      })
+      .returning();
+    if (!row) throw new Error("Epoch insert failed");
+    return { row, system, messages: [] };
+  });
 }
 
 /**
@@ -72,7 +77,7 @@ export async function createEpoch(
  * isn't data minimization. The readable conversation stays in chat_messages.
  */
 export async function closeEpoch(db: Db, t: TenantContext, epochId: string, reason: string): Promise<void> {
-  await db.transaction(async (tx) => {
+  await withTenant(db, t, async (tx) => {
     await tx.delete(llmMessages).where(and(eq(llmMessages.coachId, t.coachId), eq(llmMessages.epochId, epochId)));
     await tx
       .update(conversationEpochs)
@@ -94,7 +99,7 @@ export async function appendEpochMessages(
 ): Promise<void> {
   if (newMessages.length === 0) return;
   const startSeq = epoch.messages.length;
-  await db.transaction(async (tx) => {
+  await withTenant(db, t, async (tx) => {
     await tx.insert(llmMessages).values(
       newMessages.map((m, i) => ({
         coachId: t.coachId,
@@ -141,20 +146,22 @@ export async function logChatMessage(
     botSeen?: boolean;
   },
 ): Promise<string> {
-  const [row] = await db
-    .insert(chatMessages)
-    .values({
-      coachId: t.coachId,
-      clientId: input.clientId,
-      direction: input.direction,
-      sender: input.sender,
-      kind: input.kind ?? "text",
-      bodyEnc: encryptOptional(t, input.body),
-      externalId: input.externalId,
-      status: input.status,
-      botSeen: input.botSeen ?? true,
-    })
-    .returning({ id: chatMessages.id });
+  const [row] = await withTenant(db, t, (db) =>
+    db
+      .insert(chatMessages)
+      .values({
+        coachId: t.coachId,
+        clientId: input.clientId,
+        direction: input.direction,
+        sender: input.sender,
+        kind: input.kind ?? "text",
+        bodyEnc: encryptOptional(t, input.body),
+        externalId: input.externalId,
+        status: input.status,
+        botSeen: input.botSeen ?? true,
+      })
+      .returning({ id: chatMessages.id }),
+  );
   if (!row) throw new Error("Chat message insert failed");
   return row.id;
 }
@@ -166,10 +173,12 @@ export async function setChatDelivery(
   messageId: string,
   delivery: { externalId: string | null; status: string },
 ): Promise<void> {
-  await db
-    .update(chatMessages)
-    .set({ externalId: delivery.externalId, status: delivery.status })
-    .where(and(eq(chatMessages.coachId, t.coachId), eq(chatMessages.id, messageId)));
+  await withTenant(db, t, (db) =>
+    db
+      .update(chatMessages)
+      .set({ externalId: delivery.externalId, status: delivery.status })
+      .where(and(eq(chatMessages.coachId, t.coachId), eq(chatMessages.id, messageId))),
+  );
 }
 
 const STATUS_RANK: Record<string, number> = { sent: 1, delivered: 2, read: 3, failed: 4 };
@@ -191,20 +200,24 @@ export async function applyDeliveryStatus(db: Db, externalId: string, status: st
 
 /** Messages the model hasn't seen yet (coach messages, messages during a pause), oldest first. */
 export async function listUnseenChatMessages(db: Db, t: TenantContext, clientId: string): Promise<ChatMessage[]> {
-  const rows = await db
-    .select()
-    .from(chatMessages)
-    .where(and(eq(chatMessages.coachId, t.coachId), eq(chatMessages.clientId, clientId), eq(chatMessages.botSeen, false)))
-    .orderBy(asc(chatMessages.createdAt));
+  const rows = await withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(chatMessages)
+      .where(and(eq(chatMessages.coachId, t.coachId), eq(chatMessages.clientId, clientId), eq(chatMessages.botSeen, false)))
+      .orderBy(asc(chatMessages.createdAt)),
+  );
   return rows.map(toChatMessage(t));
 }
 
 export async function markChatMessagesSeen(db: Db, t: TenantContext, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
-  await db
-    .update(chatMessages)
-    .set({ botSeen: true })
-    .where(and(eq(chatMessages.coachId, t.coachId), inArray(chatMessages.id, ids)));
+  await withTenant(db, t, (db) =>
+    db
+      .update(chatMessages)
+      .set({ botSeen: true })
+      .where(and(eq(chatMessages.coachId, t.coachId), inArray(chatMessages.id, ids))),
+  );
 }
 
 const toChatMessage = (t: TenantContext) => (r: typeof chatMessages.$inferSelect): ChatMessage => ({
@@ -223,11 +236,13 @@ export async function listChatMessages(
   clientId: string,
   limit = 200,
 ): Promise<ChatMessage[]> {
-  const rows = await db
-    .select()
-    .from(chatMessages)
-    .where(and(eq(chatMessages.coachId, t.coachId), eq(chatMessages.clientId, clientId)))
-    .orderBy(desc(chatMessages.createdAt))
-    .limit(limit);
+  const rows = await withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(chatMessages)
+      .where(and(eq(chatMessages.coachId, t.coachId), eq(chatMessages.clientId, clientId)))
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(limit),
+  );
   return rows.reverse().map(toChatMessage(t));
 }

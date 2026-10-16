@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNull, lt, lte, notExists, or, sql } from "drizzle-orm";
 import { decryptJson, encryptJson } from "../crypto";
 import type { Db } from "../db/client";
+import { withTenant } from "../db/scope";
 import { inboundMessages, turnJobs } from "../db/schema";
 import { logger } from "../logger";
 import { findOrCreateClient } from "../repos/clients";
@@ -58,7 +59,7 @@ export async function enqueueInbound(
     const body: StoredBody = { text: msg.text, buttonId: msg.buttonId, mediaId: msg.mediaId, mimeType: msg.mimeType };
     const runAt = new Date(now.getTime() + opts.debounceMs);
 
-    const queued = await db.transaction(async (tx) => {
+    const queued = await withTenant(db, t, async (tx) => {
       const inserted = await tx
         .insert(inboundMessages)
         .values({
@@ -101,6 +102,7 @@ export type TurnJob = typeof turnJobs.$inferSelect;
 /**
  * Claims due jobs. FOR UPDATE SKIP LOCKED lets several workers (or replicas) poll the same table without
  * taking each other's rows; the lease (locked_until) frees a job if its worker dies mid-turn.
+ * Platform path: the queue spans all coaches, so claiming and the job bookkeeping below run unscoped.
  */
 export async function claimDueJobs(
   db: Db,
@@ -138,11 +140,13 @@ export interface PendingInbound {
 }
 
 export async function listPendingInbound(db: Db, t: TenantContext, clientId: string): Promise<PendingInbound[]> {
-  const rows = await db
-    .select()
-    .from(inboundMessages)
-    .where(and(eq(inboundMessages.coachId, t.coachId), eq(inboundMessages.clientId, clientId), eq(inboundMessages.status, "pending")))
-    .orderBy(asc(inboundMessages.sentAt), asc(inboundMessages.createdAt));
+  const rows = await withTenant(db, t, (db) =>
+    db
+      .select()
+      .from(inboundMessages)
+      .where(and(eq(inboundMessages.coachId, t.coachId), eq(inboundMessages.clientId, clientId), eq(inboundMessages.status, "pending")))
+      .orderBy(asc(inboundMessages.sentAt), asc(inboundMessages.createdAt)),
+  );
   return rows.map((r) => {
     const body = r.bodyEnc ? decryptJson<StoredBody>(t, r.bodyEnc) : {};
     return {
