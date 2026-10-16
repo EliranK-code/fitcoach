@@ -1,4 +1,4 @@
-import type { CoachKnowledge } from "./schema.js";
+import type { CoachKnowledge } from "./schema";
 
 const NUTRITION_LABELS: Record<CoachKnowledge["nutrition"]["approach"], string> = {
   calorie_counting: "calorie counting",

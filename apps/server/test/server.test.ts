@@ -1,8 +1,8 @@
 import { createHmac } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { applyDeliveryStatus, connectWhatsAppNumber, logChatMessage, schema } from "@fitcoach/core";
-import { createTestApp, testConfig, type TestApp } from "../../../packages/core/test/helpers.js";
-import { buildServer } from "../src/app.js";
+import { createTestApp, testConfig, type TestApp } from "../../../packages/core/test/helpers";
+import { buildServer } from "../src/app";
 
 const SECRET = "test-app-secret";
 let app: TestApp;

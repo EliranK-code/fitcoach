@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { logger } from "../logger.js";
+import { logger } from "../logger";
 
 /**
  * Meta signs every webhook body with the app secret: `X-Hub-Signature-256: sha256=<hex>`.

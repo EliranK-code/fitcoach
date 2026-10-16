@@ -22,6 +22,13 @@
       "when": 1792159665224,
       "tag": "0002_whatsapp_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792162663146,
+      "tag": "0003_dashboard_auth",
+      "breakpoints": true
     }
   ]
 }

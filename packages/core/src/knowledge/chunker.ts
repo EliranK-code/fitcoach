@@ -1,4 +1,4 @@
-import { estimateTokens } from "./render.js";
+import { estimateTokens } from "./render";
 
 function splitLongParagraph(para: string, maxChars: number): string[] {
   const out: string[] = [];

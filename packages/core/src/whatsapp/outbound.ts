@@ -1,12 +1,12 @@
-import type { Db } from "../db/client.js";
-import type { TurnResult } from "../engine/conversation.js";
-import { splitForWhatsApp } from "../format/whatsapp.js";
-import { logger } from "../logger.js";
-import { clientPhone, type ClientRow } from "../repos/clients.js";
-import { logChatMessage, setChatDelivery } from "../repos/conversation.js";
-import { audit } from "../repos/ops.js";
-import type { TenantContext } from "../tenancy.js";
-import { BUTTON_BODY_MAX, WhatsAppApiError, type WhatsAppApi } from "./api.js";
+import type { Db } from "../db/client";
+import type { TurnResult } from "../engine/conversation";
+import { splitForWhatsApp } from "../format/whatsapp";
+import { logger } from "../logger";
+import { clientPhone, type ClientRow } from "../repos/clients";
+import { logChatMessage, setChatDelivery } from "../repos/conversation";
+import { audit } from "../repos/ops";
+import type { TenantContext } from "../tenancy";
+import { BUTTON_BODY_MAX, WhatsAppApiError, type WhatsAppApi } from "./api";
 
 /** WhatsApp's customer service window: free-form messages only within 24h of the client's last message. */
 export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;

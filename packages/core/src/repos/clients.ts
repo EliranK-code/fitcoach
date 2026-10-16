@@ -1,9 +1,9 @@
 import { and, desc, eq } from "drizzle-orm";
-import { decryptJson, decryptText, encryptJson, encryptText, phoneHash } from "../crypto.js";
-import type { Db } from "../db/client.js";
-import { clientMemory, clientProfiles, clients, type ClientFlags } from "../db/schema.js";
-import type { ClientProfile } from "../profile.js";
-import type { TenantContext } from "../tenancy.js";
+import { decryptJson, decryptText, encryptJson, encryptText, phoneHash } from "../crypto";
+import type { Db } from "../db/client";
+import { clientMemory, clientProfiles, clients, type ClientFlags } from "../db/schema";
+import type { ClientProfile } from "../profile";
+import type { TenantContext } from "../tenancy";
 
 export type ClientRow = typeof clients.$inferSelect;
 

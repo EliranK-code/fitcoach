@@ -3,14 +3,14 @@ import { basename, extname, join } from "node:path";
 import mammoth from "mammoth";
 import { extractText as extractPdfText, getDocumentProxy } from "unpdf";
 import { parse as parseYaml } from "yaml";
-import type { AppConfig } from "../config.js";
-import type { Db } from "../db/client.js";
-import { textOf, type LlmClient } from "../llm/client.js";
-import { recordUsage } from "../repos/ops.js";
-import { createCoach, openTenant, openTenantBySlug, TenantNotFoundError, type TenantContext } from "../tenancy.js";
-import type { Embedder } from "./embeddings.js";
-import { coachKnowledgeSchema } from "./schema.js";
-import { publishKnowledge, type KnowledgeDocumentInput } from "./store.js";
+import type { AppConfig } from "../config";
+import type { Db } from "../db/client";
+import { textOf, type LlmClient } from "../llm/client";
+import { recordUsage } from "../repos/ops";
+import { createCoach, openTenant, openTenantBySlug, TenantNotFoundError, type TenantContext } from "../tenancy";
+import type { Embedder } from "./embeddings";
+import { coachKnowledgeSchema } from "./schema";
+import { publishKnowledge, type KnowledgeDocumentInput } from "./store";
 
 const TEXT_TYPES: Record<string, string> = { ".md": "text/markdown", ".txt": "text/plain" };
 const IMAGE_TYPES: Record<string, "image/png" | "image/jpeg" | "image/webp"> = {

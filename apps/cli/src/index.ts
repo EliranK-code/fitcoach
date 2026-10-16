@@ -5,6 +5,11 @@ import {
   audit,
   clientPhone,
   connectWhatsAppNumber,
+  createCoachUser,
+  deleteCoachUser,
+  findUserByEmail,
+  generatePassword,
+  setPassword,
   createApiForAccount,
   createEmbedder,
   deleteClientData,
@@ -27,9 +32,10 @@ import {
   type LlmClient,
   type TenantContext,
 } from "@fitcoach/core";
-import { bootstrap, type App } from "./bootstrap.js";
-import { runChat } from "./chat.js";
-import { simulateWebhook } from "./simulate.js";
+import { bootstrap, type App } from "./bootstrap";
+import { runChat } from "./chat";
+import { createSampleData, removeSampleData } from "./sample-data";
+import { simulateWebhook } from "./simulate";
 
 const USAGE = `שימוש: npm run <פקודה> -- [אפשרויות]
 
@@ -52,10 +58,15 @@ const USAGE = `שימוש: npm run <פקודה> -- [אפשרויות]
                                  תבנית מאושרת (גם מחוץ לחלון 24 השעות)
   wa:connect --pnid <id> [--display +972...] [--waba <id>]
                                  חיבור מספר וואטסאפ (phone_number_id) למאמן
+  user:create --email <email>    משתמש לדשבורד של המאמן (הסיסמה מודפסת פעם אחת)
+  user:reset-password --email <email>
+                                 סיסמה חדשה למשתמש (מנתק את כל הסשנים שלו)
+  user:delete --email <email>    מחיקת משתמש דשבורד
   flags:clear <phone>            ניקוי דגלי בטיחות (קטין / הפרעת אכילה) אחרי בדיקה של המאמן
   export <phone>                 ייצוא כל המידע של לקוח
   delete <phone>                 מחיקה מלאה של לקוח
-  purge                          מחיקת לקוחות לא פעילים לפי RETENTION_MONTHS`;
+  purge                          מחיקת לקוחות לא פעילים לפי RETENTION_MONTHS
+  sample-data [--remove]         לקוחות לדוגמה לדשבורד (בלי AI), או הסרתם`;
 
 function setup() {
   if (!existsSync(".env")) {
@@ -147,10 +158,12 @@ async function main() {
       type: { type: "string" },
       lang: { type: "string", default: "he" },
       params: { type: "string" },
+      email: { type: "string" },
       debug: { type: "boolean", default: false },
       "no-bidi": { type: "boolean", default: false },
       new: { type: "boolean", default: false },
       all: { type: "boolean", default: false },
+      remove: { type: "boolean", default: false },
     },
   });
 
@@ -265,6 +278,38 @@ async function main() {
         if (!values.pnid) throw new Error("חסר --pnid (ה-phone_number_id מ-Meta)");
         const account = await connectWhatsAppNumber(db, t, { phoneNumberId: values.pnid, displayPhone: values.display, wabaId: values.waba });
         return console.log(`המספר ${account.phoneNumberId} מחובר למאמן ${t.coachName} (${account.mode}).`);
+      }
+      case "user:create":
+      case "user:reset-password": {
+        if (!values.email) throw new Error("חסר --email");
+        const password = generatePassword();
+        if (command === "user:create") {
+          await createCoachUser(db, { coachId: t.coachId, email: values.email, password });
+        } else {
+          const user = await findUserByEmail(db, values.email);
+          if (!user || user.coachId !== t.coachId) throw new Error(`לא נמצא משתמש ${values.email} אצל ${t.coachName}`);
+          await setPassword(db, user.id, password);
+        }
+        await audit(db, t, { actor: "cli", action: command === "user:create" ? "user_created" : "password_reset", targetType: "user", targetId: values.email });
+        console.log(`משתמש: ${values.email.toLowerCase()}`);
+        console.log(`סיסמה: ${styleText("bold", password)}`);
+        return console.log(styleText("yellow", "הסיסמה מוצגת פעם אחת בלבד. אפשר להחליף אותה בדשבורד, בעמוד ההגדרות."));
+      }
+      case "user:delete": {
+        if (!values.email) throw new Error("חסר --email");
+        const user = await findUserByEmail(db, values.email);
+        if (!user || user.coachId !== t.coachId) throw new Error(`לא נמצא משתמש ${values.email} אצל ${t.coachName}`);
+        // The user's playground test client goes too.
+        const playground = await findClientByPhone(db, t, `playground:${user.id}`);
+        if (playground) await deleteClientData(db, t, playground.id, "cli");
+        await deleteCoachUser(db, user.id);
+        await audit(db, t, { actor: "cli", action: "user_deleted", targetType: "user", targetId: values.email });
+        return console.log(`המשתמש ${values.email} נמחק.`);
+      }
+      case "sample-data": {
+        if (values.remove) return console.log(`נמחקו ${await removeSampleData(db, t)} לקוחות לדוגמה.`);
+        await removeSampleData(db, t);
+        return console.log(`נוצרו ${await createSampleData(db, t)} לקוחות לדוגמה. להסרה: npm run admin -- sample-data --remove`);
       }
       case "flags:clear": {
         const client = await requireClient();

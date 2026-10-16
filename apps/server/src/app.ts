@@ -1,14 +1,5 @@
 import Fastify, { LogController } from "fastify";
-import {
-  applyStatuses,
-  enqueueInbound,
-  logger,
-  parseWebhook,
-  verifySignature,
-  verifySubscription,
-  type AppConfig,
-  type Db,
-} from "@fitcoach/core";
+import { handleWebhookGet, handleWebhookPost, logger, type AppConfig, type Db } from "@fitcoach/core";
 
 export interface ServerDeps {
   db: Db;
@@ -30,36 +21,16 @@ export function buildServer(deps: ServerDeps) {
 
   app.get("/health", async () => ({ ok: true }));
 
-  // Meta's one-time handshake when the webhook URL is registered.
   app.get("/webhook", async (req, reply) => {
-    const challenge = verifySubscription(req.query as Record<string, unknown>, cfg.WHATSAPP_VERIFY_TOKEN);
-    if (challenge === null) return reply.code(403).send("forbidden");
-    return reply.type("text/plain").send(challenge);
+    const res = handleWebhookGet(req.query as Record<string, unknown>, cfg);
+    return reply.code(res.status).type("text/plain").send(res.body ?? "");
   });
 
   app.post("/webhook", async (req, reply) => {
-    const raw = req.body;
-    if (!Buffer.isBuffer(raw)) return reply.code(415).send();
-    if (!cfg.WHATSAPP_APP_SECRET) {
-      logger.error("WHATSAPP_APP_SECRET is not set: rejecting webhook (fail closed)");
-      return reply.code(500).send();
-    }
+    if (!Buffer.isBuffer(req.body)) return reply.code(415).send();
     const signature = req.headers["x-hub-signature-256"];
-    if (!verifySignature(raw, typeof signature === "string" ? signature : undefined, cfg.WHATSAPP_APP_SECRET)) {
-      logger.warn("webhook with an invalid signature");
-      return reply.code(401).send();
-    }
-    let body: unknown;
-    try {
-      body = JSON.parse(raw.toString("utf8"));
-    } catch {
-      return reply.code(400).send();
-    }
-    const { messages, statuses } = parseWebhook(body);
-    // Store first, answer after: if this throws, Meta gets a 500 and redelivers later.
-    await enqueueInbound(db, messages, { debounceMs: cfg.INBOUND_DEBOUNCE_MS });
-    await applyStatuses(db, statuses);
-    return reply.code(200).send();
+    const res = await handleWebhookPost(db, cfg, req.body, typeof signature === "string" ? signature : undefined);
+    return reply.code(res.status).send(res.body ?? "");
   });
 
   return app;

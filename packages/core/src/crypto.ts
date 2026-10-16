@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes } from "node:crypto";
-import { loadConfig } from "./config.js";
+import { loadConfig } from "./config";
 
 // Envelope encryption: one random data key (DEK) per coach, wrapped by the master key from the environment.
 // Every ciphertext is bound to its coach via AES-GCM associated data, so a value copied into another

@@ -1,4 +1,5 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { z } from "zod";
 
 const emptyToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
@@ -49,16 +50,48 @@ const envSchema = z.object({
 
 export type AppConfig = z.infer<typeof envSchema>;
 
+function isWorkspaceRoot(dir: string): boolean {
+  const pkg = join(dir, "package.json");
+  if (!existsSync(pkg)) return false;
+  try {
+    return Array.isArray((JSON.parse(readFileSync(pkg, "utf8")) as { workspaces?: unknown }).workspaces);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The repository root, where `.env` and `.data/` live. Apps run from their own folders (Next.js runs in
+ * apps/dashboard), so we walk up from the working directory instead of trusting it.
+ */
+export function projectRoot(start = process.cwd()): string {
+  // The ignore hints stop Next.js file tracing from bundling the whole repository because of these paths.
+  let dir = resolve(/*turbopackIgnore: true*/ start);
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(join(dir, ".env")) || isWorkspaceRoot(dir)) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return resolve(/*turbopackIgnore: true*/ start);
+}
+
 let cached: AppConfig | undefined;
 
-/** Loads `.env` from the working directory (if present) and validates the environment. */
+function parse(env: Record<string, unknown>): AppConfig {
+  const cfg = envSchema.parse(env);
+  return { ...cfg, PGLITE_DIR: isAbsolute(cfg.PGLITE_DIR) ? cfg.PGLITE_DIR : resolve(projectRoot(), cfg.PGLITE_DIR) };
+}
+
+/** Loads the project's `.env` (if present) and validates the environment. */
 export function loadConfig(overrides: Partial<Record<keyof AppConfig, unknown>> = {}): AppConfig {
   if (!cached) {
-    if (existsSync(".env")) process.loadEnvFile(".env");
-    cached = envSchema.parse(process.env);
+    const envFile = join(projectRoot(), ".env");
+    if (existsSync(envFile)) process.loadEnvFile(envFile);
+    cached = parse(process.env);
   }
   if (Object.keys(overrides).length === 0) return cached;
-  return envSchema.parse({ ...process.env, ...overrides });
+  return parse({ ...process.env, ...overrides });
 }
 
 /** For tests: forget the cached config so the next loadConfig() re-reads process.env. */

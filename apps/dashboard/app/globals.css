@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* Explicit sources: automatic detection skips Next.js route-group folders like app/(app). */
+@source "./";
+@source "./(app)/**/*.tsx";
+@source "../components";
+
+@theme {
+  --font-sans: "Segoe UI", "Assistant", "Heebo", Arial, system-ui, sans-serif;
+  --color-brand-50: #ecfdf7;
+  --color-brand-100: #d1fae9;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
+  --color-ink: #0f172a;
+}
+
+html,
+body {
+  background: #f6f7f9;
+  color: var(--color-ink);
+}
+
+/* Chat bubbles keep the client's line breaks. */
+.whitespace-chat {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

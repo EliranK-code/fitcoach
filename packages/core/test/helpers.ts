@@ -1,12 +1,12 @@
 import { resolve } from "node:path";
 import type Anthropic from "@anthropic-ai/sdk";
-import { loadConfig, type AppConfig } from "../src/config.js";
-import { openDatabase, type DbHandle } from "../src/db/client.js";
-import { ConversationEngine } from "../src/engine/conversation.js";
-import { importCoachFromDir } from "../src/knowledge/importer.js";
-import type { CreateParams, LlmClient } from "../src/llm/client.js";
-import { SUMMARY_SYSTEM } from "../src/llm/prompts.js";
-import { openTenant, type TenantContext } from "../src/tenancy.js";
+import { loadConfig, type AppConfig } from "../src/config";
+import { openDatabase, type DbHandle } from "../src/db/client";
+import { ConversationEngine } from "../src/engine/conversation";
+import { importCoachFromDir } from "../src/knowledge/importer";
+import type { CreateParams, LlmClient } from "../src/llm/client";
+import { SUMMARY_SYSTEM } from "../src/llm/prompts";
+import { openTenant, type TenantContext } from "../src/tenancy";
 
 type Block = Anthropic.Beta.BetaContentBlock;
 

@@ -1,15 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { decryptText } from "../src/crypto.js";
-import { openDatabase, type DbHandle } from "../src/db/client.js";
-import { importCoachFromDir } from "../src/knowledge/importer.js";
-import { buildKnowledgePrompt, getKnowledge, publishKnowledge, searchKnowledge } from "../src/knowledge/store.js";
-import { renderCoachKnowledge } from "../src/knowledge/render.js";
-import { deleteClientData, exportClientData, purgeInactiveClients } from "../src/privacy.js";
-import { findOrCreateClient, getClient, getProfile, saveProfile, updateClient } from "../src/repos/clients.js";
-import { createAlert, listAlerts } from "../src/repos/ops.js";
-import { addWeight, listWeights } from "../src/repos/tracking.js";
-import { createCoach, openTenant, type TenantContext } from "../src/tenancy.js";
-import { SEED_DIR, testConfig } from "./helpers.js";
+import { decryptText } from "../src/crypto";
+import { openDatabase, type DbHandle } from "../src/db/client";
+import { importCoachFromDir } from "../src/knowledge/importer";
+import { buildKnowledgePrompt, getKnowledge, publishKnowledge, searchKnowledge } from "../src/knowledge/store";
+import { renderCoachKnowledge } from "../src/knowledge/render";
+import { deleteClientData, exportClientData, purgeInactiveClients } from "../src/privacy";
+import { findOrCreateClient, getClient, getProfile, saveProfile, updateClient } from "../src/repos/clients";
+import { createAlert, listAlerts } from "../src/repos/ops";
+import { addWeight, listWeights } from "../src/repos/tracking";
+import { createCoach, openTenant, type TenantContext } from "../src/tenancy";
+import { SEED_DIR, testConfig } from "./helpers";
 
 let handle: DbHandle;
 let a: TenantContext;

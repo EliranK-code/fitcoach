@@ -1,10 +1,10 @@
-import type { AppConfig } from "../config.js";
-import type { Db } from "../db/client.js";
-import type { LoggedExercise, PlannedDay } from "../db/schema.js";
-import type { Embedder } from "../knowledge/embeddings.js";
-import type { CoachKnowledge } from "../knowledge/schema.js";
-import { searchKnowledge } from "../knowledge/store.js";
-import type { BetaTool } from "../llm/client.js";
+import type { AppConfig } from "../config";
+import type { Db } from "../db/client";
+import type { LoggedExercise, PlannedDay } from "../db/schema";
+import type { Embedder } from "../knowledge/embeddings";
+import type { CoachKnowledge } from "../knowledge/schema";
+import { searchKnowledge } from "../knowledge/store";
+import type { BetaTool } from "../llm/client";
 import {
   ACTIVITY,
   applyProfileUpdate,
@@ -17,9 +17,9 @@ import {
   ProfileValueError,
   SEXES,
   type ClientProfile,
-} from "../profile.js";
-import { saveProfile, setClientFlags, type ClientRow } from "../repos/clients.js";
-import { ALERT_TYPES, createAlert, SEVERITIES, type AlertType, type Severity } from "../repos/ops.js";
+} from "../profile";
+import { saveProfile, setClientFlags, type ClientRow } from "../repos/clients";
+import { ALERT_TYPES, createAlert, SEVERITIES, type AlertType, type Severity } from "../repos/ops";
 import {
   addMeal,
   addWeight,
@@ -31,11 +31,11 @@ import {
   listWorkouts,
   saveMealPlan,
   saveWorkoutPlan,
-} from "../repos/tracking.js";
-import { calorieFloor, MAX_DAILY_CALORIES } from "../safety/calories.js";
-import { containsNutritionNumbers } from "../safety/outputGuards.js";
-import type { TenantContext } from "../tenancy.js";
-import { addDays, isIsoDate } from "../time.js";
+} from "../repos/tracking";
+import { calorieFloor, MAX_DAILY_CALORIES } from "../safety/calories";
+import { containsNutritionNumbers } from "../safety/outputGuards";
+import type { TenantContext } from "../tenancy";
+import { addDays, isIsoDate } from "../time";
 
 export type TurnEvent =
   | { type: "tool"; name: string; input: unknown; ok: boolean; result: string }

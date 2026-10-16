@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { newDataKey, unwrapDataKey, wrapDataKey, type CipherScope } from "./crypto.js";
-import type { Db } from "./db/client.js";
-import { coaches, type CoachSettings } from "./db/schema.js";
+import { newDataKey, unwrapDataKey, wrapDataKey, type CipherScope } from "./crypto";
+import type { Db } from "./db/client";
+import { coaches, type CoachSettings } from "./db/schema";
 
 /**
  * Every data access in the system goes through a TenantContext. Repositories take it as a required
@@ -60,6 +60,23 @@ export async function openTenantBySlug(db: Db, slug: string): Promise<TenantCont
   const [row] = await db.select().from(coaches).where(eq(coaches.slug, slug));
   if (!row || row.status !== "active") throw new TenantNotFoundError(`Coach "${slug}" not found`);
   return toContext(row);
+}
+
+/** Updates the coach's display name and/or merges settings (undefined values remove a setting). */
+export async function updateCoach(
+  db: Db,
+  t: TenantContext,
+  patch: { name?: string; settings?: Partial<CoachSettings> },
+): Promise<TenantContext> {
+  const settings: CoachSettings = { ...t.settings, ...patch.settings };
+  for (const key of Object.keys(settings) as (keyof CoachSettings)[]) {
+    if (settings[key] === undefined) delete settings[key];
+  }
+  await db
+    .update(coaches)
+    .set({ ...(patch.name ? { name: patch.name } : {}), settings, updatedAt: new Date() })
+    .where(eq(coaches.id, t.coachId));
+  return openTenant(db, t.coachId);
 }
 
 /** Re-reads mutable coach fields (knowledge version, settings) into a fresh context. */

@@ -1,7 +1,7 @@
-import type { ClientFlags } from "../db/schema.js";
-import { missingOnboardingFields, type ClientProfile } from "../profile.js";
-import type { CalorieFloor } from "../safety/calories.js";
-import type { BetaTextBlockParam } from "./client.js";
+import type { ClientFlags } from "../db/schema";
+import { missingOnboardingFields, type ClientProfile } from "../profile";
+import type { CalorieFloor } from "../safety/calories";
+import type { BetaTextBlockParam } from "./client";
 
 /**
  * system[0]: identical for every coach and client, so it (together with the tool definitions, which render

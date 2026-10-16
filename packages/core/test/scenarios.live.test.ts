@@ -3,18 +3,18 @@
 // Assertions check behavior (tools called, alerts raised, rules respected), not exact wording.
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { loadConfig } from "../src/config.js";
-import { openDatabase, type DbHandle } from "../src/db/client.js";
-import { ConversationEngine } from "../src/engine/conversation.js";
-import { importCoachFromDir } from "../src/knowledge/importer.js";
-import { createAnthropicLlm } from "../src/llm/client.js";
-import type { ClientProfile } from "../src/profile.js";
-import { findClientByPhone, getProfile, saveProfile } from "../src/repos/clients.js";
-import { listAlerts } from "../src/repos/ops.js";
-import { getActiveMealPlan, getActiveWorkoutPlan } from "../src/repos/tracking.js";
-import { containsNutritionNumbers } from "../src/safety/outputGuards.js";
-import { openTenant } from "../src/tenancy.js";
-import { SEED_DIR } from "./helpers.js";
+import { loadConfig } from "../src/config";
+import { openDatabase, type DbHandle } from "../src/db/client";
+import { ConversationEngine } from "../src/engine/conversation";
+import { importCoachFromDir } from "../src/knowledge/importer";
+import { createAnthropicLlm } from "../src/llm/client";
+import type { ClientProfile } from "../src/profile";
+import { findClientByPhone, getProfile, saveProfile } from "../src/repos/clients";
+import { listAlerts } from "../src/repos/ops";
+import { getActiveMealPlan, getActiveWorkoutPlan } from "../src/repos/tracking";
+import { containsNutritionNumbers } from "../src/safety/outputGuards";
+import { openTenant } from "../src/tenancy";
+import { SEED_DIR } from "./helpers";
 
 const cfg = loadConfig();
 const hasKey = Boolean(cfg.ANTHROPIC_API_KEY);

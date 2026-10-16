@@ -1,11 +1,11 @@
-import type { AppConfig } from "../config.js";
-import type { Db } from "../db/client.js";
-import type { ConversationEngine, InboundMessage, UnsupportedKind } from "../engine/conversation.js";
-import { logger } from "../logger.js";
-import { clientPhone, getClient } from "../repos/clients.js";
-import { createAlert } from "../repos/ops.js";
-import { openTenant, type TenantContext } from "../tenancy.js";
-import type { WhatsAppApi } from "./api.js";
+import type { AppConfig } from "../config";
+import type { Db } from "../db/client";
+import type { ConversationEngine, InboundMessage, UnsupportedKind } from "../engine/conversation";
+import { logger } from "../logger";
+import { clientPhone, getClient } from "../repos/clients";
+import { createAlert } from "../repos/ops";
+import { openTenant, type TenantContext } from "../tenancy";
+import type { WhatsAppApi } from "./api";
 import {
   claimDueJobs,
   failJob,
@@ -15,8 +15,8 @@ import {
   purgeProcessedInbound,
   type PendingInbound,
   type TurnJob,
-} from "./inbox.js";
-import { deliverTurn } from "./outbound.js";
+} from "./inbox";
+import { deliverTurn } from "./outbound";
 
 export interface WorkerDeps {
   db: Db;

@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import { loadConfig } from "../config.js";
-import { EMBEDDING_DIMENSIONS } from "../db/schema.js";
+import { loadConfig } from "../config";
+import { EMBEDDING_DIMENSIONS } from "../db/schema";
 
 export interface Embedder {
   readonly model: string;

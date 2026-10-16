@@ -1,13 +1,13 @@
 import { and, asc, eq, inArray, isNull, lt, lte, notExists, or, sql } from "drizzle-orm";
-import { decryptJson, encryptJson } from "../crypto.js";
-import type { Db } from "../db/client.js";
-import { inboundMessages, turnJobs } from "../db/schema.js";
-import { logger } from "../logger.js";
-import { findOrCreateClient } from "../repos/clients.js";
-import { applyDeliveryStatus } from "../repos/conversation.js";
-import { openTenant, type TenantContext } from "../tenancy.js";
-import { findAccountByPhoneNumberId } from "./accounts.js";
-import type { InboundKind, InboundWaMessage, StatusUpdate } from "./webhook.js";
+import { decryptJson, encryptJson } from "../crypto";
+import type { Db } from "../db/client";
+import { inboundMessages, turnJobs } from "../db/schema";
+import { logger } from "../logger";
+import { findOrCreateClient } from "../repos/clients";
+import { applyDeliveryStatus } from "../repos/conversation";
+import { openTenant, type TenantContext } from "../tenancy";
+import { findAccountByPhoneNumberId } from "./accounts";
+import type { InboundKind, InboundWaMessage, StatusUpdate } from "./webhook";
 
 // The webhook only stores and acknowledges; the worker does the slow part (Claude). This keeps the webhook
 // response fast (Meta retries slow or failing webhooks) and serializes each client's turns.

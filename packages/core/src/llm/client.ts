@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { modelSupportsFallbacks, type AppConfig } from "../config.js";
-import { logger } from "../logger.js";
+import { modelSupportsFallbacks, type AppConfig } from "../config";
+import { logger } from "../logger";
 
 export type BetaMessage = Anthropic.Beta.BetaMessage;
 export type BetaMessageParam = Anthropic.Beta.BetaMessageParam;

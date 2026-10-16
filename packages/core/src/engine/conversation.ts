@@ -11,9 +11,9 @@ import {
   isDeletionConfirmation,
   isDeletionRequest,
   looksHebrew,
-} from "../consent.js";
-import { formatReply } from "../format/whatsapp.js";
-import { getKnowledge } from "../knowledge/store.js";
+} from "../consent";
+import { formatReply } from "../format/whatsapp";
+import { getKnowledge } from "../knowledge/store";
 import {
   conversationParams,
   logInputTransformations,
@@ -24,18 +24,18 @@ import {
   type BetaMessageParam,
   type BetaToolResultBlockParam,
   type UsageSummary,
-} from "../llm/client.js";
-import { logger } from "../logger.js";
-import { deleteClientData } from "../privacy.js";
-import { findOrCreateClient, getProfile, requireClient, setClientFlags, updateClient, type ClientRow } from "../repos/clients.js";
-import { appendEpochMessages, listUnseenChatMessages, logChatMessage, markChatMessagesSeen, type Epoch } from "../repos/conversation.js";
-import { audit, createAlert, recordUsage } from "../repos/ops.js";
-import { detectRedFlags, safetyNote } from "../safety/redFlags.js";
-import { containsNutritionNumbers, ED_SAFE_FALLBACK_EN, ED_SAFE_FALLBACK_HE } from "../safety/outputGuards.js";
-import { openTenant, type TenantContext } from "../tenancy.js";
-import { localDate, localStamp } from "../time.js";
-import { ensureEpoch, type EngineDeps } from "./epochs.js";
-import { raiseAlert, runTool, TOOLS, type TurnContext, type TurnEvent } from "./tools.js";
+} from "../llm/client";
+import { logger } from "../logger";
+import { deleteClientData } from "../privacy";
+import { findOrCreateClient, getProfile, requireClient, setClientFlags, updateClient, type ClientRow } from "../repos/clients";
+import { appendEpochMessages, listUnseenChatMessages, logChatMessage, markChatMessagesSeen, type Epoch } from "../repos/conversation";
+import { audit, createAlert, recordUsage } from "../repos/ops";
+import { detectRedFlags, safetyNote } from "../safety/redFlags";
+import { containsNutritionNumbers, ED_SAFE_FALLBACK_EN, ED_SAFE_FALLBACK_HE } from "../safety/outputGuards";
+import { openTenant, type TenantContext } from "../tenancy";
+import { localDate, localStamp } from "../time";
+import { ensureEpoch, type EngineDeps } from "./epochs";
+import { raiseAlert, runTool, TOOLS, type TurnContext, type TurnEvent } from "./tools";
 
 export interface InboundMessage {
   coachId: string;
@@ -133,9 +133,9 @@ export class ConversationEngine {
         client = await updateClient(db, t, client.id, {
           consentStatus: "granted",
           consentAt: now,
-          consentVersion: CONSENT_VERSION,
+          consentVersion: t.settings.consentVersion ?? CONSENT_VERSION,
         });
-        await audit(db, t, { actor: "client", action: "consent_granted", targetType: "client", targetId: client.id, meta: { version: CONSENT_VERSION } });
+        await audit(db, t, { actor: "client", action: "consent_granted", targetType: "client", targetId: client.id, meta: { version: t.settings.consentVersion ?? CONSENT_VERSION } });
         await logChatMessage(db, t, { clientId: client.id, direction: "in", sender: "client", body: text, kind, externalId: msg.externalId });
         return this.runTurn(t, client, { kind: "consent_granted" }, events);
       }
@@ -146,7 +146,7 @@ export class ConversationEngine {
         return reply([CONSENT_DECLINED_TEXT]);
       }
       client = await setClientFlags(db, t, client, { consentPromptedAt: now.toISOString() });
-      return reply([consentText(t.coachName)], { buttons: [CONSENT_BUTTONS.accept, CONSENT_BUTTONS.decline] });
+      return reply([t.settings.consentText ?? consentText(t.coachName)], { buttons: [CONSENT_BUTTONS.accept, CONSENT_BUTTONS.decline] });
     }
 
     // While paused the model won't see this message in its history, so it joins the record of the takeover.

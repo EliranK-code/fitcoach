@@ -1,5 +1,5 @@
 import { pino } from "pino";
-import { loadConfig } from "./config.js";
+import { loadConfig } from "./config";
 
 // Never log message bodies, phone numbers, profiles or keys: these paths are redacted wherever they appear.
 const REDACT = [

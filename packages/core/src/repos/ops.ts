@@ -1,8 +1,8 @@
 import { and, desc, eq, gte } from "drizzle-orm";
-import { decryptOptional, decryptText, encryptOptional, encryptText } from "../crypto.js";
-import type { Db } from "../db/client.js";
-import { alerts, auditLog, usageEvents } from "../db/schema.js";
-import type { TenantContext } from "../tenancy.js";
+import { decryptOptional, decryptText, encryptOptional, encryptText } from "../crypto";
+import type { Db } from "../db/client";
+import { alerts, auditLog, usageEvents } from "../db/schema";
+import type { TenantContext } from "../tenancy";
 
 export const ALERT_TYPES = [
   "unknown_question",

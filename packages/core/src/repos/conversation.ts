@@ -1,9 +1,9 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
-import { decryptJson, decryptOptional, encryptJson, encryptOptional } from "../crypto.js";
-import type { Db } from "../db/client.js";
-import { chatMessages, conversationEpochs, llmMessages } from "../db/schema.js";
-import type { TenantContext } from "../tenancy.js";
+import { decryptJson, decryptOptional, encryptJson, encryptOptional } from "../crypto";
+import type { Db } from "../db/client";
+import { chatMessages, conversationEpochs, llmMessages } from "../db/schema";
+import type { TenantContext } from "../tenancy";
 
 type MessageParam = Anthropic.Beta.BetaMessageParam;
 type SystemBlock = Anthropic.Beta.BetaTextBlockParam;

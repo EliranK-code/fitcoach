@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, max } from "drizzle-orm";
-import { decryptOptional, decryptText, encryptOptional, encryptText } from "../crypto.js";
-import type { Db } from "../db/client.js";
+import { decryptOptional, decryptText, encryptOptional, encryptText } from "../crypto";
+import type { Db } from "../db/client";
 import {
   mealLogs,
   mealPlans,
@@ -9,8 +9,8 @@ import {
   workoutPlans,
   type LoggedExercise,
   type PlannedDay,
-} from "../db/schema.js";
-import type { TenantContext } from "../tenancy.js";
+} from "../db/schema";
+import type { TenantContext } from "../tenancy";
 
 const scope = <T extends { coachId: unknown; clientId: unknown }>(table: T, t: TenantContext, clientId: string) =>
   and(eq(table.coachId as never, t.coachId), eq(table.clientId as never, clientId));

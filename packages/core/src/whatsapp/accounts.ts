@@ -1,10 +1,10 @@
 import { and, eq } from "drizzle-orm";
-import type { AppConfig } from "../config.js";
-import { decryptOptional, encryptOptional } from "../crypto.js";
-import type { Db } from "../db/client.js";
-import { whatsappAccounts } from "../db/schema.js";
-import type { TenantContext } from "../tenancy.js";
-import { createDryRunApi, createGraphApi, type DryRunEntry, type WhatsAppApi } from "./api.js";
+import type { AppConfig } from "../config";
+import { decryptOptional, encryptOptional } from "../crypto";
+import type { Db } from "../db/client";
+import { whatsappAccounts } from "../db/schema";
+import type { TenantContext } from "../tenancy";
+import { createDryRunApi, createGraphApi, type DryRunEntry, type WhatsAppApi } from "./api";
 
 export type WhatsAppAccount = typeof whatsappAccounts.$inferSelect;
 

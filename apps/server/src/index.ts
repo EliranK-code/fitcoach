@@ -13,7 +13,7 @@ import {
   type DryRunEntry,
   type LlmClient,
 } from "@fitcoach/core";
-import { buildServer } from "./app.js";
+import { buildServer } from "./app";
 
 function printDryRun(entry: DryRunEntry) {
   if (entry.type === "read") return;

@@ -1,19 +1,19 @@
-import type { AppConfig } from "../config.js";
-import type { Db } from "../db/client.js";
-import type { Embedder } from "../knowledge/embeddings.js";
-import { buildKnowledgePrompt } from "../knowledge/store.js";
-import { textOf, type BetaMessageParam, type LlmClient } from "../llm/client.js";
-import { buildSystemBlocks, renderClientContext, SUMMARY_SYSTEM } from "../llm/prompts.js";
-import { logger } from "../logger.js";
-import { isMinor } from "../profile.js";
-import { getMemory, saveMemory } from "../repos/clients.js";
-import { closeEpoch, createEpoch, getActiveEpoch, type Epoch } from "../repos/conversation.js";
-import { recordUsage } from "../repos/ops.js";
-import { getActiveMealPlan, getActiveWorkoutPlan } from "../repos/tracking.js";
-import { calorieFloor } from "../safety/calories.js";
-import type { TenantContext } from "../tenancy.js";
-import { localDate } from "../time.js";
-import type { TurnContext } from "./tools.js";
+import type { AppConfig } from "../config";
+import type { Db } from "../db/client";
+import type { Embedder } from "../knowledge/embeddings";
+import { buildKnowledgePrompt } from "../knowledge/store";
+import { textOf, type BetaMessageParam, type LlmClient } from "../llm/client";
+import { buildSystemBlocks, renderClientContext, SUMMARY_SYSTEM } from "../llm/prompts";
+import { logger } from "../logger";
+import { isMinor } from "../profile";
+import { getMemory, saveMemory } from "../repos/clients";
+import { closeEpoch, createEpoch, getActiveEpoch, type Epoch } from "../repos/conversation";
+import { recordUsage } from "../repos/ops";
+import { getActiveMealPlan, getActiveWorkoutPlan } from "../repos/tracking";
+import { calorieFloor } from "../safety/calories";
+import type { TenantContext } from "../tenancy";
+import { localDate } from "../time";
+import type { TurnContext } from "./tools";
 
 export interface EngineDeps {
   db: Db;

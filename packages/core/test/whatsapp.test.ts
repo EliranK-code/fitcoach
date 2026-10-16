@@ -1,18 +1,18 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { DELETE_DONE_TEXT } from "../src/consent.js";
-import { chatMessages, clients, inboundMessages, turnJobs } from "../src/db/schema.js";
-import { findClientByPhone, updateClient } from "../src/repos/clients.js";
-import { listChatMessages } from "../src/repos/conversation.js";
-import { listAlerts } from "../src/repos/ops.js";
-import type { TenantContext } from "../src/tenancy.js";
-import { connectWhatsAppNumber } from "../src/whatsapp/accounts.js";
-import { createDryRunApi, createGraphApi, WhatsAppApiError, type WhatsAppApi } from "../src/whatsapp/api.js";
-import { applyStatuses, claimDueJobs, enqueueInbound, MAX_JOB_ATTEMPTS } from "../src/whatsapp/inbox.js";
-import { OutsideServiceWindowError, sendCoachMessage, sendTemplateMessage } from "../src/whatsapp/outbound.js";
-import { parseWebhook, verifySignature, verifySubscription, type InboundWaMessage } from "../src/whatsapp/webhook.js";
-import { groupInbound, InboundWorker } from "../src/whatsapp/worker.js";
-import { createTestApp, message, text, type TestApp } from "./helpers.js";
+import { DELETE_DONE_TEXT } from "../src/consent";
+import { chatMessages, clients, inboundMessages, turnJobs } from "../src/db/schema";
+import { findClientByPhone, updateClient } from "../src/repos/clients";
+import { listChatMessages } from "../src/repos/conversation";
+import { listAlerts } from "../src/repos/ops";
+import type { TenantContext } from "../src/tenancy";
+import { connectWhatsAppNumber } from "../src/whatsapp/accounts";
+import { createDryRunApi, createGraphApi, WhatsAppApiError, type WhatsAppApi } from "../src/whatsapp/api";
+import { applyStatuses, claimDueJobs, enqueueInbound, MAX_JOB_ATTEMPTS } from "../src/whatsapp/inbox";
+import { OutsideServiceWindowError, sendCoachMessage, sendTemplateMessage } from "../src/whatsapp/outbound";
+import { parseWebhook, verifySignature, verifySubscription, type InboundWaMessage } from "../src/whatsapp/webhook";
+import { groupInbound, InboundWorker } from "../src/whatsapp/worker";
+import { createTestApp, message, text, type TestApp } from "./helpers";
 
 const PNID = "pn-test-1";
 const FROM = "972501234567";
@@ -342,7 +342,7 @@ describe("account routing", () => {
     try {
       const t = await app.tenant();
       await connectWhatsAppNumber(app.handle.db, t, { phoneNumberId: "shared" });
-      const { createCoach, openTenant } = await import("../src/tenancy.js");
+      const { createCoach, openTenant } = await import("../src/tenancy");
       const other = await openTenant(app.handle.db, await createCoach(app.handle.db, { slug: "x", name: "X" }));
       await expect(connectWhatsAppNumber(app.handle.db, other, { phoneNumberId: "shared" })).rejects.toThrow(/another coach/);
     } finally {

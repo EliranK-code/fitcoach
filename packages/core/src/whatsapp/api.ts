@@ -1,4 +1,4 @@
-import { logger } from "../logger.js";
+import { logger } from "../logger";
 
 // Thin client for the official WhatsApp Business Cloud API (Graph API). No unofficial libraries:
 // those automate the consumer app and get numbers banned.

@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { chatMessages, clients, conversationEpochs, llmMessages } from "../src/db/schema.js";
-import type { BetaMessageParam, CreateParams } from "../src/llm/client.js";
-import { PLATFORM_RULES } from "../src/llm/prompts.js";
-import { findClientByPhone, getMemory, getProfile, setClientFlags, updateClient } from "../src/repos/clients.js";
-import { getActiveEpoch, listChatMessages } from "../src/repos/conversation.js";
-import { listAlerts } from "../src/repos/ops.js";
-import { getActiveMealPlan, listWeights } from "../src/repos/tracking.js";
-import { consentedClient, createTestApp, message, text, thinking, toolUse, type TestApp } from "./helpers.js";
+import { chatMessages, clients, conversationEpochs, llmMessages } from "../src/db/schema";
+import type { BetaMessageParam, CreateParams } from "../src/llm/client";
+import { PLATFORM_RULES } from "../src/llm/prompts";
+import { findClientByPhone, getMemory, getProfile, setClientFlags, updateClient } from "../src/repos/clients";
+import { getActiveEpoch, listChatMessages } from "../src/repos/conversation";
+import { listAlerts } from "../src/repos/ops";
+import { getActiveMealPlan, listWeights } from "../src/repos/tracking";
+import { consentedClient, createTestApp, message, text, thinking, toolUse, type TestApp } from "./helpers";
 
 let app: TestApp;
 const PHONE = "0501234567";
@@ -316,7 +316,7 @@ describe("epochs and long-term memory", () => {
 
   it("rolls over when the coach publishes new knowledge", async () => {
     await consentedClient(app);
-    const { publishKnowledge } = await import("../src/knowledge/store.js");
+    const { publishKnowledge } = await import("../src/knowledge/store");
     await publishKnowledge(app.handle.db, await app.tenant(), {}, null);
     app.llm.push(message([text("היי")]));
     const res = await send("שלום");

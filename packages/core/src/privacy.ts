@@ -1,11 +1,11 @@
 import { and, eq, isNull, lt, or } from "drizzle-orm";
-import type { Db } from "./db/client.js";
-import { clients } from "./db/schema.js";
-import { clientPhone, getMemory, getProfile, requireClient } from "./repos/clients.js";
-import { listChatMessages } from "./repos/conversation.js";
-import { audit, listAlerts } from "./repos/ops.js";
-import { getActiveMealPlan, getActiveWorkoutPlan, listMeals, listWeights, listWorkouts } from "./repos/tracking.js";
-import type { TenantContext } from "./tenancy.js";
+import type { Db } from "./db/client";
+import { clients } from "./db/schema";
+import { clientPhone, getMemory, getProfile, requireClient } from "./repos/clients";
+import { listChatMessages } from "./repos/conversation";
+import { audit, listAlerts } from "./repos/ops";
+import { getActiveMealPlan, getActiveWorkoutPlan, listMeals, listWeights, listWorkouts } from "./repos/tracking";
+import type { TenantContext } from "./tenancy";
 
 /** Everything stored about a client, decrypted: the answer to a data-access request. */
 export async function exportClientData(db: Db, t: TenantContext, clientId: string, actor: string) {

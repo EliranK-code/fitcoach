@@ -1,11 +1,11 @@
-import { and, asc, cosineDistance, desc, eq, ilike, isNotNull, or } from "drizzle-orm";
-import type { Db } from "../db/client.js";
-import { coaches, coachKnowledge, knowledgeChunks, knowledgeDocuments } from "../db/schema.js";
-import type { TenantContext } from "../tenancy.js";
-import { chunkText } from "./chunker.js";
-import type { Embedder } from "./embeddings.js";
-import { estimateTokens, renderCoachKnowledge } from "./render.js";
-import { coachKnowledgeSchema, type CoachKnowledge } from "./schema.js";
+import { and, asc, cosineDistance, desc, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
+import type { Db } from "../db/client";
+import { coaches, coachKnowledge, knowledgeChunks, knowledgeDocuments } from "../db/schema";
+import type { TenantContext } from "../tenancy";
+import { chunkText } from "./chunker";
+import type { Embedder } from "./embeddings";
+import { estimateTokens, renderCoachKnowledge } from "./render";
+import { coachKnowledgeSchema, type CoachKnowledge } from "./schema";
 
 export interface KnowledgeDocumentInput {
   title: string;
@@ -14,15 +14,26 @@ export interface KnowledgeDocumentInput {
   text: string;
 }
 
+export interface KnowledgeUpdate {
+  /** New structured knowledge (coach.yaml content); omitted = keep the current one. */
+  data?: CoachKnowledge;
+  /** Replaces the whole document set. */
+  documents?: KnowledgeDocumentInput[];
+  /** Adds documents to the existing set. */
+  addDocuments?: KnowledgeDocumentInput[];
+  /** Removes these documents (ids from listDocuments). */
+  removeDocumentIds?: string[];
+}
+
 /**
- * Publishes a new knowledge version: optionally replaces the structured data and/or the document set,
- * then bumps the coach's knowledge_version. Active conversations notice the bump and roll over to a new
- * epoch with the updated knowledge on their next message.
+ * Publishes a new knowledge version: structured data and/or documents change, then the coach's
+ * knowledge_version is bumped. Active conversations notice the bump and roll over to a new epoch with
+ * the updated knowledge on their next message.
  */
 export async function publishKnowledge(
   db: Db,
   t: TenantContext,
-  update: { data?: CoachKnowledge; documents?: KnowledgeDocumentInput[] },
+  update: KnowledgeUpdate,
   embedder: Embedder | null,
 ): Promise<number> {
   const current = await getKnowledge(db, t);
@@ -30,7 +41,8 @@ export async function publishKnowledge(
   if (!data) throw new Error("Coach has no knowledge yet: provide structured data first");
 
   // Embed outside the transaction: it's a network call.
-  const prepared = update.documents?.map((doc) => ({ doc, chunks: chunkText(doc.text) }));
+  const incoming = update.documents ?? update.addDocuments;
+  const prepared = incoming?.map((doc) => ({ doc, chunks: chunkText(doc.text) }));
   let vectors: number[][] | null = null;
   if (prepared && embedder) {
     vectors = await embedder.embed(prepared.flatMap((p) => p.chunks));
@@ -44,8 +56,15 @@ export async function publishKnowledge(
     const version = (coach?.v ?? 0) + 1;
     await tx.insert(coachKnowledge).values({ coachId: t.coachId, version, data });
 
-    if (prepared) {
+    if (update.documents) {
       await tx.delete(knowledgeDocuments).where(eq(knowledgeDocuments.coachId, t.coachId));
+    }
+    if (update.removeDocumentIds?.length) {
+      await tx
+        .delete(knowledgeDocuments)
+        .where(and(eq(knowledgeDocuments.coachId, t.coachId), inArray(knowledgeDocuments.id, update.removeDocumentIds)));
+    }
+    if (prepared) {
       let v = 0;
       for (const { doc, chunks } of prepared) {
         const [row] = await tx
@@ -201,3 +220,13 @@ export async function searchKnowledge(
     .slice(0, limit);
 }
 
+
+/** Published versions, newest first (the dashboard shows the history). */
+export async function listKnowledgeVersions(db: Db, t: TenantContext, limit = 20) {
+  return db
+    .select({ version: coachKnowledge.version, createdAt: coachKnowledge.createdAt })
+    .from(coachKnowledge)
+    .where(eq(coachKnowledge.coachId, t.coachId))
+    .orderBy(desc(coachKnowledge.version))
+    .limit(limit);
+}

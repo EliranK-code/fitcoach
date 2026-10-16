@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isConsentAccept, isConsentDecline, isDeletionConfirmation, isDeletionRequest } from "../src/consent.js";
+import { isConsentAccept, isConsentDecline, isDeletionConfirmation, isDeletionRequest } from "../src/consent";
 import {
   decryptText,
   encryptText,
@@ -8,15 +8,15 @@ import {
   phoneHash,
   unwrapDataKey,
   wrapDataKey,
-} from "../src/crypto.js";
-import { splitForWhatsApp, toWhatsAppFormat } from "../src/format/whatsapp.js";
-import { chunkText } from "../src/knowledge/chunker.js";
-import { sanitizeAssistantContent } from "../src/llm/client.js";
-import { applyProfileUpdate, missingOnboardingFields, ProfileValueError } from "../src/profile.js";
-import { calorieFloor, estimateTdee } from "../src/safety/calories.js";
-import { containsNutritionNumbers } from "../src/safety/outputGuards.js";
-import { detectRedFlags } from "../src/safety/redFlags.js";
-import { localDate, localStamp } from "../src/time.js";
+} from "../src/crypto";
+import { splitForWhatsApp, toWhatsAppFormat } from "../src/format/whatsapp";
+import { chunkText } from "../src/knowledge/chunker";
+import { sanitizeAssistantContent } from "../src/llm/client";
+import { applyProfileUpdate, missingOnboardingFields, ProfileValueError } from "../src/profile";
+import { calorieFloor, estimateTdee } from "../src/safety/calories";
+import { containsNutritionNumbers } from "../src/safety/outputGuards";
+import { detectRedFlags } from "../src/safety/redFlags";
+import { localDate, localStamp } from "../src/time";
 
 describe("crypto", () => {
   it("round-trips text and binds ciphertext to its coach", () => {

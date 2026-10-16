@@ -1,5 +1,5 @@
-import type { CoachSettings } from "../db/schema.js";
-import type { ClientProfile } from "../profile.js";
+import type { CoachSettings } from "../db/schema";
+import type { ClientProfile } from "../profile";
 
 /** Platform minimums. A coach may raise these in settings but never lower them. */
 export const PLATFORM_FLOOR = { female: 1200, male: 1500, unknown: 1500 } as const;

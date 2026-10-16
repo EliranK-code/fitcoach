@@ -38,6 +38,10 @@ export interface CoachSettings {
   calorieFloorFemale?: number;
   calorieFloorMale?: number;
   timezone?: string;
+  /** The coach's own consent notice; unset = the platform default. */
+  consentText?: string;
+  /** Recorded with every consent, so it's clear which wording a client agreed to. */
+  consentVersion?: string;
 }
 
 export const coachKnowledge = pgTable(
@@ -424,6 +428,39 @@ export const usageEvents = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("usage_events_coach").on(t.coachId, t.createdAt)],
+);
+
+/** People who log into a coach's dashboard. Passwords are scrypt hashes; never stored or logged in clear. */
+export const coachUsers = pgTable(
+  "coach_users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    coachId: uuid("coach_id").notNull().references(() => coaches.id, { onDelete: "cascade" }),
+    email: text("email").notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    role: text("role").notNull().default("owner"),
+    failedAttempts: integer("failed_attempts").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("coach_users_coach").on(t.coachId)],
+);
+
+/** Dashboard sessions. Only a SHA-256 of the cookie token is stored, so a DB leak doesn't leak sessions. */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => coachUsers.id, { onDelete: "cascade" }),
+    coachId: uuid("coach_id").notNull().references(() => coaches.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("sessions_user").on(t.userId)],
 );
 
 export const auditLog = pgTable(

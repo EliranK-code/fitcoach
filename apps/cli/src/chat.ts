@@ -22,8 +22,8 @@ import {
   type TurnEvent,
   type TurnResult,
 } from "@fitcoach/core";
-import { renderForTerminal } from "./bidi.js";
-import type { App } from "./bootstrap.js";
+import { renderForTerminal } from "./bidi";
+import type { App } from "./bootstrap";
 
 type Color = Parameters<typeof styleText>[0];
 

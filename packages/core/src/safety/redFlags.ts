@@ -1,4 +1,4 @@
-import type { AlertType, Severity } from "../repos/ops.js";
+import type { AlertType, Severity } from "../repos/ops";
 
 // Deterministic backstop for the safety rules: catches red-flag phrases in client messages even if the model
 // misses them. Hebrew words take prefixes (ו, ה, ב, ל, מ, ש, כ), so Hebrew patterns match substrings rather

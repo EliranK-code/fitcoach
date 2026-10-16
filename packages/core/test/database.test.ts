@@ -5,14 +5,14 @@ import { PGlite } from "@electric-sql/pglite";
 import { vector } from "@electric-sql/pglite-pgvector";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DatabaseBusyError, openDatabase, type DbHandle } from "../src/db/client.js";
-import { ConversationEngine } from "../src/engine/conversation.js";
-import { importCoachFromDir } from "../src/knowledge/importer.js";
-import { searchKnowledge } from "../src/knowledge/store.js";
-import { openTenant } from "../src/tenancy.js";
-import { connectWhatsAppNumber } from "../src/whatsapp/accounts.js";
-import { claimDueJobs, enqueueInbound } from "../src/whatsapp/inbox.js";
-import { FakeLlm, message, SEED_DIR, testConfig, text } from "./helpers.js";
+import { DatabaseBusyError, openDatabase, type DbHandle } from "../src/db/client";
+import { ConversationEngine } from "../src/engine/conversation";
+import { importCoachFromDir } from "../src/knowledge/importer";
+import { searchKnowledge } from "../src/knowledge/store";
+import { openTenant } from "../src/tenancy";
+import { connectWhatsAppNumber } from "../src/whatsapp/accounts";
+import { claimDueJobs, enqueueInbound } from "../src/whatsapp/inbox";
+import { FakeLlm, message, SEED_DIR, testConfig, text } from "./helpers";
 
 // The production path (DATABASE_URL → postgres-js → Supabase) talks the Postgres wire protocol. PGlite
 // exposed over a socket lets us exercise that exact driver, migrator and SQL (SKIP LOCKED, pgvector) offline.
