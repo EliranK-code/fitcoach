@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { listAlerts } from "@fitcoach/core";
+import { listAlerts, monthUsage } from "@fitcoach/core";
 import { Badge, ButtonLink, Card, EmptyState, PageHeader, SEVERITY_TONE, Stat } from "@/components/ui";
+import { BudgetNotice } from "@/components/usage-card";
 import { ALERT_TYPE_LABEL, formatRelative, SEVERITY_LABEL, SEVERITY_ORDER } from "@/lib/labels";
 import { clientRows, overviewStats } from "@/lib/queries";
 import { requireSession } from "@/lib/session";
@@ -14,10 +15,12 @@ export default async function OverviewPage() {
     .slice(0, 5);
   const rows = await clientRows(db, s.t);
   const names = new Map(rows.map((r) => [r.id, r.name]));
+  const usage = s.t.settings.monthlyBudgetUsd ? await monthUsage(db, s.t) : null;
 
   return (
     <>
       <PageHeader title={`שלום, ${s.t.coachName}`} description="מה קורה עם הלקוחות שלך" />
+      {usage && <BudgetNotice usage={usage} budgetUsd={s.t.settings.monthlyBudgetUsd} />}
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="דורש התערבות" value={stats.openAlerts} tone={stats.urgentAlerts > 0 ? "red" : undefined} />
         <Stat label="לקוחות" value={stats.clients} />

@@ -3,6 +3,7 @@ import { decryptOptional, decryptText, encryptOptional, encryptText } from "../c
 import type { Db } from "../db/client";
 import { withTenant } from "../db/scope";
 import { alerts, auditLog, usageEvents } from "../db/schema";
+import { estimateCostMicros, type MessageKind } from "../pricing";
 import type { TenantContext } from "../tenancy";
 
 export const ALERT_TYPES = [
@@ -14,6 +15,7 @@ export const ALERT_TYPES = [
   "substances",
   "paused_message",
   "bot_error",
+  "rate_limited",
   "other",
 ] as const;
 export type AlertType = (typeof ALERT_TYPES)[number];
@@ -128,14 +130,17 @@ export async function resolveAlert(db: Db, t: TenantContext, alertId: string, re
 
 export interface UsageInput {
   clientId?: string | null;
-  kind: "chat" | "summary" | "ingest" | "embedding" | "transcription";
+  kind: "chat" | "summary" | "ingest" | "embedding" | "transcription" | MessageKind;
   model: string;
   inputTokens?: number;
   outputTokens?: number;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
+  /** Messages, for the message kinds. */
+  quantity?: number;
 }
 
+/** Records one billable event with its estimated cost (pricing.ts). Usage rows outlive deleted clients. */
 export async function recordUsage(db: Db, t: TenantContext, u: UsageInput): Promise<void> {
   await withTenant(db, t, (db) =>
     db.insert(usageEvents).values({
@@ -147,8 +152,15 @@ export async function recordUsage(db: Db, t: TenantContext, u: UsageInput): Prom
       outputTokens: u.outputTokens ?? 0,
       cacheReadTokens: u.cacheReadTokens ?? 0,
       cacheWriteTokens: u.cacheWriteTokens ?? 0,
+      quantity: u.quantity ?? 0,
+      costMicros: estimateCostMicros(u),
     }),
   );
+}
+
+/** WhatsApp messages in or out of the coach's number, counted for usage (free in the service window, templates are not). */
+export async function recordMessages(db: Db, t: TenantContext, clientId: string | null, kind: MessageKind, quantity = 1): Promise<void> {
+  if (quantity > 0) await recordUsage(db, t, { clientId, kind, model: "whatsapp", quantity });
 }
 
 export async function audit(

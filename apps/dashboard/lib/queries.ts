@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, max, sql } from "drizzle-orm";
+import { and, count, eq, gte } from "drizzle-orm";
 import {
   clientPhone,
   getActiveMealPlan,
@@ -116,23 +116,3 @@ export async function clientDetail(db: Db, t: TenantContext, clientId: string, n
 }
 
 export type ClientDetail = Awaited<ReturnType<typeof clientDetail>>;
-
-/** Usage for the settings page: model calls and tokens over the last 30 days. */
-export async function usageSummary(db: Db, t: TenantContext, now = new Date()) {
-  const since = new Date(now.getTime() - 30 * 24 * 3600_000);
-  return withTenant(db, t, (db) =>
-    db
-      .select({
-        kind: schema.usageEvents.kind,
-        calls: count(),
-        input: sql<number>`coalesce(sum(${schema.usageEvents.inputTokens}), 0)::int`,
-        output: sql<number>`coalesce(sum(${schema.usageEvents.outputTokens}), 0)::int`,
-        cacheRead: sql<number>`coalesce(sum(${schema.usageEvents.cacheReadTokens}), 0)::int`,
-        last: max(schema.usageEvents.createdAt),
-      })
-      .from(schema.usageEvents)
-      .where(and(eq(schema.usageEvents.coachId, t.coachId), gte(schema.usageEvents.createdAt, since)))
-      .groupBy(schema.usageEvents.kind)
-      .orderBy(desc(count())),
-  );
-}

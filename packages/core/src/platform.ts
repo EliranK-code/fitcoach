@@ -47,6 +47,10 @@ export interface CoachSummary {
   starterKnowledge: boolean;
   /** Active WhatsApp numbers. */
   numbers: number;
+  /** Estimated cost since the start of the current UTC month, in micro-dollars. */
+  monthCostMicros: number;
+  /** Soft monthly budget set by an admin, if any. */
+  budgetUsd: number | null;
 }
 
 export async function recordPlatformAction(
@@ -135,6 +139,9 @@ export async function listCoaches(db: Db, now = new Date()): Promise<CoachSummar
         where u.coach_id = coaches.id and u.created_at >= ${monthStart.toISOString()}::timestamptz)`,
       starterKnowledge: sql<boolean>`coalesce((coaches.settings->>'starterKnowledge')::boolean, false)`,
       numbers: sql<number>`(select count(*)::int from whatsapp_accounts w where w.coach_id = coaches.id and w.status = 'active')`,
+      monthCostMicros: sql<number>`(select coalesce(sum(u.cost_micros), 0)::bigint from usage_events u
+        where u.coach_id = coaches.id and u.created_at >= ${monthStart.toISOString()}::timestamptz)`.mapWith(Number),
+      budgetUsd: sql<number | null>`(coaches.settings->>'monthlyBudgetUsd')::float8`,
     })
     .from(coaches)
     .orderBy(asc(coaches.slug));
@@ -192,7 +199,17 @@ export interface DeletionSummary {
   suspendedAt: string | null;
   clients: number;
   /** Per UTC month, for billing after the coach is gone. */
-  usage: { month: string; calls: number; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number }[];
+  usage: {
+    month: string;
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    /** WhatsApp messages (in, out and templates). */
+    quantity: number;
+    costMicros: number;
+  }[];
   messages: { month: string; direction: string; count: number }[];
 }
 
@@ -222,6 +239,8 @@ export async function deleteCoach(db: Db, coachId: string, opts: { actor: string
         outputTokens: sql<number>`coalesce(sum(${usageEvents.outputTokens}), 0)::int`,
         cacheReadTokens: sql<number>`coalesce(sum(${usageEvents.cacheReadTokens}), 0)::int`,
         cacheWriteTokens: sql<number>`coalesce(sum(${usageEvents.cacheWriteTokens}), 0)::int`,
+        quantity: sql<number>`coalesce(sum(${usageEvents.quantity}), 0)::int`,
+        costMicros: sql<number>`coalesce(sum(${usageEvents.costMicros}), 0)::bigint`.mapWith(Number),
       })
       .from(usageEvents)
       .where(eq(usageEvents.coachId, coachId))

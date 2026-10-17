@@ -16,6 +16,7 @@ const ACTIONS: Record<string, string> = {
   reset_link_created: "קישור איפוס סיסמה",
   user_mfa_reset: "ביטול אימות דו-שלבי",
   number_assigned: "חיבור מספר",
+  budget_set: "תקציב חודשי",
 };
 
 export default async function AdminAuditPage() {

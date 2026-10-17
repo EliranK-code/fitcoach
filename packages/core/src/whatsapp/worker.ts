@@ -3,13 +3,14 @@ import type { Db } from "../db/client";
 import type { ConversationEngine, InboundMessage, UnsupportedKind } from "../engine/conversation";
 import { logger } from "../logger";
 import { suspendedNoticeText, suspensionNoticeDue } from "../platform";
+import { purgeRateLimits } from "../ratelimit";
 import { clientPhone, getClient, setClientFlags } from "../repos/clients";
 import { logChatMessage } from "../repos/conversation";
 import { createAlert } from "../repos/ops";
 import { openTenant, type TenantContext } from "../tenancy";
 import { ImageError, prepareImage } from "../media/images";
 import type { Transcriber } from "../media/transcribe";
-import { recordUsage } from "../repos/ops";
+import { recordMessages, recordUsage } from "../repos/ops";
 import { WhatsAppApiError, type WhatsAppApi } from "./api";
 import {
   claimDueJobs,
@@ -117,6 +118,7 @@ export class InboundWorker {
     if (now.getTime() - this.lastPurge > 3600_000) {
       this.lastPurge = now.getTime();
       await purgeProcessedInbound(this.deps.db, new Date(now.getTime() - 7 * 24 * 3600_000));
+      await purgeRateLimits(this.deps.db, new Date(now.getTime() - 24 * 3600_000));
     }
     const jobs = await claimDueJobs(this.deps.db, {
       now,
@@ -191,6 +193,7 @@ export class InboundWorker {
           const notice = suspendedNoticeText(t.coachName);
           const sent = await api.sendText(phone, notice);
           await logChatMessage(db, t, { clientId: client.id, direction: "out", sender: "system", body: notice, externalId: sent.messageId ?? undefined, status: "sent" });
+          await recordMessages(db, t, client.id, "message_out");
           await setClientFlags(db, t, client, { suspensionNoticeAt: this.now().toISOString() });
         }
         await markInbound(db, pending.map((m) => m.id), "done");
@@ -206,6 +209,7 @@ export class InboundWorker {
         if (result.clientId === null) {
           // The client asked to be deleted: their rows are gone, so confirm directly without logging.
           for (const r of result.replies) await api.sendText(phone, r);
+          await recordMessages(db, t, null, "message_out", result.replies.length);
           return;
         }
         const fresh = (await getClient(db, t, client.id)) ?? client;

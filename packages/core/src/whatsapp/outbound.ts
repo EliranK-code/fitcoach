@@ -4,7 +4,7 @@ import { splitForWhatsApp } from "../format/whatsapp";
 import { logger } from "../logger";
 import { clientPhone, type ClientRow } from "../repos/clients";
 import { logChatMessage, setChatDelivery } from "../repos/conversation";
-import { audit } from "../repos/ops";
+import { audit, recordMessages } from "../repos/ops";
 import type { TenantContext } from "../tenancy";
 import { BUTTON_BODY_MAX, WhatsAppApiError, type WhatsAppApi } from "./api";
 
@@ -35,6 +35,7 @@ export async function deliverTurn(
 ): Promise<{ sent: number; failed: number }> {
   let sent = 0;
   let failed = 0;
+  let messages = 0; // WhatsApp messages actually sent (a long reply with buttons takes two)
   if (result.replies.length === 0) return { sent, failed };
   if (!serviceWindowOpen(client, now)) {
     // Replies always follow an inbound message, so this only happens if processing was badly delayed.
@@ -53,11 +54,13 @@ export async function deliverTurn(
           messageId = (await api.sendButtons(to, reply, result.buttons)).messageId;
         } else {
           messageId = (await api.sendText(to, reply)).messageId;
+          messages++;
           await api.sendButtons(to, "👇", result.buttons);
         }
       } else {
         messageId = (await api.sendText(to, reply)).messageId;
       }
+      messages++;
       if (chatId) await setChatDelivery(db, t, chatId, { externalId: messageId, status: "sent" });
       sent++;
     } catch (err) {
@@ -69,6 +72,7 @@ export async function deliverTurn(
       );
     }
   }
+  await recordMessages(db, t, client.id, "message_out", messages);
   return { sent, failed };
 }
 
@@ -99,6 +103,7 @@ export async function sendCoachMessage(
       botSeen: false,
     });
   }
+  await recordMessages(db, t, client.id, "message_out", parts.length);
   await audit(db, t, { actor: opts.actor, action: "coach_message_sent", targetType: "client", targetId: client.id });
   return parts.length;
 }
@@ -123,5 +128,6 @@ export async function sendTemplateMessage(
     status: "sent",
     botSeen: false,
   });
+  await recordMessages(db, t, client.id, "template");
   await audit(db, t, { actor: opts.actor, action: "template_sent", targetType: "client", targetId: client.id, meta: { template: template.name } });
 }

@@ -57,6 +57,13 @@
       "when": 1792185584181,
       "tag": "0007_admin_mfa",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792223276450,
+      "tag": "0008_usage_cost_rate_limits",
+      "breakpoints": true
     }
   ]
 }

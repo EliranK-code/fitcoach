@@ -1,15 +1,23 @@
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
-import { CONSENT_VERSION, consentText, listAudit, mfaEnabled, PLATFORM_FLOOR, resolveReminderSettings, schema, withTenant } from "@fitcoach/core";
+import {
+  CONSENT_VERSION,
+  consentText,
+  listAudit,
+  mfaEnabled,
+  monthUsage,
+  PLATFORM_FLOOR,
+  resolveReminderSettings,
+  schema,
+  withTenant,
+} from "@fitcoach/core";
 import { MfaCard } from "@/components/mfa-card";
 import { ReminderSettingsForm } from "@/components/reminder-settings-form";
 import { CoachSettingsForm, ConsentForm, PasswordForm, WhatsAppConnectForm } from "@/components/settings-forms";
 import { Badge, Card, Notice, PageHeader } from "@/components/ui";
+import { UsageSummary } from "@/components/usage-card";
 import { formatDateTime } from "@/lib/labels";
-import { usageSummary } from "@/lib/queries";
 import { requireSession } from "@/lib/session";
-
-const KIND_LABEL: Record<string, string> = { chat: "שיחות", summary: "סיכומים", ingest: "עיבוד מסמכים", embedding: "חיפוש", transcription: "תמלול" };
 
 export default async function SettingsPage() {
   const s = await requireSession();
@@ -18,7 +26,7 @@ export default async function SettingsPage() {
   const accounts = await withTenant(db, s.t, (db) =>
     db.select().from(schema.whatsappAccounts).where(eq(schema.whatsappAccounts.coachId, s.t.coachId)),
   );
-  const usage = await usageSummary(db, s.t);
+  const usage = await monthUsage(db, s.t);
   const auditRows = await listAudit(db, s.t, 15);
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
@@ -81,36 +89,9 @@ export default async function SettingsPage() {
           <ReminderSettingsForm values={resolveReminderSettings(s.t.settings.reminders)} />
         </Card>
 
-        <Card title="שימוש ב-30 הימים האחרונים">
-          {usage.length === 0 ? (
-            <p className="text-sm text-slate-500">עוד אין שימוש.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="text-xs text-slate-500">
-                <tr>
-                  <th className="pb-2 text-start font-medium">סוג</th>
-                  <th className="pb-2 text-start font-medium">קריאות</th>
-                  <th className="pb-2 text-start font-medium">טוקני קלט</th>
-                  <th className="pb-2 text-start font-medium">מה-cache</th>
-                  <th className="pb-2 text-start font-medium">טוקני פלט</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100" dir="ltr">
-                {usage.map((u) => (
-                  <tr key={u.kind}>
-                    <td className="py-1.5 text-end" dir="rtl">
-                      {KIND_LABEL[u.kind] ?? u.kind}
-                    </td>
-                    <td className="py-1.5 text-end">{u.calls.toLocaleString()}</td>
-                    <td className="py-1.5 text-end">{u.input.toLocaleString()}</td>
-                    <td className="py-1.5 text-end">{u.cacheRead.toLocaleString()}</td>
-                    <td className="py-1.5 text-end">{u.output.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          <p className="mt-3 text-xs text-slate-500">מודל: {s.cfg.CLAUDE_MODEL}</p>
+        <Card title="שימוש החודש">
+          <UsageSummary usage={usage} budgetUsd={s.t.settings.monthlyBudgetUsd} />
+          <p className="mt-2 text-xs text-slate-500">מודל: {s.cfg.CLAUDE_MODEL}</p>
         </Card>
 
         <div className="space-y-6">

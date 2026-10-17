@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   bigserial,
   boolean,
   doublePrecision,
@@ -47,6 +48,8 @@ export interface CoachSettings {
   reminders?: ReminderSettings;
   /** Set for a coach created from the admin panel until they publish their own knowledge; no number can be connected meanwhile. */
   starterKnowledge?: boolean;
+  /** Soft monthly budget in USD, set by a platform admin: banners at 80% and 100%, never a hard stop. */
+  monthlyBudgetUsd?: number;
 }
 
 export const REMINDER_KINDS = ["weigh_in", "workout", "checkin"] as const;
@@ -457,10 +460,21 @@ export const usageEvents = pgTable(
     outputTokens: integer("output_tokens").notNull().default(0),
     cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
     cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+    /** Units that aren't tokens: WhatsApp messages for the message kinds. */
+    quantity: integer("quantity").notNull().default(0),
+    /** Estimated cost in millionths of a dollar, priced when recorded (pricing.ts), so later price changes don't rewrite history. */
+    costMicros: bigint("cost_micros", { mode: "number" }).notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [index("usage_events_coach").on(t.coachId, t.createdAt)],
 );
+
+/** Fixed-window counters for rate limits (logins per IP, messages per client). Platform-only (migration 0008). */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  count: integer("count").notNull(),
+});
 
 /**
  * Proactive reminders a client asked for (weigh-in, workout days, weekly check-in). next_run_at is the

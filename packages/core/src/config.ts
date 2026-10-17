@@ -46,6 +46,12 @@ const envSchema = z.object({
   /** Wait this long after a client's last message before answering, so bursts become one turn. */
   INBOUND_DEBOUNCE_MS: z.preprocess(emptyToUndefined, z.coerce.number().int().nonnegative().default(4000)),
   WORKER_CONCURRENCY: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(4)),
+
+  // Usage and limits (stage 5)
+  /** What Meta charges per template message, for cost estimates (depends on country and category; 0 = unknown). */
+  WHATSAPP_TEMPLATE_PRICE_USD: z.preprocess(emptyToUndefined, z.coerce.number().nonnegative().default(0)),
+  /** Messages per client per hour the bot answers; beyond it they're kept for the coach. 0 = no limit. */
+  CLIENT_HOURLY_MESSAGE_LIMIT: z.preprocess(emptyToUndefined, z.coerce.number().int().nonnegative().default(30)),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

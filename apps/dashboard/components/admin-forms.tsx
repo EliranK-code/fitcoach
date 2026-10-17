@@ -133,6 +133,23 @@ export function AssignNumberForm({ action }: { action: (prev: FormState, form: F
   );
 }
 
+export function BudgetForm({ action, current }: { action: (prev: FormState, form: FormData) => Promise<FormState>; current: number | null }) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
+  return (
+    <form action={formAction} className="space-y-3">
+      <Feedback state={state} />
+      <Field label="תקציב חודשי (דולר)" hint="מכסה רכה: באנר למאמן ב-80% וב-100%, בלי עצירה. ריק = בלי תקציב">
+        <div className="flex gap-2">
+          <Input name="budget" type="number" min="1" step="1" dir="ltr" defaultValue={current ?? ""} className="max-w-32" />
+          <Button size="sm" variant="secondary" disabled={pending}>
+            שמירה
+          </Button>
+        </div>
+      </Field>
+    </form>
+  );
+}
+
 export function DeleteCoachForm({ slug, action }: { slug: string; action: (prev: FormState, form: FormData) => Promise<FormState> }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
   return (

@@ -96,12 +96,13 @@ export async function updateCoach(
       .set({ ...(patch.name ? { name: patch.name } : {}), settings, updatedAt: new Date() })
       .where(eq(coaches.id, t.coachId)),
   );
-  return openTenant(db, t.coachId);
+  // A suspended coach's settings can still change (an admin setting the budget, say).
+  return openTenant(db, t.coachId, { allowSuspended: t.status === "suspended" });
 }
 
 /** Re-reads mutable coach fields (knowledge version, settings) into a fresh context. */
 export async function refreshTenant(db: Db, tenant: TenantContext): Promise<TenantContext> {
-  return openTenant(db, tenant.coachId);
+  return openTenant(db, tenant.coachId, { allowSuspended: tenant.status === "suspended" });
 }
 
 export function forgetTenantKeys(): void {

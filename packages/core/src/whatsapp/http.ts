@@ -37,7 +37,7 @@ export async function handleWebhookPost(db: Db, cfg: AppConfig, raw: Buffer, sig
     return { status: 400 };
   }
   const { messages, statuses } = parseWebhook(body);
-  await enqueueInbound(db, messages, { debounceMs: cfg.INBOUND_DEBOUNCE_MS });
+  await enqueueInbound(db, messages, { debounceMs: cfg.INBOUND_DEBOUNCE_MS, clientHourlyLimit: cfg.CLIENT_HOURLY_MESSAGE_LIMIT });
   await applyStatuses(db, statuses);
   return { status: 200 };
 }

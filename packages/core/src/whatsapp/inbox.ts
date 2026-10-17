@@ -5,8 +5,10 @@ import { withTenant } from "../db/scope";
 import { inboundMessages, turnJobs } from "../db/schema";
 import { logger } from "../logger";
 import { suspensionNoticeDue } from "../platform";
-import { findClientByPhone, findOrCreateClient } from "../repos/clients";
-import { applyDeliveryStatus } from "../repos/conversation";
+import { hitRateLimit } from "../ratelimit";
+import { findClientByPhone, findOrCreateClient, updateClient, type ClientRow } from "../repos/clients";
+import { applyDeliveryStatus, logChatMessage } from "../repos/conversation";
+import { createAlert, recordMessages } from "../repos/ops";
 import { openTenant, TenantNotFoundError, type TenantContext } from "../tenancy";
 import { findAccountByPhoneNumberId } from "./accounts";
 import type { InboundKind, InboundWaMessage, StatusUpdate } from "./webhook";
@@ -31,14 +33,18 @@ export interface EnqueueStats {
   unknownNumber: number;
   /** Messages to a suspended coach that need no notice (already sent, or not an existing client). */
   suspended: number;
+  /** Over the client's hourly limit: kept for the coach, not answered by the bot. */
+  rateLimited: number;
 }
+
+export const CLIENT_RATE_WINDOW_MS = 3600_000;
 
 export async function enqueueInbound(
   db: Db,
   messages: InboundWaMessage[],
-  opts: { debounceMs: number; now?: Date },
+  opts: { debounceMs: number; now?: Date; /** Messages per client per hour the bot answers; 0 or unset = no limit. */ clientHourlyLimit?: number },
 ): Promise<EnqueueStats> {
-  const stats: EnqueueStats = { queued: 0, duplicates: 0, ignored: 0, unknownNumber: 0, suspended: 0 };
+  const stats: EnqueueStats = { queued: 0, duplicates: 0, ignored: 0, unknownNumber: 0, suspended: 0, rateLimited: 0 };
   const now = opts.now ?? new Date();
   const tenants = new Map<string, TenantContext | null>();
 
@@ -75,8 +81,9 @@ export async function enqueueInbound(
     const body: StoredBody = suspended ? {} : { text: msg.text, buttonId: msg.buttonId, mediaId: msg.mediaId, mimeType: msg.mimeType };
     const runAt = new Date(now.getTime() + opts.debounceMs);
 
-    const queued = await withTenant(db, t, async (tx) => {
-      const inserted = await tx
+    // The inbound row de-duplicates Meta's redeliveries, so it goes in first.
+    const [inserted] = await withTenant(db, t, (tx) =>
+      tx
         .insert(inboundMessages)
         .values({
           coachId: t.coachId,
@@ -88,20 +95,71 @@ export async function enqueueInbound(
           sentAt: msg.timestamp,
         })
         .onConflictDoNothing({ target: inboundMessages.externalId })
-        .returning({ id: inboundMessages.id });
-      if (inserted.length === 0) return false;
-      // Every new message pushes the client's turn back by the debounce window, so a burst of
-      // messages is answered once, after the client pauses.
-      await tx
+        .returning({ id: inboundMessages.id }),
+    );
+    if (!inserted) {
+      stats.duplicates++;
+      continue;
+    }
+    await recordMessages(db, t, client.id, "message_in");
+
+    // The counter is a platform table, so it's hit outside the tenant scope (and before the turn is queued).
+    const limit = suspended ? 0 : (opts.clientHourlyLimit ?? 0);
+    if (limit > 0) {
+      const count = await hitRateLimit(db, `client-messages:${client.id}`, CLIENT_RATE_WINDOW_MS, now);
+      if (count > limit) {
+        await holdOverLimit(db, t, client, msg, inserted.id, { limit, firstOver: count === limit + 1 });
+        stats.rateLimited++;
+        continue;
+      }
+    }
+    // Every new message pushes the client's turn back by the debounce window, so a burst of messages is
+    // answered once, after the client pauses. (If this fails after the insert, the client's next message
+    // queues the turn and the worker picks up every pending message.)
+    await withTenant(db, t, (tx) =>
+      tx
         .insert(turnJobs)
         .values({ clientId: client.id, coachId: t.coachId, phoneNumberId: msg.phoneNumberId, runAt })
-        .onConflictDoUpdate({ target: turnJobs.clientId, set: { runAt, phoneNumberId: msg.phoneNumberId } });
-      return true;
-    });
-    if (queued) stats.queued++;
-    else stats.duplicates++;
+        .onConflictDoUpdate({ target: turnJobs.clientId, set: { runAt, phoneNumberId: msg.phoneNumberId } }),
+    );
+    stats.queued++;
   }
   return stats;
+}
+
+/**
+ * A message over the client's hourly limit: the bot doesn't answer it (no turn, no AI cost), but the coach
+ * sees it in the conversation, the bot reads it as context on the next turn, and the first one in a window
+ * opens an alert. The text is kept only for a client who consented, like every other stored message.
+ */
+async function holdOverLimit(
+  db: Db,
+  t: TenantContext,
+  client: ClientRow,
+  msg: InboundWaMessage,
+  inboundId: string,
+  opts: { limit: number; firstOver: boolean },
+): Promise<void> {
+  await withTenant(db, t, (tx) => tx.update(inboundMessages).set({ status: "rate_limited", bodyEnc: null }).where(eq(inboundMessages.id, inboundId)));
+  await updateClient(db, t, client.id, { lastInboundAt: msg.timestamp });
+  await logChatMessage(db, t, {
+    clientId: client.id,
+    direction: "in",
+    sender: "client",
+    kind: msg.kind === "text" ? "text" : msg.kind,
+    body: client.consentStatus === "granted" ? msg.text || null : null,
+    externalId: msg.id,
+    botSeen: false,
+  });
+  if (opts.firstOver) {
+    await createAlert(db, t, {
+      clientId: client.id,
+      type: "rate_limited",
+      severity: "medium",
+      source: "system",
+      summary: `הלקוח/ה שלח/ה יותר מ-${opts.limit} הודעות בשעה האחרונה. הבוט לא עונה עד שהשעה תעבור, וההודעות נשמרות כאן בשיחה.`,
+    });
+  }
 }
 
 export async function applyStatuses(db: Db, statuses: StatusUpdate[]): Promise<void> {

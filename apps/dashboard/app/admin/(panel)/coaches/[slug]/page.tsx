@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { findCoachBySlug, listCoachNumbers, listCoachUsersForPanel, listCoaches, CoachLifecycleError } from "@fitcoach/core";
-import { AssignNumberForm, DeleteCoachForm, InviteForm, ResetLinkForm } from "@/components/admin-forms";
+import {
+  budgetStatus,
+  CoachLifecycleError,
+  findCoachBySlug,
+  formatUsd,
+  listCoachNumbers,
+  listCoachUsersForPanel,
+  listCoaches,
+  monthUsage,
+} from "@fitcoach/core";
+import { AssignNumberForm, BudgetForm, DeleteCoachForm, InviteForm, ResetLinkForm } from "@/components/admin-forms";
 import { Badge, Button, Card, Notice, PageHeader, Stat } from "@/components/ui";
+import { UsageSummary } from "@/components/usage-card";
 import {
   assignNumberAction,
   deleteCoachAction,
@@ -10,6 +20,7 @@ import {
   resetLinkAction,
   resetUserMfaAction,
   resumeCoachAction,
+  setBudgetAction,
   suspendCoachAction,
 } from "@/lib/actions/admin";
 import { requireAdmin } from "@/lib/admin-session";
@@ -25,6 +36,8 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
   const summary = (await listCoaches(s.handle.db)).find((c) => c.id === coach.id)!;
   const users = await listCoachUsersForPanel(s.handle.db, coach.id);
   const numbers = await listCoachNumbers(s.handle.db, coach.id);
+  const usage = await monthUsage(s.handle.db, { coachId: coach.id });
+  const budget = budgetStatus(summary.monthCostMicros, summary.budgetUsd);
   const tz = s.cfg.TIMEZONE;
   const suspended = coach.status === "suspended";
 
@@ -66,11 +79,18 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Stat label="לקוחות" value={summary.clients} />
-        <Stat label="טוקנים החודש" value={summary.monthTokens.toLocaleString()} />
+        <Stat label="עלות משוערת החודש" value={formatUsd(summary.monthCostMicros)} tone={budget.level === "over" ? "red" : undefined} />
         <Stat label="גרסת בסיס הידע" value={summary.starterKnowledge ? "תבנית התחלתית" : coach.knowledgeVersion} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <Card title="שימוש החודש">
+          <UsageSummary usage={usage} budgetUsd={summary.budgetUsd} />
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <BudgetForm action={setBudgetAction.bind(null, coach.id)} current={summary.budgetUsd} />
+          </div>
+        </Card>
+
         <Card title="משתמשי הדשבורד">
           {users.length === 0 ? (
             <p className="text-sm text-slate-500">עוד אין משתמשים. שלחו קישור הזמנה.</p>

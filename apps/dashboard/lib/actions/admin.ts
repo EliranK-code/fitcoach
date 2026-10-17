@@ -19,6 +19,7 @@ import {
   recordPlatformAction,
   resumeCoach,
   suspendCoach,
+  updateCoach,
   verifyAdminCode,
   WhatsAppConfigError,
 } from "@fitcoach/core";
@@ -124,6 +125,19 @@ export async function assignNumberAction(coachId: string, _prev: FormState, form
   }
   revalidatePath("/admin/coaches/[slug]", "page");
   return { ok: "המספר חובר." };
+}
+
+/** The soft monthly budget: banners for the coach at 80% and 100%, never a hard stop. Empty removes it. */
+export async function setBudgetAction(coachId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const s = await requireAdmin();
+  const raw = String(form.get("budget") ?? "").trim();
+  const value = raw === "" ? undefined : Number(raw);
+  if (value !== undefined && (!Number.isFinite(value) || value <= 0)) return { error: "תקציב בדולרים, מספר חיובי (או ריק כדי לבטל)" };
+  const t = await openTenant(s.handle.db, coachId, { allowSuspended: true });
+  await updateCoach(s.handle.db, t, { settings: { monthlyBudgetUsd: value } });
+  await recordPlatformAction(s.handle.db, { actor: s.actor, action: "budget_set", coachId, meta: { monthlyBudgetUsd: value ?? null } });
+  revalidatePath("/admin", "layout");
+  return { ok: value === undefined ? "התקציב בוטל." : `התקציב עודכן: $${value} לחודש.` };
 }
 
 export async function suspendCoachAction(coachId: string): Promise<void> {

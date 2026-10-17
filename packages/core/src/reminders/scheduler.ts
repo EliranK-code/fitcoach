@@ -7,6 +7,7 @@ import { splitForWhatsApp } from "../format/whatsapp";
 import { logger } from "../logger";
 import { clientPhone, getClient, getProfile, setClientFlags, type ClientRow } from "../repos/clients";
 import { logChatMessage } from "../repos/conversation";
+import { recordMessages } from "../repos/ops";
 import { openTenant, type TenantContext } from "../tenancy";
 import type { WhatsAppApi } from "../whatsapp/api";
 import { sendTemplateMessage, serviceWindowOpen } from "../whatsapp/outbound";
@@ -34,7 +35,8 @@ export async function sendReminder(
 
   if (serviceWindowOpen(client, now)) {
     const to = clientPhone(t, client);
-    for (const part of splitForWhatsApp(fillReminderText(settings.texts[kind], firstName))) {
+    const parts = splitForWhatsApp(fillReminderText(settings.texts[kind], firstName));
+    for (const part of parts) {
       const { messageId } = await api.sendText(to, part);
       await logChatMessage(db, t, {
         clientId: client.id,
@@ -47,6 +49,7 @@ export async function sendReminder(
         botSeen: false,
       });
     }
+    await recordMessages(db, t, client.id, "message_out", parts.length);
     return "text";
   }
 

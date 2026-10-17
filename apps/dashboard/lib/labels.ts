@@ -9,7 +9,19 @@ export const ALERT_TYPE_LABEL: Record<string, string> = {
   substances: "חומרים מסוכנים",
   paused_message: "הודעה בזמן השהיה",
   bot_error: "תקלה בבוט",
+  rate_limited: "יותר מדי הודעות",
   other: "אחר",
+};
+
+export const USAGE_KIND_LABEL: Record<string, string> = {
+  chat: "שיחות",
+  summary: "סיכומים",
+  ingest: "עיבוד מסמכים",
+  embedding: "חיפוש",
+  transcription: "תמלול",
+  message_in: "הודעות נכנסות",
+  message_out: "הודעות יוצאות",
+  template: "תבניות",
 };
 
 export const SEVERITY_LABEL: Record<string, string> = { urgent: "דחוף", high: "גבוה", medium: "בינוני", low: "נמוך" };

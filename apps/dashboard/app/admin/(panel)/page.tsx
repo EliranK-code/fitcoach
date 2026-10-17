@@ -1,15 +1,25 @@
 import Link from "next/link";
-import { listCoaches } from "@fitcoach/core";
+import { budgetStatus, formatUsd, listCoaches } from "@fitcoach/core";
 import { NewCoachForm } from "@/components/admin-forms";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/admin-session";
+
+function BudgetBadge({ costMicros, budgetUsd }: { costMicros: number; budgetUsd: number | null }) {
+  const { level, percent } = budgetStatus(costMicros, budgetUsd);
+  if (percent === null) return null;
+  return (
+    <span className="ms-2">
+      <Badge tone={level === "over" ? "red" : level === "warn" ? "yellow" : "gray"}>{percent}%</Badge>
+    </span>
+  );
+}
 
 export default async function AdminCoachesPage() {
   const s = await requireAdmin();
   const coaches = await listCoaches(s.handle.db);
   return (
     <>
-      <PageHeader title="מאמנים" description="סטטוס, לקוחות ושימוש החודש. פרטי לקוחות לא מוצגים כאן." />
+      <PageHeader title="מאמנים" description="סטטוס, לקוחות ועלות משוערת החודש (אחוז מהתקציב, אם הוגדר). פרטי לקוחות לא מוצגים כאן." />
       <div className="space-y-6">
         <Card>
           {coaches.length === 0 ? (
@@ -24,7 +34,7 @@ export default async function AdminCoachesPage() {
                     <th className="py-2 text-start font-medium">בסיס ידע</th>
                     <th className="py-2 text-end font-medium">מספרים</th>
                     <th className="py-2 text-end font-medium">לקוחות</th>
-                    <th className="py-2 text-end font-medium">טוקנים החודש</th>
+                    <th className="py-2 text-end font-medium">עלות החודש</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -42,7 +52,10 @@ export default async function AdminCoachesPage() {
                       <td className="py-2">{c.starterKnowledge ? <Badge tone="orange">ממתין למילוי</Badge> : <Badge>מוכן</Badge>}</td>
                       <td className="py-2 text-end">{c.numbers}</td>
                       <td className="py-2 text-end">{c.clients}</td>
-                      <td className="py-2 text-end">{c.monthTokens.toLocaleString()}</td>
+                      <td className="py-2 text-end">
+                        <span dir="ltr">{formatUsd(c.monthCostMicros)}</span>
+                        <BudgetBadge costMicros={c.monthCostMicros} budgetUsd={c.budgetUsd} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

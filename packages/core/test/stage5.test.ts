@@ -94,7 +94,7 @@ async function publicTables(db: Db): Promise<{ name: string; rls: boolean; polic
 }
 
 /** Platform-only tables: RLS on, no tenant policy, no tenant privileges. */
-const PLATFORM_TABLES = ["platform_admins", "platform_audit", "platform_sessions", "user_tokens"];
+const PLATFORM_TABLES = ["platform_admins", "platform_audit", "platform_sessions", "rate_limits", "user_tokens"];
 
 const ownerColumn = (table: string) => (table === "coaches" ? "id" : "coach_id");
 
@@ -128,7 +128,7 @@ describe("row-level security", () => {
 
   it("is enabled on every table, with a tenant policy everywhere except platform tables", async () => {
     const tables = await publicTables(handle.db);
-    expect(tables.length).toBe(28);
+    expect(tables.length).toBe(29);
     expect(tables.filter((t) => !t.rls).map((t) => t.name)).toEqual([]);
     expect(tables.filter((t) => t.policies === 0).map((t) => t.name)).toEqual(PLATFORM_TABLES);
   });
@@ -427,7 +427,10 @@ describe("coach lifecycle", () => {
 
     const summary = await deleteCoach(db, b.coachId, { actor: "test", confirmSlug: "other" });
     expect(summary).toMatchObject({ slug: "other", name: "מאמנת אחרת", clients: 1 });
-    expect(summary.usage).toEqual([expect.objectContaining({ month: expect.stringMatching(/^\d{4}-\d{2}$/), calls: 1, inputTokens: 10 })]);
+    // One model call (10 input tokens, priced at Opus 5.5 rates) and one inbound WhatsApp message.
+    expect(summary.usage).toEqual([
+      expect.objectContaining({ month: expect.stringMatching(/^\d{4}-\d{2}$/), calls: 2, inputTokens: 10, quantity: 1, costMicros: 40 }),
+    ]);
     expect(summary.messages.length).toBeGreaterThan(0);
 
     // Every row is gone, and the other coach is untouched.
