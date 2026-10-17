@@ -344,7 +344,7 @@ describe("account routing", () => {
       await connectWhatsAppNumber(app.handle.db, t, { phoneNumberId: "shared" });
       const { createCoach, openTenant } = await import("../src/tenancy");
       const other = await openTenant(app.handle.db, await createCoach(app.handle.db, { slug: "x", name: "X" }));
-      await expect(connectWhatsAppNumber(app.handle.db, other, { phoneNumberId: "shared" })).rejects.toThrow(/another coach/);
+      await expect(connectWhatsAppNumber(app.handle.db, other, { phoneNumberId: "shared" })).rejects.toThrow(/מאמן אחר/);
     } finally {
       await app.handle.close();
     }

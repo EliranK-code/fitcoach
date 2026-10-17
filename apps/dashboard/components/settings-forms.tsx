@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { changePasswordAction, type FormState } from "@/lib/actions/auth";
-import { connectWhatsAppAction, saveCoachSettingsAction, saveConsentAction } from "@/lib/actions/settings";
+import { saveCoachSettingsAction, saveConsentAction } from "@/lib/actions/settings";
 import { Button, Field, Input, Notice, Select, Textarea } from "./ui";
 
 function Feedback({ state }: { state: FormState }) {
@@ -68,25 +68,6 @@ export function ConsentForm({ text, version, custom }: { text: string; version: 
   );
 }
 
-export function WhatsAppConnectForm() {
-  const [state, action, pending] = useActionState<FormState, FormData>(connectWhatsAppAction, {});
-  return (
-    <form action={action} className="space-y-3">
-      <Feedback state={state} />
-      <div className="grid gap-3 md:grid-cols-2">
-        <Field label="Phone number ID" hint="מ-Meta: WhatsApp → API Setup">
-          <Input name="phoneNumberId" required dir="ltr" />
-        </Field>
-        <Field label="המספר לתצוגה (לא חובה)">
-          <Input name="displayPhone" dir="ltr" placeholder="+972 ..." />
-        </Field>
-      </div>
-      <Button size="sm" disabled={pending}>
-        חיבור מספר
-      </Button>
-    </form>
-  );
-}
 
 export function PasswordForm() {
   const [state, action, pending] = useActionState<FormState, FormData>(changePasswordAction, {});

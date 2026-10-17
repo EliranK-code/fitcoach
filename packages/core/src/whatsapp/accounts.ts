@@ -19,16 +19,16 @@ export class WhatsAppConfigError extends Error {}
 export async function connectWhatsAppNumber(
   db: Db,
   t: TenantContext,
-  input: { phoneNumberId: string; displayPhone?: string; wabaId?: string; accessToken?: string; mode?: "managed" | "embedded" },
+  input: {
+    phoneNumberId: string;
+    displayPhone?: string;
+    wabaId?: string;
+    accessToken?: string;
+    mode?: "managed" | "embedded";
+    registrationPin?: string;
+  },
 ): Promise<WhatsAppAccount> {
-  if (t.settings.starterKnowledge) {
-    throw new WhatsAppConfigError("אי אפשר לחבר מספר לפני שהמאמן ממלא ומפרסם את בסיס הידע שלו");
-  }
-  // Unscoped on purpose: the number may belong to another coach, including an inactive one.
-  const [existing] = await db.select().from(whatsappAccounts).where(eq(whatsappAccounts.phoneNumberId, input.phoneNumberId));
-  if (existing && existing.coachId !== t.coachId) {
-    throw new WhatsAppConfigError(`Phone number ${input.phoneNumberId} is already connected to another coach`);
-  }
+  await assertNumberAvailable(db, t, input.phoneNumberId);
   const values = {
     coachId: t.coachId,
     phoneNumberId: input.phoneNumberId,
@@ -36,6 +36,7 @@ export async function connectWhatsAppNumber(
     wabaId: input.wabaId ?? null,
     mode: input.mode ?? (input.accessToken ? "embedded" : "managed"),
     accessTokenEnc: encryptOptional(t, input.accessToken),
+    registrationPinEnc: encryptOptional(t, input.registrationPin),
     status: "active",
   };
   const [row] = await withTenant(db, t, (db) =>
@@ -46,6 +47,34 @@ export async function connectWhatsAppNumber(
       .returning(),
   );
   if (!row) throw new Error("WhatsApp account upsert failed");
+  return row;
+}
+
+/**
+ * Whether this coach may connect this number: not before they publish their own knowledge, and never a
+ * number another coach holds. Checked before Embedded Signup spends Meta's one-time code, and again on save.
+ */
+export async function assertNumberAvailable(db: Db, t: TenantContext, phoneNumberId: string): Promise<WhatsAppAccount | undefined> {
+  if (t.settings.starterKnowledge) {
+    throw new WhatsAppConfigError("אי אפשר לחבר מספר לפני שהמאמן ממלא ומפרסם את בסיס הידע שלו");
+  }
+  // Unscoped on purpose: the number may belong to another coach, including an inactive one.
+  const [existing] = await db.select().from(whatsappAccounts).where(eq(whatsappAccounts.phoneNumberId, phoneNumberId));
+  if (existing && existing.coachId !== t.coachId) {
+    throw new WhatsAppConfigError("המספר הזה כבר מחובר למאמן אחר");
+  }
+  return existing;
+}
+
+/**
+ * Removes a number from its coach (platform action): incoming messages for it are ignored from now on,
+ * and its stored token and PIN go with the row, so the number can later be connected to any coach.
+ */
+export async function disconnectWhatsAppNumber(db: Db, coachId: string, phoneNumberId: string): Promise<WhatsAppAccount | undefined> {
+  const [row] = await db
+    .delete(whatsappAccounts)
+    .where(and(eq(whatsappAccounts.coachId, coachId), eq(whatsappAccounts.phoneNumberId, phoneNumberId)))
+    .returning();
   return row;
 }
 

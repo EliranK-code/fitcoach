@@ -40,6 +40,9 @@ const envSchema = z.object({
   /** Shared secret Meta echoes when you register the webhook URL. */
   WHATSAPP_VERIFY_TOKEN: optionalString,
   WHATSAPP_GRAPH_VERSION: z.preprocess(emptyToUndefined, z.string().default("v23.0")),
+  /** Embedded Signup (coaches connect their own number): the Meta app id and the Login for Business configuration id. */
+  META_APP_ID: optionalString,
+  META_EMBEDDED_SIGNUP_CONFIG_ID: optionalString,
   /** Log outgoing messages instead of calling Meta: lets you run the whole pipeline locally. */
   WHATSAPP_DRY_RUN: z.preprocess((v) => v === "true" || v === "1", z.boolean()),
   PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(3000)),

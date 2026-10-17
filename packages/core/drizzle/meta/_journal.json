@@ -64,6 +64,13 @@
       "when": 1792223276450,
       "tag": "0008_usage_cost_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792224481339,
+      "tag": "0009_embedded_signup",
+      "breakpoints": true
     }
   ]
 }

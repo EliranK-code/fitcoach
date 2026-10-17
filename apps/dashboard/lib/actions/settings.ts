@@ -1,8 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { audit, connectWhatsAppNumber, PLATFORM_FLOOR, updateCoach, WhatsAppConfigError } from "@fitcoach/core";
+import {
+  audit,
+  completeEmbeddedSignup,
+  EmbeddedSignupError,
+  onboardingApiFor,
+  PLATFORM_FLOOR,
+  updateCoach,
+  WhatsAppConfigError,
+} from "@fitcoach/core";
 import { requireSession } from "../session";
+import { THROTTLED, throttled } from "../throttle";
 import type { FormState } from "./auth";
 
 export async function saveCoachSettingsAction(_prev: FormState, form: FormData): Promise<FormState> {
@@ -48,20 +57,21 @@ export async function saveConsentAction(_prev: FormState, form: FormData): Promi
   return { ok: reset ? "חזרנו לנוסח ברירת המחדל" : `נשמר (גרסה ${version}). לקוחות חדשים יקבלו את הנוסח הזה.` };
 }
 
-export async function connectWhatsAppAction(_prev: FormState, form: FormData): Promise<FormState> {
+/**
+ * Embedded Signup's server side: the coach connects their own number. (Managed numbers under the
+ * platform's Meta account are assigned only from the admin panel, so a coach can't claim one.)
+ */
+export async function completeSignupAction(input: { code: string; wabaId: string; phoneNumberId: string }): Promise<FormState> {
   const s = await requireSession();
-  const phoneNumberId = String(form.get("phoneNumberId") ?? "").trim();
-  if (!/^[\w-]{3,64}$/.test(phoneNumberId)) return { error: "Phone number ID לא תקין" };
+  if (await throttled("embedded-signup")) return { error: THROTTLED };
+  const api = onboardingApiFor(s.cfg);
+  if (!api) return { error: "חיבור מספר עצמאי עוד לא מוגדר בפלטפורמה. פנו למנהל המערכת." };
   try {
-    await connectWhatsAppNumber(s.handle.db, s.t, {
-      phoneNumberId,
-      displayPhone: String(form.get("displayPhone") ?? "").trim() || undefined,
-    });
+    await completeEmbeddedSignup(s.handle.db, s.t, input, api, s.actor);
   } catch (err) {
-    if (err instanceof WhatsAppConfigError) return { error: "המספר הזה כבר מחובר למאמן אחר" };
+    if (err instanceof EmbeddedSignupError || err instanceof WhatsAppConfigError) return { error: err.message };
     throw err;
   }
-  await audit(s.handle.db, s.t, { actor: s.actor, action: "whatsapp_connected", targetType: "whatsapp", targetId: phoneNumberId });
   revalidatePath("/settings");
-  return { ok: "המספר חובר" };
+  return { ok: "המספר חובר. הודעות שיגיעו אליו יענו מעכשיו לפי בסיס הידע שלך." };
 }

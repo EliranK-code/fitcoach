@@ -131,6 +131,8 @@ export const whatsappAccounts = pgTable(
     /** managed = number lives under the platform's Meta account; embedded = coach connected their own via Embedded Signup. */
     mode: text("mode").notNull().default("managed"),
     accessTokenEnc: text("access_token_enc"),
+    /** Embedded numbers: the 6-digit two-step PIN set when registering with Cloud API, encrypted (needed to register again). */
+    registrationPinEnc: text("registration_pin_enc"),
     status: text("status").notNull().default("active"),
     createdAt: createdAt(),
   },

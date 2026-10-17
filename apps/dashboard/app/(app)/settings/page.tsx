@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import {
   CONSENT_VERSION,
@@ -9,11 +8,13 @@ import {
   PLATFORM_FLOOR,
   resolveReminderSettings,
   schema,
+  onboardingMode,
   withTenant,
 } from "@fitcoach/core";
 import { MfaCard } from "@/components/mfa-card";
 import { ReminderSettingsForm } from "@/components/reminder-settings-form";
-import { CoachSettingsForm, ConsentForm, PasswordForm, WhatsAppConnectForm } from "@/components/settings-forms";
+import { EmbeddedSignup } from "@/components/embedded-signup";
+import { CoachSettingsForm, ConsentForm, PasswordForm } from "@/components/settings-forms";
 import { Badge, Card, Notice, PageHeader } from "@/components/ui";
 import { UsageSummary } from "@/components/usage-card";
 import { formatDateTime } from "@/lib/labels";
@@ -28,8 +29,7 @@ export default async function SettingsPage() {
   );
   const usage = await monthUsage(db, s.t);
   const auditRows = await listAudit(db, s.t, 15);
-  const h = await headers();
-  const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
+  const signupMode = onboardingMode(s.cfg);
 
   return (
     <>
@@ -65,16 +65,18 @@ export default async function SettingsPage() {
           )}
           {s.t.settings.starterKnowledge ? (
             <Notice tone="yellow">אפשר לחבר מספר אחרי שממלאים ומפרסמים את בסיס הידע, כדי שהבוט לא יענה ללקוחות לפי תבנית ריקה.</Notice>
+          ) : accounts.some((a) => a.status === "active") ? (
+            <p className="text-xs text-slate-500">להחלפת המספר או לניתוק שלו, פנו למנהל המערכת.</p>
+          ) : signupMode === "unavailable" ? (
+            <Notice>חיבור מספר עצמאי עוד לא מוגדר בפלטפורמה. מנהל המערכת יכול לחבר לך מספר.</Notice>
           ) : (
-            <WhatsAppConnectForm />
+            <EmbeddedSignup
+              mode={signupMode}
+              appId={s.cfg.META_APP_ID}
+              configId={s.cfg.META_EMBEDDED_SIGNUP_CONFIG_ID}
+              graphVersion={s.cfg.WHATSAPP_GRAPH_VERSION}
+            />
           )}
-          <div className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-            כתובת ה-webhook להגדרה ב-Meta:
-            <div dir="ltr" className="mt-1 select-all font-mono text-slate-800">
-              {origin}/api/whatsapp/webhook
-            </div>
-            בפיתוח מקומי צריך כתובת https ציבורית (למשל cloudflared). ההוראות ב-README.
-          </div>
         </Card>
 
         <Card title="הודעת ההסכמה (פרטיות)" className="lg:col-span-2">

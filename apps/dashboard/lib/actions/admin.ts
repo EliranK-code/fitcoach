@@ -14,6 +14,7 @@ import {
   createResetLink,
   deleteAdminSession,
   deleteCoach,
+  disconnectWhatsAppNumber,
   LinkError,
   openTenant,
   recordPlatformAction,
@@ -125,6 +126,15 @@ export async function assignNumberAction(coachId: string, _prev: FormState, form
   }
   revalidatePath("/admin/coaches/[slug]", "page");
   return { ok: "המספר חובר." };
+}
+
+export async function disconnectNumberAction(coachId: string, phoneNumberId: string): Promise<void> {
+  const s = await requireAdmin();
+  const removed = await disconnectWhatsAppNumber(s.handle.db, coachId, phoneNumberId);
+  if (removed) {
+    await recordPlatformAction(s.handle.db, { actor: s.actor, action: "number_disconnected", coachId, meta: { phoneNumberId, mode: removed.mode } });
+  }
+  revalidatePath("/admin", "layout");
 }
 
 /** The soft monthly budget: banners for the coach at 80% and 100%, never a hard stop. Empty removes it. */

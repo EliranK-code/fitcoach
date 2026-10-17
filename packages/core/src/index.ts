@@ -37,6 +37,7 @@ export * from "./tenancy";
 export * from "./time";
 export * from "./whatsapp/accounts";
 export * from "./whatsapp/api";
+export * from "./whatsapp/embedded-signup";
 export * from "./whatsapp/http";
 export * from "./whatsapp/inbox";
 export * from "./whatsapp/outbound";

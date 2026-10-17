@@ -16,6 +16,7 @@ import { UsageSummary } from "@/components/usage-card";
 import {
   assignNumberAction,
   deleteCoachAction,
+  disconnectNumberAction,
   inviteAction,
   resetLinkAction,
   resetUserMfaAction,
@@ -137,6 +138,11 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
                   </span>
                   <Badge tone={n.status === "active" ? "green" : "gray"}>{n.status === "active" ? "פעיל" : n.status}</Badge>
                   <Badge>{n.mode === "managed" ? "מנוהל בפלטפורמה" : "מחובר ע\"י המאמן"}</Badge>
+                  <form action={disconnectNumberAction.bind(null, coach.id, n.phoneNumberId)} className="ms-auto">
+                    <Button size="sm" variant="ghost">
+                      ניתוק
+                    </Button>
+                  </form>
                 </li>
               ))}
             </ul>

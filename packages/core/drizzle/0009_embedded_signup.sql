@@ -1,0 +1,1 @@
+ALTER TABLE "whatsapp_accounts" ADD COLUMN "registration_pin_enc" text;

@@ -17,6 +17,8 @@ const ACTIONS: Record<string, string> = {
   user_mfa_reset: "ביטול אימות דו-שלבי",
   number_assigned: "חיבור מספר",
   budget_set: "תקציב חודשי",
+  number_disconnected: "ניתוק מספר",
+  number_connected_by_coach: "המאמן חיבר מספר",
 };
 
 export default async function AdminAuditPage() {
