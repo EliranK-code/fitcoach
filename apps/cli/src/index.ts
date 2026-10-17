@@ -13,9 +13,16 @@ import {
   createApiForAccount,
   createEmbedder,
   deleteClientData,
+  clearTotp,
+  createPlatformAdmin,
   deleteCoach,
+  deletePlatformAdmin,
   findCoachBySlug,
+  findPlatformAdmin,
   listCoaches,
+  listPlatformAdmins,
+  recordPlatformAction,
+  resetPlatformAdmin,
   resumeCoach,
   suspendCoach,
   exportClientData,
@@ -78,7 +85,14 @@ const USAGE = `שימוש: npm run <פקודה> -- [אפשרויות]
   coach:suspend <slug>           השעיה: הבוט לא עונה (הודעה קבועה אחת ללקוח), אין התחברות, התזכורות נעצרות
   coach:resume <slug>            ביטול ההשעיה
   coach:delete <slug> --confirm <slug>
-                                 מחיקה לצמיתות של מאמן מושהה וכל המידע שלו`;
+                                 מחיקה לצמיתות של מאמן מושהה וכל המידע שלו
+  superadmin:create --email <email>
+                                 אדמין לפאנל /admin (הסיסמה מודפסת פעם אחת, אימות דו-שלבי בכניסה הראשונה)
+  superadmin:reset --email <email>
+                                 סיסמה חדשה לאדמין, איפוס האימות הדו-שלבי וניתוק הסשנים
+  superadmin:delete --email <email> / superadmin:list
+  user:reset-mfa --email <email> [--coach demo]
+                                 ביטול האימות הדו-שלבי של משתמש מאמן (למשל אחרי שאיבד את הטלפון)`;
 
 function setup() {
   if (!existsSync(".env")) {
@@ -210,6 +224,39 @@ async function main() {
         const phone = values.new ? `cli-${Math.random().toString(36).slice(2, 8)}` : (values.phone ?? "cli-demo-1");
         return await runChat(app, { coach: values.coach!, phone, debug: values.debug!, bidi: !values["no-bidi"] });
       }
+      case "superadmin:create":
+      case "superadmin:reset": {
+        if (!values.email) throw new Error("חסר --email");
+        const password = generatePassword();
+        if (command === "superadmin:create") {
+          await createPlatformAdmin(db, values.email, password);
+        } else {
+          const admin = await findPlatformAdmin(db, values.email);
+          if (!admin) throw new Error(`לא נמצא אדמין ${values.email}`);
+          await resetPlatformAdmin(db, admin.id, password);
+        }
+        const email = values.email.toLowerCase();
+        await recordPlatformAction(db, { actor: "cli", action: command === "superadmin:create" ? "admin_created" : "admin_reset", meta: { email } });
+        console.log(`אדמין: ${email}`);
+        console.log(`סיסמה: ${styleText("bold", password)}`);
+        return console.log(styleText("yellow", "הסיסמה מוצגת פעם אחת בלבד. בכניסה ל-/admin תתבקשו לסרוק קוד QR באפליקציית אימות."));
+      }
+      case "superadmin:delete": {
+        if (!values.email) throw new Error("חסר --email");
+        const admin = await findPlatformAdmin(db, values.email);
+        if (!admin) throw new Error(`לא נמצא אדמין ${values.email}`);
+        await deletePlatformAdmin(db, admin.id);
+        await recordPlatformAction(db, { actor: "cli", action: "admin_deleted", meta: { email: admin.email } });
+        return console.log(`האדמין ${admin.email} נמחק.`);
+      }
+      case "superadmin:list": {
+        const admins = await listPlatformAdmins(db);
+        if (!admins.length) return console.log("אין אדמינים. יוצרים עם superadmin:create --email ...");
+        for (const a of admins) {
+          console.log(`${a.email}  ${a.totpEnabledAt ? "אימות דו-שלבי פעיל" : "עוד לא הגדיר אימות"}  כניסה אחרונה:${a.lastLoginAt?.toISOString().slice(0, 16) ?? "-"}`);
+        }
+        return;
+      }
       case "coach:list": {
         for (const c of await listCoaches(db)) {
           const status = c.status === "suspended" ? styleText("yellow", `מושהה מ-${c.suspendedAt?.toISOString().slice(0, 10)}`) : "פעיל";
@@ -337,6 +384,14 @@ async function main() {
         console.log(`משתמש: ${values.email.toLowerCase()}`);
         console.log(`סיסמה: ${styleText("bold", password)}`);
         return console.log(styleText("yellow", "הסיסמה מוצגת פעם אחת בלבד. אפשר להחליף אותה בדשבורד, בעמוד ההגדרות."));
+      }
+      case "user:reset-mfa": {
+        if (!values.email) throw new Error("חסר --email");
+        const user = await findUserByEmail(db, values.email);
+        if (!user || user.coachId !== t.coachId) throw new Error(`לא נמצא משתמש ${values.email} אצל ${t.coachName}`);
+        await clearTotp(db, user.id);
+        await audit(db, t, { actor: "cli", action: "mfa_reset", targetType: "user", targetId: values.email });
+        return console.log(`האימות הדו-שלבי של ${values.email} בוטל. אפשר להפעיל אותו מחדש בדשבורד, בעמוד ההגדרות.`);
       }
       case "user:delete": {
         if (!values.email) throw new Error("חסר --email");

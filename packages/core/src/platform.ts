@@ -1,10 +1,24 @@
 import { and, asc, count, eq, gte, isNotNull, sql } from "drizzle-orm";
 import type { AppConfig } from "./config";
 import type { Db } from "./db/client";
-import { chatMessages, clients, coaches, inboundMessages, platformAudit, reminders, sessions, turnJobs, usageEvents } from "./db/schema";
+import {
+  chatMessages,
+  clients,
+  coaches,
+  coachUsers,
+  inboundMessages,
+  platformAudit,
+  reminders,
+  sessions,
+  turnJobs,
+  usageEvents,
+  whatsappAccounts,
+} from "./db/schema";
+import { coachKnowledgeSchema, type CoachKnowledge } from "./knowledge/schema";
+import { publishKnowledge } from "./knowledge/store";
 import { nextOccurrence, resolveReminderSettings } from "./reminders/schedule";
 import type { ClientRow } from "./repos/clients";
-import { forgetTenantKey, type TenantContext } from "./tenancy";
+import { createCoach, forgetTenantKey, openTenant, updateCoach, type TenantContext } from "./tenancy";
 
 // Platform operations on whole coaches. They run unscoped (as the table owner) on purpose: they act on a
 // coach from the outside, and a deleted coach's records must outlive it in platform_audit.
@@ -29,6 +43,80 @@ export interface CoachSummary {
   clients: number;
   /** Model tokens (input + output) since the start of the current UTC month. */
   monthTokens: number;
+  /** Still on the starter knowledge from the admin panel: no number can be connected yet. */
+  starterKnowledge: boolean;
+  /** Active WhatsApp numbers. */
+  numbers: number;
+}
+
+export async function recordPlatformAction(
+  db: Db,
+  entry: { actor: string; action: string; coachId?: string; coachSlug?: string; meta?: Record<string, unknown> },
+): Promise<void> {
+  let coachSlug = entry.coachSlug;
+  if (entry.coachId && !coachSlug) {
+    // The slug is kept on the record itself, so the log still reads after the coach is deleted.
+    [{ slug: coachSlug } = { slug: undefined }] = await db.select({ slug: coaches.slug }).from(coaches).where(eq(coaches.id, entry.coachId));
+  }
+  await db.insert(platformAudit).values({ ...entry, coachSlug, meta: entry.meta ?? {} });
+}
+
+const SLUG = /^[a-z0-9][a-z0-9-]{1,39}$/;
+
+/** Knowledge a coach created from the panel starts with: valid, mostly empty, meant to be filled in the editor. */
+export function starterKnowledge(name: string): CoachKnowledge {
+  return coachKnowledgeSchema.parse({
+    coach: { name },
+    tone: { styles: ["warm"] },
+    philosophy: "",
+    nutrition: { approach: "no_counting", details: "" },
+    training: { principles: "" },
+    supplements: {},
+    alwaysEscalate: ["מחירים, תשלומים וחבילות", "ביטול או הקפאה של ליווי"],
+  });
+}
+
+/**
+ * Creates a coach from the admin panel, with starter knowledge. Until the coach publishes their own
+ * knowledge from the editor, no WhatsApp number can be connected, so the bot never answers on a template.
+ */
+export async function createCoachFromPanel(db: Db, input: { slug: string; name: string; timezone?: string }, actor: string): Promise<string> {
+  const slug = input.slug.trim().toLowerCase();
+  const name = input.name.trim();
+  if (!SLUG.test(slug)) throw new CoachLifecycleError("ה-slug: אותיות באנגלית קטנות, ספרות ומקפים, 2 עד 40 תווים");
+  if (!name) throw new CoachLifecycleError("חסר שם");
+  const [existing] = await db.select({ id: coaches.id }).from(coaches).where(eq(coaches.slug, slug));
+  if (existing) throw new CoachLifecycleError(`כבר יש מאמן עם ה-slug ${slug}`);
+  const coachId = await createCoach(db, { slug, name, settings: input.timezone ? { timezone: input.timezone } : {} });
+  const t = await openTenant(db, coachId);
+  await publishKnowledge(db, t, { data: starterKnowledge(name) }, null);
+  await updateCoach(db, t, { settings: { starterKnowledge: true } });
+  await recordPlatformAction(db, { actor, action: "coach_created", coachId, coachSlug: slug });
+  return coachId;
+}
+
+/** What the admin panel shows about one coach's users: no client data, only who can log in. */
+export async function listCoachUsersForPanel(db: Db, coachId: string) {
+  return db
+    .select({
+      id: coachUsers.id,
+      email: coachUsers.email,
+      role: coachUsers.role,
+      mfa: sql<boolean>`${coachUsers.totpEnabledAt} is not null`,
+      lockedUntil: coachUsers.lockedUntil,
+      lastLoginAt: coachUsers.lastLoginAt,
+      createdAt: coachUsers.createdAt,
+    })
+    .from(coachUsers)
+    .where(eq(coachUsers.coachId, coachId))
+    .orderBy(asc(coachUsers.email));
+}
+
+export async function listCoachNumbers(db: Db, coachId: string) {
+  return db
+    .select({ phoneNumberId: whatsappAccounts.phoneNumberId, displayPhone: whatsappAccounts.displayPhone, mode: whatsappAccounts.mode, status: whatsappAccounts.status })
+    .from(whatsappAccounts)
+    .where(eq(whatsappAccounts.coachId, coachId));
 }
 
 export async function listCoaches(db: Db, now = new Date()): Promise<CoachSummary[]> {
@@ -45,6 +133,8 @@ export async function listCoaches(db: Db, now = new Date()): Promise<CoachSummar
       clients: sql<number>`(select count(*)::int from clients c where c.coach_id = coaches.id and not c.is_test)`,
       monthTokens: sql<number>`(select coalesce(sum(u.input_tokens + u.output_tokens), 0)::int from usage_events u
         where u.coach_id = coaches.id and u.created_at >= ${monthStart.toISOString()}::timestamptz)`,
+      starterKnowledge: sql<boolean>`coalesce((coaches.settings->>'starterKnowledge')::boolean, false)`,
+      numbers: sql<number>`(select count(*)::int from whatsapp_accounts w where w.coach_id = coaches.id and w.status = 'active')`,
     })
     .from(coaches)
     .orderBy(asc(coaches.slug));

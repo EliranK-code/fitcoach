@@ -45,6 +45,8 @@ export interface CoachSettings {
   /** Recorded with every consent, so it's clear which wording a client agreed to. */
   consentVersion?: string;
   reminders?: ReminderSettings;
+  /** Set for a coach created from the admin panel until they publish their own knowledge; no number can be connected meanwhile. */
+  starterKnowledge?: boolean;
 }
 
 export const REMINDER_KINDS = ["weigh_in", "workout", "checkin"] as const;
@@ -493,6 +495,12 @@ export const coachUsers = pgTable(
     email: text("email").notNull().unique(),
     passwordHash: text("password_hash").notNull(),
     role: text("role").notNull().default("owner"),
+    /** Optional two-step login: the TOTP secret, encrypted with the coach's key (so deleting the coach shreds it). */
+    totpSecretEnc: text("totp_secret_enc"),
+    /** Set once the user confirmed a code; a secret without it is a setup in progress. */
+    totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),
+    /** Last accepted 30-second step, so a code can't be replayed. */
+    totpLastStep: integer("totp_last_step"),
     failedAttempts: integer("failed_attempts").notNull().default(0),
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
@@ -510,6 +518,8 @@ export const sessions = pgTable(
       .notNull()
       .references(() => coachUsers.id, { onDelete: "cascade" }),
     coachId: uuid("coach_id").notNull().references(() => coaches.id, { onDelete: "cascade" }),
+    /** Password accepted, two-step code still due: such a session grants nothing yet. */
+    mfaPending: boolean("mfa_pending").notNull().default(false),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: createdAt(),
@@ -549,5 +559,58 @@ export const platformAudit = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("platform_audit_created").on(t.createdAt)],
+);
+
+/** Platform operators (the /admin panel). Separate from coach users; created from the CLI only. TOTP is mandatory. */
+export const platformAdmins = pgTable("platform_admins", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  /** Encrypted with the platform key (derived from the master key). */
+  totpSecretEnc: text("totp_secret_enc"),
+  totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),
+  totpLastStep: integer("totp_last_step"),
+  failedAttempts: integer("failed_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+/** Admin sessions: only a SHA-256 of the cookie token is stored. Valid for the panel only after the TOTP step. */
+export const platformSessions = pgTable(
+  "platform_sessions",
+  {
+    id: text("id").primaryKey(),
+    adminId: uuid("admin_id")
+      .notNull()
+      .references(() => platformAdmins.id, { onDelete: "cascade" }),
+    mfaVerified: boolean("mfa_verified").notNull().default(false),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("platform_sessions_admin").on(t.adminId)],
+);
+
+/**
+ * One-time links an admin hands out: an invitation to a new coach user, or a password reset. Only the
+ * SHA-256 of the token is stored. Platform-only: tenants can't read them (migration 0007).
+ */
+export const userTokens = pgTable(
+  "user_tokens",
+  {
+    id: text("id").primaryKey(),
+    purpose: text("purpose").$type<"invite" | "reset">().notNull(),
+    coachId: uuid("coach_id")
+      .notNull()
+      .references(() => coaches.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    userId: uuid("user_id").references(() => coachUsers.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("user_tokens_coach").on(t.coachId)],
 );
 

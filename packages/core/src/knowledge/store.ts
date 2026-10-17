@@ -94,11 +94,15 @@ export async function publishKnowledge(
       }
     }
 
+    // Publishing structured knowledge replaces the admin panel's starter template: the coach is now ready.
+    const { starterKnowledge, ...settings } = t.settings;
+    const leavesStarter = Boolean(update.data && starterKnowledge);
     await tx
       .update(coaches)
-      .set({ knowledgeVersion: version, updatedAt: new Date() })
+      .set({ knowledgeVersion: version, updatedAt: new Date(), ...(leavesStarter ? { settings } : {}) })
       .where(eq(coaches.id, t.coachId));
     t.knowledgeVersion = version;
+    if (leavesStarter) t.settings = settings;
     return version;
   });
 }

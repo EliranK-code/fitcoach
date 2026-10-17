@@ -97,6 +97,17 @@ export function decryptOptional(scope: CipherScope, sealed: string | null | unde
   return sealed ? decryptText(scope, sealed) : null;
 }
 
+let platformKeyCache: Buffer | undefined;
+
+/**
+ * Encryption scope for platform secrets that belong to no coach (admins' TOTP secrets): a key derived from
+ * the master key, so nothing extra has to be stored or configured.
+ */
+export function platformScope(): CipherScope {
+  platformKeyCache ??= Buffer.from(hkdfSync("sha256", getMasterKey(), Buffer.alloc(0), "platform-secrets-v1", KEY_BYTES));
+  return { coachId: "platform", dek: platformKeyCache };
+}
+
 let hashKeyCache: Buffer | undefined;
 
 function hashKey(): Buffer {
@@ -123,4 +134,5 @@ export function phoneHash(coachId: string, phone: string): string {
 export function resetKeyCaches(): void {
   masterKeyCache = undefined;
   hashKeyCache = undefined;
+  platformKeyCache = undefined;
 }

@@ -1,7 +1,7 @@
 import { buildKnowledgePrompt, getKnowledge, listDocuments, listKnowledgeVersions } from "@fitcoach/core";
 import { DocumentUpload } from "@/components/document-upload";
 import { KnowledgeForm } from "@/components/knowledge-form";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { Card, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { deleteDocumentAction } from "@/lib/actions/knowledge";
 import { formatDateTime } from "@/lib/labels";
 import { requireSession } from "@/lib/session";
@@ -24,6 +24,13 @@ export default async function KnowledgePage() {
         title="בסיס הידע"
         description={`הבוט עונה רק לפי מה שכאן. גרסה נוכחית: ${knowledge.version}`}
       />
+      {s.t.settings.starterKnowledge && (
+        <div className="mb-6">
+          <Notice tone="yellow">
+            זו תבנית התחלתית. מלאו את הפרטים על השיטה שלך ולחצו על "שמור ופרסם גרסה חדשה". אחרי הפרסום הראשון אפשר לחבר מספר וואטסאפ.
+          </Notice>
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <KnowledgeForm initial={knowledge.data} />

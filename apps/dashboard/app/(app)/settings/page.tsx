@@ -1,9 +1,10 @@
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
-import { CONSENT_VERSION, consentText, listAudit, PLATFORM_FLOOR, resolveReminderSettings, schema, withTenant } from "@fitcoach/core";
+import { CONSENT_VERSION, consentText, listAudit, mfaEnabled, PLATFORM_FLOOR, resolveReminderSettings, schema, withTenant } from "@fitcoach/core";
+import { MfaCard } from "@/components/mfa-card";
 import { ReminderSettingsForm } from "@/components/reminder-settings-form";
 import { CoachSettingsForm, ConsentForm, PasswordForm, WhatsAppConnectForm } from "@/components/settings-forms";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import { Badge, Card, Notice, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/labels";
 import { usageSummary } from "@/lib/queries";
 import { requireSession } from "@/lib/session";
@@ -54,7 +55,11 @@ export default async function SettingsPage() {
               ))}
             </ul>
           )}
-          <WhatsAppConnectForm />
+          {s.t.settings.starterKnowledge ? (
+            <Notice tone="yellow">אפשר לחבר מספר אחרי שממלאים ומפרסמים את בסיס הידע, כדי שהבוט לא יענה ללקוחות לפי תבנית ריקה.</Notice>
+          ) : (
+            <WhatsAppConnectForm />
+          )}
           <div className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
             כתובת ה-webhook להגדרה ב-Meta:
             <div dir="ltr" className="mt-1 select-all font-mono text-slate-800">
@@ -108,9 +113,14 @@ export default async function SettingsPage() {
           <p className="mt-3 text-xs text-slate-500">מודל: {s.cfg.CLAUDE_MODEL}</p>
         </Card>
 
-        <Card title="החלפת סיסמה">
-          <PasswordForm />
-        </Card>
+        <div className="space-y-6">
+          <Card title="החלפת סיסמה">
+            <PasswordForm />
+          </Card>
+          <Card title="אימות דו-שלבי">
+            <MfaCard enabled={mfaEnabled(s.user)} />
+          </Card>
+        </div>
 
         <Card title="יומן פעולות (פרטיות)" className="lg:col-span-2">
           <p className="mb-3 text-xs text-slate-500">כל צפייה בלקוח, ייצוא, מחיקה ושינוי הגדרות נרשמים כאן.</p>

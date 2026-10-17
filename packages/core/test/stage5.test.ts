@@ -94,7 +94,7 @@ async function publicTables(db: Db): Promise<{ name: string; rls: boolean; polic
 }
 
 /** Platform-only tables: RLS on, no tenant policy, no tenant privileges. */
-const PLATFORM_TABLES = ["platform_audit"];
+const PLATFORM_TABLES = ["platform_admins", "platform_audit", "platform_sessions", "user_tokens"];
 
 const ownerColumn = (table: string) => (table === "coaches" ? "id" : "coach_id");
 
@@ -128,7 +128,7 @@ describe("row-level security", () => {
 
   it("is enabled on every table, with a tenant policy everywhere except platform tables", async () => {
     const tables = await publicTables(handle.db);
-    expect(tables.length).toBe(25);
+    expect(tables.length).toBe(28);
     expect(tables.filter((t) => !t.rls).map((t) => t.name)).toEqual([]);
     expect(tables.filter((t) => t.policies === 0).map((t) => t.name)).toEqual(PLATFORM_TABLES);
   });
@@ -137,6 +137,9 @@ describe("row-level security", () => {
     await handle.db.insert(platformAudit).values({ actor: "test", action: "probe", coachId: a.coachId });
     expect(await failure(withTenant(handle.db, a, (db) => db.select().from(platformAudit)))).toMatch(/permission denied/);
     expect(await failure(withTenant(handle.db, a, (db) => db.insert(platformAudit).values({ actor: "x", action: "x" })))).toMatch(/permission denied/);
+    for (const table of PLATFORM_TABLES) {
+      expect(await failure(withTenant(handle.db, a, (db) => db.execute(sql.raw(`select count(*) from "${table}"`)))), table).toMatch(/permission denied/);
+    }
   });
 
   it("shows a scoped query only its own coach's rows, in every table, even without a coach filter", async () => {

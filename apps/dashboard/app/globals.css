@@ -3,6 +3,7 @@
 /* Explicit sources: automatic detection skips Next.js route-group folders like app/(app). */
 @source "./";
 @source "./(app)/**/*.tsx";
+@source "./admin/(panel)/**/*.tsx";
 @source "../components";
 
 @theme {

@@ -21,6 +21,9 @@ export async function connectWhatsAppNumber(
   t: TenantContext,
   input: { phoneNumberId: string; displayPhone?: string; wabaId?: string; accessToken?: string; mode?: "managed" | "embedded" },
 ): Promise<WhatsAppAccount> {
+  if (t.settings.starterKnowledge) {
+    throw new WhatsAppConfigError("אי אפשר לחבר מספר לפני שהמאמן ממלא ומפרסם את בסיס הידע שלו");
+  }
   // Unscoped on purpose: the number may belong to another coach, including an inactive one.
   const [existing] = await db.select().from(whatsappAccounts).where(eq(whatsappAccounts.phoneNumberId, input.phoneNumberId));
   if (existing && existing.coachId !== t.coachId) {
