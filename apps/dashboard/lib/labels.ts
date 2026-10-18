@@ -10,6 +10,7 @@ export const ALERT_TYPE_LABEL: Record<string, string> = {
   paused_message: "הודעה בזמן השהיה",
   bot_error: "תקלה בבוט",
   rate_limited: "יותר מדי הודעות",
+  spend_cap: "תקרת הוצאה",
   other: "אחר",
 };
 

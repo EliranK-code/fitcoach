@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { budgetStatus, formatUsd, listCoaches } from "@fitcoach/core";
+import { budgetStatus, formatUsd, listCoaches, platformDaySpendMicros } from "@fitcoach/core";
 import { NewCoachForm } from "@/components/admin-forms";
-import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/admin-session";
 
 function BudgetBadge({ costMicros, budgetUsd }: { costMicros: number; budgetUsd: number | null }) {
@@ -17,10 +17,25 @@ function BudgetBadge({ costMicros, budgetUsd }: { costMicros: number; budgetUsd:
 export default async function AdminCoachesPage() {
   const s = await requireAdmin();
   const coaches = await listCoaches(s.handle.db);
+  const daySpend = await platformDaySpendMicros(s.handle.db);
+  const dayCap = s.cfg.PLATFORM_DAILY_CAP_USD;
+  const dayCapReached = dayCap > 0 && daySpend >= dayCap * 1_000_000;
   return (
     <>
       <PageHeader title="מאמנים" description="סטטוס, לקוחות ועלות משוערת החודש (אחוז מהתקציב, אם הוגדר). פרטי לקוחות לא מוצגים כאן." />
       <div className="space-y-6">
+        <Notice tone={dayCapReached ? "red" : undefined}>
+          הוצאה היום בכל הפלטפורמה (לפי UTC): <span dir="ltr">{formatUsd(daySpend)}</span>
+          {dayCap > 0 ? (
+            <>
+              {" "}
+              מתוך תקרה יומית של <span dir="ltr">${dayCap}</span>.
+              {dayCapReached && " התקרה הושגה: כל הבוטים מפסיקים לענות עד מחר. אפשר להעלות אותה ב-PLATFORM_DAILY_CAP_USD."}
+            </>
+          ) : (
+            ". אין תקרה יומית (PLATFORM_DAILY_CAP_USD=0)."
+          )}
+        </Notice>
         <Card>
           {coaches.length === 0 ? (
             <EmptyState title="עוד אין מאמנים">יוצרים מאמן ראשון בטופס למטה.</EmptyState>

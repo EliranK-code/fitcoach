@@ -4,8 +4,8 @@ import { Notice } from "./ui";
 
 const BAR_TONE = { none: "bg-slate-300", ok: "bg-emerald-500", warn: "bg-amber-500", over: "bg-red-500" } as const;
 
-/** This month's usage and estimated cost, with the soft budget when one is set. Used by the coach and the admin panel. */
-export function UsageSummary({ usage, budgetUsd }: { usage: MonthUsage; budgetUsd?: number | null }) {
+/** This month's usage and estimated cost, with the soft budget and the hard cap when set. Used by the coach and the admin panel. */
+export function UsageSummary({ usage, budgetUsd, capUsd }: { usage: MonthUsage; budgetUsd?: number | null; capUsd?: number | null }) {
   const budget = budgetStatus(usage.costMicros, budgetUsd);
   return (
     <div className="space-y-4">
@@ -23,6 +23,11 @@ export function UsageSummary({ usage, budgetUsd }: { usage: MonthUsage; budgetUs
             <div className={`h-full rounded-full ${BAR_TONE[budget.level]}`} style={{ width: `${Math.min(100, budget.percent)}%` }} />
           </div>
         )}
+        {capUsd ? (
+          <p className="mt-2 text-xs text-slate-500">
+            תקרה קשיחה: <span dir="ltr">${capUsd}</span> לחודש. כשמגיעים אליה הבוט מפסיק לענות ללקוחות, וההודעות נשמרות בשיחה.
+          </p>
+        ) : null}
       </div>
       <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-500">
         <div className="rounded-lg bg-slate-50 p-2">

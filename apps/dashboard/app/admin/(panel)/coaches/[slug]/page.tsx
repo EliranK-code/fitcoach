@@ -86,9 +86,14 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="שימוש החודש">
-          <UsageSummary usage={usage} budgetUsd={summary.budgetUsd} />
+          <UsageSummary usage={usage} budgetUsd={summary.budgetUsd} capUsd={summary.capUsd ?? (s.cfg.COACH_MONTHLY_CAP_USD || null)} />
           <div className="mt-4 border-t border-slate-100 pt-4">
-            <BudgetForm action={setBudgetAction.bind(null, coach.id)} current={summary.budgetUsd} />
+            <BudgetForm
+              action={setBudgetAction.bind(null, coach.id)}
+              budget={summary.budgetUsd}
+              cap={summary.capUsd}
+              defaultCap={s.cfg.COACH_MONTHLY_CAP_USD}
+            />
           </div>
         </Card>
 

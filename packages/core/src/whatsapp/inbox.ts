@@ -8,7 +8,8 @@ import { suspensionNoticeDue } from "../platform";
 import { hitRateLimit } from "../ratelimit";
 import { findClientByPhone, findOrCreateClient, updateClient, type ClientRow } from "../repos/clients";
 import { applyDeliveryStatus, logChatMessage } from "../repos/conversation";
-import { createAlert, recordMessages } from "../repos/ops";
+import { createAlert, recordMessages, type AlertType, type Severity } from "../repos/ops";
+import { spendBlock, spendBlockMessage, type SpendCaps } from "../spend";
 import { openTenant, TenantNotFoundError, type TenantContext } from "../tenancy";
 import { findAccountByPhoneNumberId } from "./accounts";
 import type { InboundKind, InboundWaMessage, StatusUpdate } from "./webhook";
@@ -33,18 +34,28 @@ export interface EnqueueStats {
   unknownNumber: number;
   /** Messages to a suspended coach that need no notice (already sent, or not an existing client). */
   suspended: number;
-  /** Over the client's hourly limit: kept for the coach, not answered by the bot. */
+  /** Over the client's hourly or daily limit: kept for the coach, not answered by the bot. */
   rateLimited: number;
+  /** The coach's or the platform's spending cap is reached: kept for the coach, not answered. */
+  overCap: number;
 }
 
 export const CLIENT_RATE_WINDOW_MS = 3600_000;
+export const CLIENT_DAY_WINDOW_MS = 24 * 3600_000;
 
-export async function enqueueInbound(
-  db: Db,
-  messages: InboundWaMessage[],
-  opts: { debounceMs: number; now?: Date; /** Messages per client per hour the bot answers; 0 or unset = no limit. */ clientHourlyLimit?: number },
-): Promise<EnqueueStats> {
-  const stats: EnqueueStats = { queued: 0, duplicates: 0, ignored: 0, unknownNumber: 0, suspended: 0, rateLimited: 0 };
+export interface EnqueueOptions {
+  debounceMs: number;
+  now?: Date;
+  /** Messages per client per hour the bot answers; 0 or unset = no limit. */
+  clientHourlyLimit?: number;
+  /** Messages per client per day the bot answers; 0 or unset = no limit. */
+  clientDailyLimit?: number;
+  /** Hard spending caps; unset = none. */
+  spendCaps?: SpendCaps;
+}
+
+export async function enqueueInbound(db: Db, messages: InboundWaMessage[], opts: EnqueueOptions): Promise<EnqueueStats> {
+  const stats: EnqueueStats = { queued: 0, duplicates: 0, ignored: 0, unknownNumber: 0, suspended: 0, rateLimited: 0, overCap: 0 };
   const now = opts.now ?? new Date();
   const tenants = new Map<string, TenantContext | null>();
 
@@ -103,15 +114,13 @@ export async function enqueueInbound(
     }
     await recordMessages(db, t, client.id, "message_in");
 
-    // The counter is a platform table, so it's hit outside the tenant scope (and before the turn is queued).
-    const limit = suspended ? 0 : (opts.clientHourlyLimit ?? 0);
-    if (limit > 0) {
-      const count = await hitRateLimit(db, `client-messages:${client.id}`, CLIENT_RATE_WINDOW_MS, now);
-      if (count > limit) {
-        await holdOverLimit(db, t, client, msg, inserted.id, { limit, firstOver: count === limit + 1 });
-        stats.rateLimited++;
-        continue;
-      }
+    // Counters and spend are platform data, so they're checked outside the tenant scope (and before the turn is queued).
+    const hold = suspended ? null : await holdReason(db, t, client, opts, now);
+    if (hold) {
+      await holdMessage(db, t, client, msg, inserted.id, hold);
+      if (hold.status === "over_cap") stats.overCap++;
+      else stats.rateLimited++;
+      continue;
     }
     // Every new message pushes the client's turn back by the debounce window, so a burst of messages is
     // answered once, after the client pauses. (If this fails after the insert, the client's next message
@@ -127,20 +136,47 @@ export async function enqueueInbound(
   return stats;
 }
 
+interface Hold {
+  status: "rate_limited" | "over_cap";
+  /** Only the first held message in a window opens an alert. */
+  alert: { type: AlertType; severity: Severity; summary: string } | null;
+}
+
+const CLIENT_WINDOWS = [
+  { option: "clientHourlyLimit", key: "client-messages", ms: CLIENT_RATE_WINDOW_MS, period: "בשעה האחרונה", until: "שהשעה תעבור" },
+  { option: "clientDailyLimit", key: "client-messages-day", ms: CLIENT_DAY_WINDOW_MS, period: "ביממה האחרונה", until: "שהיממה תעבור" },
+] as const;
+
+/** Whether the bot must not answer this message: the client's limits first, then the spending caps. */
+async function holdReason(db: Db, t: TenantContext, client: ClientRow, opts: EnqueueOptions, now: Date): Promise<Hold | null> {
+  for (const w of CLIENT_WINDOWS) {
+    const limit = opts[w.option] ?? 0;
+    if (limit <= 0) continue;
+    const count = await hitRateLimit(db, `${w.key}:${client.id}`, w.ms, now);
+    if (count <= limit) continue;
+    const summary = `הלקוח/ה שלח/ה יותר מ-${limit} הודעות ${w.period}. הבוט לא עונה עד ${w.until}, וההודעות נשמרות כאן בשיחה.`;
+    return { status: "rate_limited", alert: count === limit + 1 ? { type: "rate_limited", severity: "medium", summary } : null };
+  }
+  if (!opts.spendCaps) return null;
+  const block = await spendBlock(db, t, opts.spendCaps, now);
+  if (!block) return null;
+  // One alert per coach per day, on the client whose message ran into the cap.
+  const first = (await hitRateLimit(db, `spend-alert:${t.coachId}`, CLIENT_DAY_WINDOW_MS, now)) === 1;
+  if (first) {
+    const fields = { coachId: t.coachId, scope: block.scope, capUsd: block.capUsd };
+    if (block.scope === "platform") logger.error(fields, "platform daily spending cap reached: every bot is holding messages");
+    else logger.warn(fields, "coach monthly spending cap reached: holding messages");
+  }
+  return { status: "over_cap", alert: first ? { type: "spend_cap", severity: "high", summary: spendBlockMessage(block) } : null };
+}
+
 /**
- * A message over the client's hourly limit: the bot doesn't answer it (no turn, no AI cost), but the coach
- * sees it in the conversation, the bot reads it as context on the next turn, and the first one in a window
- * opens an alert. The text is kept only for a client who consented, like every other stored message.
+ * A message the bot won't answer (a client over their limit, or a spending cap): no turn and no AI cost, but
+ * the coach sees it in the conversation, the bot reads it as context on its next turn, and the first one in a
+ * window opens an alert. The text is kept only for a client who consented, like every other stored message.
  */
-async function holdOverLimit(
-  db: Db,
-  t: TenantContext,
-  client: ClientRow,
-  msg: InboundWaMessage,
-  inboundId: string,
-  opts: { limit: number; firstOver: boolean },
-): Promise<void> {
-  await withTenant(db, t, (tx) => tx.update(inboundMessages).set({ status: "rate_limited", bodyEnc: null }).where(eq(inboundMessages.id, inboundId)));
+async function holdMessage(db: Db, t: TenantContext, client: ClientRow, msg: InboundWaMessage, inboundId: string, hold: Hold): Promise<void> {
+  await withTenant(db, t, (tx) => tx.update(inboundMessages).set({ status: hold.status, bodyEnc: null }).where(eq(inboundMessages.id, inboundId)));
   await updateClient(db, t, client.id, { lastInboundAt: msg.timestamp });
   await logChatMessage(db, t, {
     clientId: client.id,
@@ -151,15 +187,7 @@ async function holdOverLimit(
     externalId: msg.id,
     botSeen: false,
   });
-  if (opts.firstOver) {
-    await createAlert(db, t, {
-      clientId: client.id,
-      type: "rate_limited",
-      severity: "medium",
-      source: "system",
-      summary: `הלקוח/ה שלח/ה יותר מ-${opts.limit} הודעות בשעה האחרונה. הבוט לא עונה עד שהשעה תעבור, וההודעות נשמרות כאן בשיחה.`,
-    });
-  }
+  if (hold.alert) await createAlert(db, t, { clientId: client.id, source: "system", ...hold.alert });
 }
 
 export async function applyStatuses(db: Db, statuses: StatusUpdate[]): Promise<void> {
@@ -282,7 +310,7 @@ export async function failJob(db: Db, job: TurnJob, error: string, now: Date): P
 export async function purgeProcessedInbound(db: Db, olderThan: Date): Promise<number> {
   const rows = await db
     .delete(inboundMessages)
-    .where(and(inArray(inboundMessages.status, ["done", "failed"]), lt(inboundMessages.createdAt, olderThan)))
+    .where(and(inArray(inboundMessages.status, ["done", "failed", "rate_limited", "over_cap"]), lt(inboundMessages.createdAt, olderThan)))
     .returning({ id: inboundMessages.id });
   return rows.length;
 }

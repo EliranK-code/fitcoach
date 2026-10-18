@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import {
+  coachCapUsd,
   CONSENT_VERSION,
   consentText,
   listAudit,
@@ -9,6 +10,7 @@ import {
   resolveReminderSettings,
   schema,
   onboardingMode,
+  spendCaps,
   withTenant,
 } from "@fitcoach/core";
 import { MfaCard } from "@/components/mfa-card";
@@ -92,7 +94,7 @@ export default async function SettingsPage() {
         </Card>
 
         <Card title="שימוש החודש">
-          <UsageSummary usage={usage} budgetUsd={s.t.settings.monthlyBudgetUsd} />
+          <UsageSummary usage={usage} budgetUsd={s.t.settings.monthlyBudgetUsd} capUsd={coachCapUsd(s.t, spendCaps(s.cfg))} />
           <p className="mt-2 text-xs text-slate-500">מודל: {s.cfg.CLAUDE_MODEL}</p>
         </Card>
 

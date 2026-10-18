@@ -137,17 +137,34 @@ export async function disconnectNumberAction(coachId: string, phoneNumberId: str
   revalidatePath("/admin", "layout");
 }
 
-/** The soft monthly budget: banners for the coach at 80% and 100%, never a hard stop. Empty removes it. */
+/**
+ * The soft monthly budget (banners for the coach at 80% and 100%) and the hard cap (the bot stops answering).
+ * An empty budget removes it; an empty cap falls back to the platform default (COACH_MONTHLY_CAP_USD).
+ */
 export async function setBudgetAction(coachId: string, _prev: FormState, form: FormData): Promise<FormState> {
   const s = await requireAdmin();
-  const raw = String(form.get("budget") ?? "").trim();
-  const value = raw === "" ? undefined : Number(raw);
-  if (value !== undefined && (!Number.isFinite(value) || value <= 0)) return { error: "תקציב בדולרים, מספר חיובי (או ריק כדי לבטל)" };
+  const amount = (name: string) => {
+    const raw = String(form.get(name) ?? "").trim();
+    return raw === "" ? undefined : Number(raw);
+  };
+  const budget = amount("budget");
+  const cap = amount("cap");
+  if ([budget, cap].some((v) => v !== undefined && (!Number.isFinite(v) || v <= 0))) return { error: "סכומים בדולרים, מספר חיובי (או ריק)" };
+  const effectiveCap = cap ?? (s.cfg.COACH_MONTHLY_CAP_USD > 0 ? s.cfg.COACH_MONTHLY_CAP_USD : undefined);
+  if (budget !== undefined && effectiveCap !== undefined && budget > effectiveCap) {
+    return { error: `התקציב ($${budget}) גבוה מהתקרה הקשיחה ($${effectiveCap}), והבוט ייעצר לפני שיגיע אליו. העלו גם את התקרה.` };
+  }
   const t = await openTenant(s.handle.db, coachId, { allowSuspended: true });
-  await updateCoach(s.handle.db, t, { settings: { monthlyBudgetUsd: value } });
-  await recordPlatformAction(s.handle.db, { actor: s.actor, action: "budget_set", coachId, meta: { monthlyBudgetUsd: value ?? null } });
+  await updateCoach(s.handle.db, t, { settings: { monthlyBudgetUsd: budget, monthlyCapUsd: cap } });
+  await recordPlatformAction(s.handle.db, {
+    actor: s.actor,
+    action: "budget_set",
+    coachId,
+    meta: { monthlyBudgetUsd: budget ?? null, monthlyCapUsd: cap ?? null },
+  });
   revalidatePath("/admin", "layout");
-  return { ok: value === undefined ? "התקציב בוטל." : `התקציב עודכן: $${value} לחודש.` };
+  const capText = effectiveCap === undefined ? "בלי תקרה" : `תקרה $${effectiveCap}${cap === undefined ? " (ברירת המחדל)" : ""}`;
+  return { ok: `נשמר: ${budget === undefined ? "בלי תקציב" : `תקציב $${budget}`}, ${capText} לחודש.` };
 }
 
 export async function suspendCoachAction(coachId: string): Promise<void> {

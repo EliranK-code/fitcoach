@@ -25,6 +25,17 @@ export async function hitRateLimit(db: Db, key: string, windowMs: number, now = 
   return row!.count;
 }
 
+/**
+ * The caller's IP for per-IP throttling, from request headers. Only what our own proxy wrote can be trusted:
+ * `trustedHeader` (TRUSTED_IP_HEADER, e.g. x-real-ip) when set, otherwise the last X-Forwarded-For hop, which
+ * the nearest proxy appended. The first hop is whatever the caller sent, so rotating it would dodge the limit.
+ */
+export function clientIp(header: (name: string) => string | null | undefined, trustedHeader?: string): string {
+  const lastHop = (value: string | null | undefined) => value?.split(",").at(-1)?.trim() || null;
+  if (trustedHeader) return lastHop(header(trustedHeader)) ?? "unknown";
+  return lastHop(header("x-forwarded-for")) ?? "local";
+}
+
 /** Housekeeping: counters whose window ended long ago. */
 export async function purgeRateLimits(db: Db, olderThan: Date): Promise<number> {
   const rows = await db.delete(rateLimits).where(lt(rateLimits.windowStart, olderThan)).returning({ key: rateLimits.key });

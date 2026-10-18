@@ -19,7 +19,7 @@ import {
   type ClientProfile,
 } from "../profile";
 import { saveProfile, setClientFlags, type ClientRow } from "../repos/clients";
-import { ALERT_TYPES, createAlert, SEVERITIES, type AlertType, type Severity } from "../repos/ops";
+import { ALERT_TYPES, createAlert, SEVERITIES, SYSTEM_ALERT_TYPES, type AlertType, type Severity } from "../repos/ops";
 import {
   addMeal,
   addWeight,
@@ -216,7 +216,7 @@ Value formats per field:
       "Put something in the coach's 'needs attention' queue: a question you can't answer from the coach's knowledge, or a safety concern. Tell the client you're checking with the coach.",
     strict: true,
     input_schema: obj({
-      type: { type: "string", enum: ALERT_TYPES.filter((t) => t !== "paused_message" && t !== "bot_error") },
+      type: { type: "string", enum: ALERT_TYPES.filter((t) => !SYSTEM_ALERT_TYPES.has(t)) },
       severity: { type: "string", enum: [...SEVERITIES] },
       summary: { type: "string", description: "One or two sentences for the coach, in Hebrew." },
       client_question: { type: "string", description: 'The client\'s question in their words; "" if not a question.' },

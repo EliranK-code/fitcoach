@@ -1,5 +1,5 @@
 import Fastify, { LogController } from "fastify";
-import { handleWebhookGet, handleWebhookPost, logger, type AppConfig, type Db } from "@fitcoach/core";
+import { handleWebhookGet, handleWebhookPost, logger, WEBHOOK_MAX_BYTES, type AppConfig, type Db } from "@fitcoach/core";
 
 export interface ServerDeps {
   db: Db;
@@ -12,7 +12,7 @@ export function buildServer(deps: ServerDeps) {
   const app = Fastify({
     loggerInstance: logger,
     logController: new LogController({ disableRequestLogging: true }),
-    bodyLimit: 2 * 1024 * 1024,
+    bodyLimit: WEBHOOK_MAX_BYTES,
   });
 
   // Keep the raw bytes: the signature is an HMAC over the exact body Meta sent.

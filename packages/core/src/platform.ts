@@ -51,6 +51,8 @@ export interface CoachSummary {
   monthCostMicros: number;
   /** Soft monthly budget set by an admin, if any. */
   budgetUsd: number | null;
+  /** This coach's own hard monthly cap, if an admin set one (otherwise COACH_MONTHLY_CAP_USD applies). */
+  capUsd: number | null;
 }
 
 export async function recordPlatformAction(
@@ -142,6 +144,7 @@ export async function listCoaches(db: Db, now = new Date()): Promise<CoachSummar
       monthCostMicros: sql<number>`(select coalesce(sum(u.cost_micros), 0)::bigint from usage_events u
         where u.coach_id = coaches.id and u.created_at >= ${monthStart.toISOString()}::timestamptz)`.mapWith(Number),
       budgetUsd: sql<number | null>`(coaches.settings->>'monthlyBudgetUsd')::float8`,
+      capUsd: sql<number | null>`(coaches.settings->>'monthlyCapUsd')::float8`,
     })
     .from(coaches)
     .orderBy(asc(coaches.slug));

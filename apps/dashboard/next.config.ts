@@ -18,6 +18,7 @@ const config: NextConfig = {
   poweredByHeader: false,
   // Knowledge documents (PDF, Word, menu photos) are uploaded through a server action.
   experimental: { serverActions: { bodySizeLimit: "10mb" } },
+  // The Content Security Policy needs a nonce per request, so it's set in proxy.ts rather than here.
   async headers() {
     return [
       {
@@ -27,8 +28,14 @@ const config: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "same-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // Browsers only honor HSTS over HTTPS; production is served behind HTTPS.
+          ...(process.env.NODE_ENV === "production"
+            ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]
+            : []),
         ],
       },
+      // The one-time token is in these paths: never send them anywhere, not even to our own pages.
+      ...["/invite/:path*", "/reset/:path*"].map((source) => ({ source, headers: [{ key: "Referrer-Policy", value: "no-referrer" }] })),
     ];
   },
 };

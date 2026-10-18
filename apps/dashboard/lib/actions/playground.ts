@@ -1,12 +1,26 @@
 "use server";
 
-import { deleteClientData, findClientByPhone, listChatMessages, MissingApiKeyError, type TurnEvent } from "@fitcoach/core";
+import {
+  deleteClientData,
+  findClientByPhone,
+  hitRateLimit,
+  listChatMessages,
+  MissingApiKeyError,
+  spendBlock,
+  spendBlockMessage,
+  spendCaps,
+  type TurnEvent,
+} from "@fitcoach/core";
 import { requireSession, type AppSession } from "../session";
 
 // The playground talks to the real engine as a test client (is_test), separate for each dashboard user.
 // Test clients are hidden from the client list and the stats.
 
 const playgroundId = (s: AppSession) => `playground:${s.user.id}`;
+
+const PLAYGROUND_MAX_CHARS = 4096;
+const PLAYGROUND_HOURLY_LIMIT = 60;
+const PLAYGROUND_WINDOW_MS = 3600_000;
 
 export interface PlaygroundEvent {
   kind: "tool" | "alert" | "epoch" | "guard" | "refusal" | "usage";
@@ -39,6 +53,14 @@ function describe(e: TurnEvent): PlaygroundEvent {
 
 export async function playgroundSend(text: string, buttonId?: string): Promise<PlaygroundReply> {
   const s = await requireSession();
+  // Every message here is a real model call, so it has the same guards as WhatsApp: a length like WhatsApp's,
+  // an hourly limit per coach, and the spending caps.
+  if (typeof text !== "string" || text.length > PLAYGROUND_MAX_CHARS) return { replies: [], events: [], error: `הודעה עד ${PLAYGROUND_MAX_CHARS} תווים, כמו בוואטסאפ` };
+  if ((await hitRateLimit(s.handle.db, `playground:${s.t.coachId}`, PLAYGROUND_WINDOW_MS)) > PLAYGROUND_HOURLY_LIMIT) {
+    return { replies: [], events: [], error: `אפשר לשלוח עד ${PLAYGROUND_HOURLY_LIMIT} הודעות בשעה במגרש המשחקים. נסו שוב בעוד כמה דקות.` };
+  }
+  const block = await spendBlock(s.handle.db, s.t, spendCaps(s.cfg));
+  if (block) return { replies: [], events: [], error: spendBlockMessage(block) };
   try {
     const res = await s.engine.handleInbound({
       coachId: s.t.coachId,

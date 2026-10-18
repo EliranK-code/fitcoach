@@ -133,19 +133,37 @@ export function AssignNumberForm({ action }: { action: (prev: FormState, form: F
   );
 }
 
-export function BudgetForm({ action, current }: { action: (prev: FormState, form: FormData) => Promise<FormState>; current: number | null }) {
+export function BudgetForm({
+  action,
+  budget,
+  cap,
+  defaultCap,
+}: {
+  action: (prev: FormState, form: FormData) => Promise<FormState>;
+  budget: number | null;
+  /** This coach's own cap, if set. */
+  cap: number | null;
+  /** COACH_MONTHLY_CAP_USD; 0 = no default cap. */
+  defaultCap: number;
+}) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
   return (
     <form action={formAction} className="space-y-3">
       <Feedback state={state} />
-      <Field label="תקציב חודשי (דולר)" hint="מכסה רכה: באנר למאמן ב-80% וב-100%, בלי עצירה. ריק = בלי תקציב">
-        <div className="flex gap-2">
-          <Input name="budget" type="number" min="1" step="1" dir="ltr" defaultValue={current ?? ""} className="max-w-32" />
-          <Button size="sm" variant="secondary" disabled={pending}>
-            שמירה
-          </Button>
-        </div>
-      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="תקציב חודשי (דולר)" hint="מכסה רכה: באנר למאמן ב-80% וב-100%, בלי עצירה. ריק = בלי תקציב">
+          <Input name="budget" type="number" min="1" step="1" dir="ltr" defaultValue={budget ?? ""} className="max-w-32" />
+        </Field>
+        <Field
+          label="תקרה קשיחה (דולר)"
+          hint={`כשמגיעים אליה הבוט מפסיק לענות עד סוף החודש. ריק = ברירת המחדל (${defaultCap > 0 ? `$${defaultCap}` : "בלי תקרה"})`}
+        >
+          <Input name="cap" type="number" min="1" step="1" dir="ltr" defaultValue={cap ?? ""} placeholder={defaultCap > 0 ? String(defaultCap) : ""} className="max-w-32" />
+        </Field>
+      </div>
+      <Button size="sm" variant="secondary" disabled={pending}>
+        שמירה
+      </Button>
     </form>
   );
 }

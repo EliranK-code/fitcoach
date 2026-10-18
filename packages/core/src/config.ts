@@ -55,6 +55,19 @@ const envSchema = z.object({
   WHATSAPP_TEMPLATE_PRICE_USD: z.preprocess(emptyToUndefined, z.coerce.number().nonnegative().default(0)),
   /** Messages per client per hour the bot answers; beyond it they're kept for the coach. 0 = no limit. */
   CLIENT_HOURLY_MESSAGE_LIMIT: z.preprocess(emptyToUndefined, z.coerce.number().int().nonnegative().default(30)),
+  /** The same per client per day, so a client can't keep the bot busy around the clock. 0 = no limit. */
+  CLIENT_DAILY_MESSAGE_LIMIT: z.preprocess(emptyToUndefined, z.coerce.number().int().nonnegative().default(150)),
+  /** Hard monthly spend cap per coach in USD (an admin can set another per coach): the bot stops answering. 0 = no default cap. */
+  COACH_MONTHLY_CAP_USD: z.preprocess(emptyToUndefined, z.coerce.number().nonnegative().default(200)),
+  /** Hard cap on the whole platform's spend per UTC day in USD: every bot stops answering until the next day. 0 = no cap. */
+  PLATFORM_DAILY_CAP_USD: z.preprocess(emptyToUndefined, z.coerce.number().nonnegative().default(100)),
+
+  // Deployment
+  /**
+   * The header our own proxy sets to the caller's IP (e.g. x-real-ip), for per-IP login throttling. Unset = the
+   * last X-Forwarded-For hop, the one the nearest proxy appended. Never the first: the caller writes that one.
+   */
+  TRUSTED_IP_HEADER: optionalString,
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

@@ -9,6 +9,7 @@ import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js";
 import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { logger } from "../logger";
 import * as schema from "./schema";
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -21,6 +22,30 @@ export interface DbHandle {
 
 const MIGRATIONS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../../drizzle");
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+/**
+ * TLS for a Postgres URL. Any remote host gets TLS, so nothing crosses the network in the clear (Supabase
+ * accepts plain connections unless "Enforce SSL" is on). `sslmode=verify-full` in the URL also checks the
+ * certificate; a remote host without TLS takes an explicit `sslmode=disable` (e.g. a private network).
+ */
+export function postgresSsl(url: string): "require" | "verify-full" | false {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return "require";
+  }
+  const mode = parsed.searchParams.get("sslmode");
+  if (mode === "verify-full" || mode === "verify-ca") return "verify-full";
+  if (mode === "require") return "require";
+  if (mode === "disable") {
+    if (!LOCAL_HOSTS.has(parsed.hostname)) logger.warn({ host: parsed.hostname }, "DATABASE_URL has sslmode=disable: database traffic is not encrypted");
+    return false;
+  }
+  return LOCAL_HOSTS.has(parsed.hostname) ? false : "require";
+}
+
 /**
  * Opens the database and applies pending migrations.
  * - `databaseUrl` set → Postgres (Supabase in production).
@@ -28,7 +53,8 @@ const MIGRATIONS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../../d
  */
 export async function openDatabase(opts: { databaseUrl?: string; dataDir?: string; poolSize?: number }): Promise<DbHandle> {
   if (opts.databaseUrl) {
-    const sqlClient = postgres(opts.databaseUrl, { max: opts.poolSize ?? 10, prepare: false, onnotice: () => {} });
+    const ssl = postgresSsl(opts.databaseUrl);
+    const sqlClient = postgres(opts.databaseUrl, { max: opts.poolSize ?? 10, prepare: false, onnotice: () => {}, ...(ssl ? { ssl } : {}) });
     const db = drizzlePostgres(sqlClient, { schema }) as unknown as Db;
     await migratePostgres(db as never, { migrationsFolder: MIGRATIONS_DIR });
     return { db, kind: "postgres", close: () => sqlClient.end() };

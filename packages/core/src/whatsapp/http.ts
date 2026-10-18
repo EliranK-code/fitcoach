@@ -1,6 +1,7 @@
 import type { AppConfig } from "../config";
 import type { Db } from "../db/client";
 import { logger } from "../logger";
+import { spendCaps } from "../spend";
 import { applyStatuses, enqueueInbound } from "./inbox";
 import { parseWebhook, verifySignature, verifySubscription } from "./webhook";
 
@@ -9,6 +10,33 @@ import { parseWebhook, verifySignature, verifySubscription } from "./webhook";
 export interface HttpResult {
   status: number;
   body?: string;
+}
+
+/** Meta's webhook batches are small; anything bigger is refused before it's buffered or its signature checked. */
+export const WEBHOOK_MAX_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Reads a request body up to `max` bytes. Returns null when it's larger, whether declared (Content-Length) or
+ * actual, and stops reading there, so an oversized body never sits in memory.
+ */
+export async function readBodyWithLimit(req: Request, max = WEBHOOK_MAX_BYTES): Promise<Buffer | null> {
+  const declared = Number(req.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > max) return null;
+  if (!req.body) return Buffer.alloc(0);
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
 }
 
 /** Meta's one-time handshake when the webhook URL is registered. */
@@ -37,7 +65,12 @@ export async function handleWebhookPost(db: Db, cfg: AppConfig, raw: Buffer, sig
     return { status: 400 };
   }
   const { messages, statuses } = parseWebhook(body);
-  await enqueueInbound(db, messages, { debounceMs: cfg.INBOUND_DEBOUNCE_MS, clientHourlyLimit: cfg.CLIENT_HOURLY_MESSAGE_LIMIT });
+  await enqueueInbound(db, messages, {
+    debounceMs: cfg.INBOUND_DEBOUNCE_MS,
+    clientHourlyLimit: cfg.CLIENT_HOURLY_MESSAGE_LIMIT,
+    clientDailyLimit: cfg.CLIENT_DAILY_MESSAGE_LIMIT,
+    spendCaps: spendCaps(cfg),
+  });
   await applyStatuses(db, statuses);
   return { status: 200 };
 }

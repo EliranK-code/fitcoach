@@ -23,6 +23,7 @@ export * from "./platform-auth";
 export * from "./pricing";
 export * from "./privacy";
 export * from "./ratelimit";
+export * from "./spend";
 export * from "./totp";
 export * from "./usage";
 export * from "./profile";

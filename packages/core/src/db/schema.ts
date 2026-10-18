@@ -50,6 +50,8 @@ export interface CoachSettings {
   starterKnowledge?: boolean;
   /** Soft monthly budget in USD, set by a platform admin: banners at 80% and 100%, never a hard stop. */
   monthlyBudgetUsd?: number;
+  /** Hard monthly cap in USD, set by a platform admin; unset = COACH_MONTHLY_CAP_USD. At the cap the bot stops answering (spend.ts). */
+  monthlyCapUsd?: number;
 }
 
 export const REMINDER_KINDS = ["weigh_in", "workout", "checkin"] as const;
@@ -468,7 +470,8 @@ export const usageEvents = pgTable(
     costMicros: bigint("cost_micros", { mode: "number" }).notNull().default(0),
     createdAt: createdAt(),
   },
-  (t) => [index("usage_events_coach").on(t.coachId, t.createdAt)],
+  // The second index serves the platform-wide daily spend (spend.ts), checked on every inbound message.
+  (t) => [index("usage_events_coach").on(t.coachId, t.createdAt), index("usage_events_created").on(t.createdAt)],
 );
 
 /** Fixed-window counters for rate limits (logins per IP, messages per client). Platform-only (migration 0008). */

@@ -71,6 +71,13 @@
       "when": 1792224481339,
       "tag": "0009_embedded_signup",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792310308079,
+      "tag": "0010_spend_caps",
+      "breakpoints": true
     }
   ]
 }
