@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { listAlerts } from "@fitcoach/core";
 import { AlertActions } from "@/components/alert-actions";
-import { Badge, Card, EmptyState, PageHeader, SEVERITY_TONE } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, PageHeader, SEVERITY_TONE } from "@/components/ui";
+import { approveClientAction } from "@/lib/actions/clients";
 import { ALERT_TYPE_LABEL, formatDateTime, SEVERITY_LABEL, SEVERITY_ORDER, SOURCE_LABEL } from "@/lib/labels";
 import { clientRows } from "@/lib/queries";
 import { requireSession } from "@/lib/session";
@@ -65,7 +66,14 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
                 {a.status === "resolved" ? (
                   a.resolution && <p className="mt-3 text-sm text-slate-500">טופל: {a.resolution}</p>
                 ) : (
-                  <AlertActions alertId={a.id} hasQuestion={Boolean(a.question)} canReply={Boolean(client) && client?.consentStatus === "granted"} />
+                  <>
+                    {a.type === "join_request" && client?.access !== "approved" && (
+                      <form action={approveClientAction.bind(null, a.clientId)} className="mt-3">
+                        <Button size="sm">אישור הלקוח/ה</Button>
+                      </form>
+                    )}
+                    <AlertActions alertId={a.id} hasQuestion={Boolean(a.question)} canReply={Boolean(client) && client?.consentStatus === "granted"} />
+                  </>
                 )}
               </Card>
             );

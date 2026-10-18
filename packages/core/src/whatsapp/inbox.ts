@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNull, lt, lte, notExists, or, sql } from "drizzle-orm";
+import { clientAccessMode } from "../access";
 import { decryptJson, encryptJson } from "../crypto";
 import type { Db } from "../db/client";
 import { withTenant } from "../db/scope";
@@ -84,7 +85,7 @@ export async function enqueueInbound(db: Db, messages: InboundWaMessage[], opts:
     const suspended = t.status === "suspended";
     const client = suspended
       ? await findClientByPhone(db, t, msg.from)
-      : (await findOrCreateClient(db, t, { phone: msg.from, channel: "whatsapp" })).client;
+      : (await findOrCreateClient(db, t, { phone: msg.from, channel: "whatsapp", approved: clientAccessMode(t.settings) === "open" })).client;
     if (!client || (suspended && !suspensionNoticeDue(t, client))) {
       stats.suspended++;
       continue;

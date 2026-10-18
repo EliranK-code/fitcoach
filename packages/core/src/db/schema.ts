@@ -52,7 +52,11 @@ export interface CoachSettings {
   monthlyBudgetUsd?: number;
   /** Hard monthly cap in USD, set by a platform admin; unset = COACH_MONTHLY_CAP_USD. At the cap the bot stops answering (spend.ts). */
   monthlyCapUsd?: number;
+  /** Who the bot answers on WhatsApp: only numbers the coach approved (the default), or anyone who writes. See access.ts. */
+  clientAccess?: ClientAccessMode;
 }
+
+export type ClientAccessMode = "approved_only" | "open";
 
 export const REMINDER_KINDS = ["weigh_in", "workout", "checkin"] as const;
 export type ReminderKind = (typeof REMINDER_KINDS)[number];
@@ -158,6 +162,8 @@ export const clients = pgTable(
     pausedAt: timestamp("paused_at", { withTimezone: true }),
     lastInboundAt: timestamp("last_inbound_at", { withTimezone: true }),
     flags: jsonb("flags").$type<ClientFlags>().notNull().default({}),
+    /** When the coach let this number talk to the bot; null = not approved (a join request, or access removed). See access.ts. */
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
@@ -179,6 +185,10 @@ export interface ClientFlags {
   suspensionNoticeAt?: string;
   /** Set when the client asked to delete their data and we are waiting for confirmation. */
   pendingDeletionAt?: string;
+  /** Last "this number serves the coach's clients" notice to an unapproved number, so they get one a day at most. */
+  accessNoticeAt?: string;
+  /** Set when the coach removed this client's access (as opposed to a number that was never approved). */
+  accessRevokedAt?: string;
 }
 
 export const clientProfiles = pgTable("client_profiles", {

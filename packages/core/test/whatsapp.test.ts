@@ -12,7 +12,7 @@ import { applyStatuses, claimDueJobs, enqueueInbound, MAX_JOB_ATTEMPTS } from ".
 import { OutsideServiceWindowError, sendCoachMessage, sendTemplateMessage } from "../src/whatsapp/outbound";
 import { parseWebhook, verifySignature, verifySubscription, type InboundWaMessage } from "../src/whatsapp/webhook";
 import { groupInbound, InboundWorker } from "../src/whatsapp/worker";
-import { createTestApp, message, text, type TestApp } from "./helpers";
+import { createTestApp, message, openToEveryone, text, type TestApp } from "./helpers";
 
 const PNID = "pn-test-1";
 const FROM = "972501234567";
@@ -137,7 +137,7 @@ describe("WhatsApp pipeline", () => {
 
   beforeEach(async () => {
     app = await createTestApp({ INBOUND_DEBOUNCE_MS: "4000", WORKER_CONCURRENCY: "4" });
-    t = await app.tenant();
+    t = await openToEveryone(app.handle.db, await app.tenant());
     await connectWhatsAppNumber(app.handle.db, t, { phoneNumberId: PNID, displayPhone: "+972 3 000 0000" });
     api = createDryRunApi(PNID, () => {});
     worker = new InboundWorker({ db: app.handle.db, cfg: app.cfg, engine: app.engine, apiFor: async () => api, now: () => app.clock.now });

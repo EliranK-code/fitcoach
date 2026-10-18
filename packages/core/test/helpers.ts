@@ -1,16 +1,19 @@
 import { resolve } from "node:path";
 import type Anthropic from "@anthropic-ai/sdk";
 import { loadConfig, type AppConfig } from "../src/config";
-import { openDatabase, type DbHandle } from "../src/db/client";
+import { openDatabase, type Db, type DbHandle } from "../src/db/client";
 import { ConversationEngine } from "../src/engine/conversation";
 import { importCoachFromDir } from "../src/knowledge/importer";
 import type { CreateParams, LlmClient } from "../src/llm/client";
 import { SUMMARY_SYSTEM } from "../src/llm/prompts";
-import { openTenant, type TenantContext } from "../src/tenancy";
+import { openTenant, updateCoach, type TenantContext } from "../src/tenancy";
 
 type Block = Anthropic.Beta.BetaContentBlock;
 
 export const SEED_DIR = resolve(import.meta.dirname, "../../../seed/demo-coach");
+
+/** WhatsApp pipeline tests write as new numbers: let this coach's bot answer anyone (access.test.ts covers approval). */
+export const openToEveryone = (db: Db, t: TenantContext) => updateCoach(db, t, { settings: { clientAccess: "open" } });
 
 export function testConfig(overrides: Partial<Record<keyof AppConfig, unknown>> = {}): AppConfig {
   return loadConfig({

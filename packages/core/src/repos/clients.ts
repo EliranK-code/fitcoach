@@ -21,7 +21,8 @@ export async function findClientByPhone(db: Db, t: TenantContext, phone: string)
 export async function findOrCreateClient(
   db: Db,
   t: TenantContext,
-  input: { phone: string; channel: string; isTest?: boolean },
+  /** `approved: false` creates a join request (WhatsApp in "approved only" mode); an existing client keeps its state. */
+  input: { phone: string; channel: string; isTest?: boolean; approved?: boolean },
 ): Promise<{ client: ClientRow; created: boolean }> {
   return withTenant(db, t, async (db) => {
     const existing = await findClientByPhone(db, t, input.phone);
@@ -34,6 +35,7 @@ export async function findOrCreateClient(
         phoneEnc: encryptText(t, input.phone),
         channel: input.channel,
         isTest: input.isTest ?? false,
+        approvedAt: input.approved === false ? null : new Date(),
       })
       .onConflictDoNothing()
       .returning();
@@ -78,7 +80,7 @@ export async function updateClient(
   patch: Partial<
     Pick<
       ClientRow,
-      "consentStatus" | "consentAt" | "consentVersion" | "botPaused" | "pausedAt" | "lastInboundAt" | "flags"
+      "consentStatus" | "consentAt" | "consentVersion" | "botPaused" | "pausedAt" | "lastInboundAt" | "flags" | "approvedAt"
     >
   >,
 ): Promise<ClientRow> {

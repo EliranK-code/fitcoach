@@ -2,6 +2,7 @@ import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseArgs, styleText } from "node:util";
 import {
+  addApprovedClient,
   audit,
   clientPhone,
   connectWhatsAppNumber,
@@ -36,6 +37,7 @@ import {
   loadConfig,
   purgeInactiveClients,
   resolveAlert,
+  revokeClientAccess,
   sendCoachMessage,
   sendTemplateMessage,
   setClientFlags,
@@ -61,6 +63,8 @@ const USAGE = `שימוש: npm run <פקודה> -- [אפשרויות]
 
 פקודות ניהול (npm run admin -- <פקודה> [--coach demo]):
   clients                        רשימת לקוחות
+  client:approve <phone>         אישור מספר וואטסאפ, כדי שהבוט יענה לו (גם מספר שעוד לא כתב)
+  client:revoke <phone>          הסרת הגישה של לקוח לבוט (המידע נשמר)
   history <phone>                השיחה עם לקוח, כולל סטטוס מסירה
   alerts [--all]                 התראות פתוחות (או כולן)
   alert:resolve <id> [--note x]  סגירת התראה
@@ -302,12 +306,23 @@ async function main() {
         if (!rows.length) return console.log("אין לקוחות.");
         for (const c of rows) {
           console.log(
-            `${clientPhone(t, c)}  ${c.channel}  הסכמה:${c.consentStatus}  ${c.botPaused ? "מושהה  " : ""}${
+            `${clientPhone(t, c)}  ${c.channel}  ${c.approvedAt ? "" : "לא מאושר  "}הסכמה:${c.consentStatus}  ${c.botPaused ? "מושהה  " : ""}${
               Object.keys(c.flags).length ? `דגלים:${JSON.stringify(c.flags)}` : ""
             }`,
           );
         }
         return;
+      }
+      case "client:approve": {
+        const phone = positionals[0] ?? values.phone;
+        if (!phone) throw new Error("חסר מספר טלפון");
+        const { client, created } = await addApprovedClient(db, t, phone, "cli");
+        return console.log(`${clientPhone(t, client)} ${created ? "נוסף ואושר" : "מאושר"} אצל ${t.coachName}.`);
+      }
+      case "client:revoke": {
+        const client = await requireClient();
+        await revokeClientAccess(db, t, client.id, "cli");
+        return console.log(`הגישה של ${clientPhone(t, client)} לבוט הוסרה.`);
       }
       case "history": {
         const client = await requireClient();

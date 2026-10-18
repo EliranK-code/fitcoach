@@ -16,7 +16,7 @@ import { CLIENT_DAY_WINDOW_MS, CLIENT_RATE_WINDOW_MS, enqueueInbound } from "../
 import { sendTemplateMessage } from "../src/whatsapp/outbound";
 import type { InboundWaMessage } from "../src/whatsapp/webhook";
 import { InboundWorker } from "../src/whatsapp/worker";
-import { createTestApp, message, testConfig, text, type TestApp } from "./helpers";
+import { createTestApp, message, openToEveryone, testConfig, text, type TestApp } from "./helpers";
 
 describe("pricing", () => {
   it("prices Claude tokens per model, cache reads and writes included", () => {
@@ -63,7 +63,7 @@ describe("usage metering and limits", () => {
 
   beforeEach(async () => {
     app = await createTestApp();
-    t = await app.tenant();
+    t = await openToEveryone(app.handle.db, await app.tenant());
     await connectWhatsAppNumber(app.handle.db, t, { phoneNumberId: "pn-u" });
     api = createDryRunApi("pn-u", () => {});
     worker = new InboundWorker({ db: app.handle.db, cfg: app.cfg, engine: app.engine, apiFor: async () => api, now: () => app.clock.now });

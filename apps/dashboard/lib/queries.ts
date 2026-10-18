@@ -35,7 +35,8 @@ export async function overviewStats(db: Db, t: TenantContext, now = new Date()) 
       .select({ n: count() })
       .from(schema.chatMessages)
       .where(and(eq(schema.chatMessages.coachId, t.coachId), gte(schema.chatMessages.createdAt, dayAgo)));
-    const real = clients.filter((c) => !c.isTest);
+    // Join requests and clients whose access was removed aren't counted as clients.
+    const real = clients.filter((c) => !c.isTest && c.approvedAt);
     return {
       openAlerts: alerts.length,
       urgentAlerts: alerts.filter((a) => a.severity === "urgent" || a.severity === "high").length,
@@ -58,7 +59,14 @@ export interface ClientRow {
   lastInboundAt: Date | null;
   openAlerts: number;
   goal: string | null;
+  /** pending = a join request; revoked = the coach removed access (access.ts). */
+  access: ClientAccess;
 }
+
+export type ClientAccess = "approved" | "pending" | "revoked";
+
+export const clientAccess = (c: { approvedAt: Date | null; flags: { accessRevokedAt?: string } }): ClientAccess =>
+  c.approvedAt ? "approved" : c.flags.accessRevokedAt ? "revoked" : "pending";
 
 export async function clientRows(db: Db, t: TenantContext): Promise<ClientRow[]> {
   return withTenant(db, t, async (db) => {
@@ -84,9 +92,12 @@ export async function clientRows(db: Db, t: TenantContext): Promise<ClientRow[]>
         lastInboundAt: c.lastInboundAt,
         openAlerts: openBy.get(c.id) ?? 0,
         goal: profile.goal ?? null,
+        access: clientAccess(c),
       });
     }
-    return rows.sort((a, b) => (b.lastInboundAt?.getTime() ?? 0) - (a.lastInboundAt?.getTime() ?? 0));
+    // Join requests first, so the coach sees them; then by last message.
+    const pendingFirst = (r: ClientRow) => (r.access === "pending" ? 0 : 1);
+    return rows.sort((a, b) => pendingFirst(a) - pendingFirst(b) || (b.lastInboundAt?.getTime() ?? 0) - (a.lastInboundAt?.getTime() ?? 0));
   });
 }
 

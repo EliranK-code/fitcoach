@@ -2,7 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { audit, deleteClientData, requireClient, setClientFlags, updateClient } from "@fitcoach/core";
+import {
+  addApprovedClient,
+  approveClient,
+  audit,
+  ClientAccessError,
+  deleteClientData,
+  deliverTurn,
+  getCoachAccount,
+  logger,
+  requireClient,
+  revokeClientAccess,
+  serviceWindowOpen,
+  setClientFlags,
+  updateClient,
+} from "@fitcoach/core";
 import { sendAsCoach } from "../coach-message";
 import { requireSession } from "../session";
 import type { FormState } from "./auth";
@@ -12,6 +26,49 @@ async function load(clientId: string) {
   const s = await requireSession();
   const client = await requireClient(s.handle.db, s.t, clientId);
   return { s, client };
+}
+
+/** The coach adds a client's WhatsApp number, so the bot answers it (approved-only mode). */
+export async function addClientAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const s = await requireSession();
+  try {
+    const { created } = await addApprovedClient(s.handle.db, s.t, String(form.get("phone") ?? "").slice(0, 40), s.actor);
+    revalidatePath("/", "layout");
+    return { ok: created ? "נוסף. כשהלקוח/ה יכתוב/תכתוב למספר, הבוט ישלח את הודעת ההסכמה ויתחיל לעבוד." : "המספר כבר ברשימה, ועכשיו הוא מאושר." };
+  } catch (err) {
+    if (err instanceof ClientAccessError) return { error: err.message };
+    throw err;
+  }
+}
+
+/**
+ * Approves a join request (or restores access). A client who wrote in the last 24 hours and hasn't
+ * consented yet gets the consent notice right away, so they don't have to write again.
+ */
+export async function approveClientAction(clientId: string): Promise<void> {
+  const { s, client } = await load(clientId);
+  const approved = await approveClient(s.handle.db, s.t, client, s.actor);
+  const now = new Date();
+  if (approved.channel === "whatsapp" && approved.consentStatus === "pending" && serviceWindowOpen(approved, now)) {
+    const account = await getCoachAccount(s.handle.db, s.t);
+    if (account) {
+      try {
+        const api = await s.whatsappApi(s.t, account.phoneNumberId);
+        await deliverTurn(s.handle.db, s.t, approved, api, await s.engine.promptConsent(s.t.coachId, approved.id), now);
+      } catch (err) {
+        // The approval stands; the client gets the consent notice on their next message instead.
+        logger.warn({ err, clientId: approved.id }, "consent notice after approval failed");
+      }
+    }
+  }
+  revalidatePath("/", "layout");
+}
+
+/** The bot stops answering this client (they get the "this number serves the coach's clients" notice). */
+export async function revokeAccessAction(clientId: string): Promise<void> {
+  const { s, client } = await load(clientId);
+  await revokeClientAccess(s.handle.db, s.t, client.id, s.actor);
+  revalidatePath("/", "layout");
 }
 
 export async function setPausedAction(clientId: string, paused: boolean): Promise<void> {

@@ -15,7 +15,7 @@ import { fillReminderText, isQuietTime, localInfo, resolveReminderSettings } fro
 import { claimDueReminders } from "./store";
 
 // Proactive messages, within WhatsApp's rules: inside the 24-hour window a free-form text, outside it only
-// an approved template (none configured = skipped). Opt-outs, pauses and missing consent always win.
+// an approved template (none configured = skipped). Opt-outs, pauses, missing consent and removed access always win.
 // What was sent is logged as unseen by the bot, so it sees the reminder as context on the next turn.
 
 export type ReminderOutcome = "text" | "template" | "skipped";
@@ -29,7 +29,7 @@ export async function sendReminder(
   now: Date,
 ): Promise<ReminderOutcome> {
   if (!api || client.channel !== "whatsapp" || client.isTest) return "skipped";
-  if (client.consentStatus !== "granted" || client.botPaused || client.flags.remindersOptOut) return "skipped";
+  if (client.consentStatus !== "granted" || !client.approvedAt || client.botPaused || client.flags.remindersOptOut) return "skipped";
   const settings = resolveReminderSettings(t.settings.reminders);
   const firstName = (await getProfile(db, t, client.id)).name?.split(/\s+/)[0] ?? null;
 
@@ -164,6 +164,7 @@ export class ReminderScheduler {
               eq(clients.coachId, coach.id),
               eq(clients.channel, "whatsapp"),
               eq(clients.consentStatus, "granted"),
+              isNotNull(clients.approvedAt),
               eq(clients.isTest, false),
               eq(clients.botPaused, false),
               isNotNull(clients.lastInboundAt),

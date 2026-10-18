@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createAlert, createCoach, findOrCreateClient, openTenant, saveProfile, updateClient, type TenantContext } from "@fitcoach/core";
+import { createAlert, createCoach, deleteClientData, findOrCreateClient, openTenant, saveProfile, updateClient, type TenantContext } from "@fitcoach/core";
 import { createTestApp, type TestApp } from "../../../packages/core/test/helpers";
 import { clientDetail, clientRows, overviewStats } from "../lib/queries";
 
@@ -38,6 +38,15 @@ describe("dashboard queries", () => {
     const rows = await clientRows(app.handle.db, t);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ name: "דנה", openAlerts: 1, goal: "fat_loss", channel: "whatsapp" });
+  });
+
+  it("lists a join request first, marked as pending, without counting it as a client", async () => {
+    const db = app.handle.db;
+    const { client: stranger } = await findOrCreateClient(db, t, { phone: "0503333333", channel: "whatsapp", approved: false });
+    const rows = await clientRows(db, t);
+    expect(rows.map((r) => r.access)).toEqual(["pending", "approved"]);
+    expect((await overviewStats(db, t)).clients).toBe(1);
+    await deleteClientData(db, t, stranger.id, "test");
   });
 
   it("refuses a client id from another coach", async () => {

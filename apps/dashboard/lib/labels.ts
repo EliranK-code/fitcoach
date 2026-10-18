@@ -11,6 +11,7 @@ export const ALERT_TYPE_LABEL: Record<string, string> = {
   bot_error: "תקלה בבוט",
   rate_limited: "יותר מדי הודעות",
   spend_cap: "תקרת הוצאה",
+  join_request: "בקשת הצטרפות",
   other: "אחר",
 };
 
@@ -30,7 +31,7 @@ export const SEVERITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medi
 
 export const SOURCE_LABEL: Record<string, string> = { model: "הבוט", detector: "גלאי אוטומטי", system: "מערכת" };
 
-export const CONSENT_LABEL: Record<string, string> = { granted: "אישר/ה", pending: "ממתין לאישור", declined: "סירב/ה" };
+export const CONSENT_LABEL: Record<string, string> = { granted: "אישר/ה", pending: "ממתין להסכמה", declined: "סירב/ה" };
 
 export const CHANNEL_LABEL: Record<string, string> = { whatsapp: "וואטסאפ", cli: "טרמינל", playground: "מגרש משחקים" };
 

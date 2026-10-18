@@ -44,6 +44,17 @@ export async function saveCoachSettingsAction(_prev: FormState, form: FormData):
   return { ok: "נשמר" };
 }
 
+/** Who the bot answers on WhatsApp: only approved numbers, or anyone who writes. */
+export async function saveClientAccessAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const s = await requireSession();
+  const mode = String(form.get("clientAccess") ?? "");
+  if (mode !== "approved_only" && mode !== "open") return { error: "בחירה לא תקינה" };
+  await updateCoach(s.handle.db, s.t, { settings: { clientAccess: mode } });
+  await audit(s.handle.db, s.t, { actor: s.actor, action: "client_access_mode_set", targetType: "coach", targetId: s.t.coachId, meta: { mode } });
+  revalidatePath("/", "layout");
+  return { ok: mode === "open" ? "נשמר: הבוט יענה לכל מי שכותב." : "נשמר: הבוט יענה רק למספרים שאישרת." };
+}
+
 export async function saveConsentAction(_prev: FormState, form: FormData): Promise<FormState> {
   const s = await requireSession();
   const reset = form.get("reset") === "1";

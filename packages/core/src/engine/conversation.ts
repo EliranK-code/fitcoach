@@ -25,6 +25,7 @@ import {
   type BetaToolResultBlockParam,
   type UsageSummary,
 } from "../llm/client";
+import { ACCESS_NOTICE_INTERVAL_MS, accessNoticeText, joinRequestSummary } from "../access";
 import { PLATFORM_RULES } from "../llm/prompts";
 import { logger } from "../logger";
 import { deleteClientData } from "../privacy";
@@ -124,6 +125,21 @@ function appendSystemNote(pending: BetaMessageParam[], note: string): void {
 export class ConversationEngine {
   constructor(private readonly deps: EngineDeps) {}
 
+  /**
+   * The consent notice for a client who hasn't consented yet, sent without waiting for their next message
+   * (right after the coach approves a join request). Records that it was shown, like the consent gate does.
+   */
+  async promptConsent(coachId: string, clientId: string): Promise<TurnResult> {
+    const { db } = this.deps;
+    const t = await openTenant(db, coachId);
+    let client = await requireClient(db, t, clientId);
+    if (client.consentStatus === "granted") return { clientId: client.id, replies: [], outboundIds: [], events: [] };
+    client = await setClientFlags(db, t, client, { consentPromptedAt: this.deps.now().toISOString() });
+    const text = t.settings.consentText ?? consentText(t.coachName);
+    const outboundId = await logChatMessage(db, t, { clientId: client.id, direction: "out", sender: "bot", body: text });
+    return { clientId: client.id, replies: [text], outboundIds: [outboundId], events: [], buttons: [CONSENT_BUTTONS.accept, CONSENT_BUTTONS.decline] };
+  }
+
   async handleInbound(msg: InboundMessage): Promise<TurnResult> {
     const { db } = this.deps;
     const t = await openTenant(db, msg.coachId);
@@ -147,6 +163,19 @@ export class ConversationEngine {
       }
       return { clientId: client.id, replies, outboundIds, events, ...extra };
     };
+
+    // 0. Access gate: a number the coach hasn't approved (access.ts) gets a short notice at most once a day, and
+    // the coach a join request. Nothing reaches the AI and nothing the person wrote is stored.
+    if (!client.approvedAt) {
+      await logChatMessage(db, t, { clientId: client.id, direction: "in", sender: "client", body: null, kind, externalId: msg.externalId });
+      const lastNotice = client.flags.accessNoticeAt ? Date.parse(client.flags.accessNoticeAt) : 0;
+      if (now.getTime() - lastNotice < ACCESS_NOTICE_INTERVAL_MS) return reply([]);
+      client = await setClientFlags(db, t, client, { accessNoticeAt: now.toISOString() });
+      if (!client.flags.accessRevokedAt) {
+        await createAlert(db, t, { clientId: client.id, type: "join_request", severity: "medium", source: "system", summary: joinRequestSummary() });
+      }
+      return reply([accessNoticeText(t.coachName)]);
+    }
 
     // 1. Consent gate: nothing reaches the AI, and no message content is stored, before explicit consent.
     // A "yes" only counts once the client has actually been shown the notice.

@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 import { audit, calorieFloor, getClient, isMinor, PROFILE_FIELDS, type ClientProfile, type ProfileNote } from "@fitcoach/core";
 import { Conversation, type ChatItem } from "@/components/conversation";
 import { DeleteClient } from "@/components/delete-client";
-import { Badge, Button, Card, SEVERITY_TONE, WhatsAppText } from "@/components/ui";
+import { Badge, Button, Card, Notice, SEVERITY_TONE, WhatsAppText } from "@/components/ui";
 import { WeightChart } from "@/components/weight-chart";
-import { clearFlagsAction, setPausedAction } from "@/lib/actions/clients";
+import { approveClientAction, clearFlagsAction, revokeAccessAction, setPausedAction } from "@/lib/actions/clients";
 import { stopClientRemindersAction } from "@/lib/actions/reminders";
 import { ALERT_TYPE_LABEL, CHANNEL_LABEL, DAY_NAMES, REMINDER_KIND_LABEL, CONSENT_LABEL, formatDateTime, GOAL_LABEL, SEVERITY_LABEL } from "@/lib/labels";
-import { clientDetail } from "@/lib/queries";
+import { clientAccess, clientDetail } from "@/lib/queries";
 import { requireSession } from "@/lib/session";
 
 const ENUM_LABELS: Record<string, Record<string, string>> = {
@@ -38,6 +38,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   const floor = calorieFloor(d.profile, s.t.settings, { minor });
   const notes = (d.profile.notes ?? []) as ProfileNote[];
   const openAlerts = d.alerts.filter((a) => a.status === "open");
+  const access = clientAccess(d.client);
 
   const sendDisabledReason =
     d.client.consentStatus !== "granted"
@@ -57,6 +58,8 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold">{name}</h1>
           <Badge tone="gray">{CHANNEL_LABEL[d.client.channel] ?? d.client.channel}</Badge>
+          {access === "pending" && <Badge tone="orange">בקשת הצטרפות</Badge>}
+          {access === "revoked" && <Badge tone="gray">ללא גישה לבוט</Badge>}
           {d.client.consentStatus !== "granted" && <Badge tone="yellow">{CONSENT_LABEL[d.client.consentStatus]}</Badge>}
           {d.client.botPaused && <Badge tone="purple">הבוט מושהה: את/ה מנהל/ת את השיחה</Badge>}
           {d.client.flags.minor && <Badge tone="orange">קטין/ה</Badge>}
@@ -65,6 +68,22 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
         {name !== d.phone && (
           <div className="mt-1 text-sm text-slate-500" dir="ltr" style={{ textAlign: "right" }}>
             {d.phone}
+          </div>
+        )}
+        {access !== "approved" && (
+          <div className="mt-4">
+            <Notice tone="yellow">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="flex-1">
+                  {access === "pending"
+                    ? "המספר הזה עוד לא אושר. הבוט לא עונה לו ולא שומר את מה שהוא כותב. אם זה לקוח/ה שלך, אשרו, והבוט ישלח מיד את הודעת ההסכמה (אם הלקוח/ה כתב/ה ב-24 השעות האחרונות)."
+                    : "הגישה של הלקוח/ה לבוט הוסרה: הבוט לא עונה ולא שולח תזכורות. המידע נשמר."}
+                </span>
+                <form action={approveClientAction.bind(null, id)}>
+                  <Button size="sm">{access === "pending" ? "אישור הלקוח/ה" : "החזרת הגישה"}</Button>
+                </form>
+              </div>
+            </Notice>
           </div>
         )}
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -86,6 +105,13 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           >
             ייצוא המידע (JSON)
           </a>
+          {access === "approved" && d.client.channel === "whatsapp" && (
+            <form action={revokeAccessAction.bind(null, id)}>
+              <Button size="sm" variant="secondary">
+                הסרת הגישה לבוט
+              </Button>
+            </form>
+          )}
           <DeleteClient clientId={id} />
         </div>
       </div>

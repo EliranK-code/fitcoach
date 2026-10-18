@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { changePasswordAction, type FormState } from "@/lib/actions/auth";
-import { saveCoachSettingsAction, saveConsentAction } from "@/lib/actions/settings";
+import { saveClientAccessAction, saveCoachSettingsAction, saveConsentAction } from "@/lib/actions/settings";
 import { Button, Field, Input, Notice, Select, Textarea } from "./ui";
 
 function Feedback({ state }: { state: FormState }) {
@@ -39,6 +39,27 @@ export function CoachSettingsForm(props: { name: string; timezone: string; floor
         </Field>
       </div>
       <Button disabled={pending}>{pending ? "שומר…" : "שמירה"}</Button>
+    </form>
+  );
+}
+
+export function ClientAccessForm({ mode }: { mode: "approved_only" | "open" }) {
+  const [state, action, pending] = useActionState<FormState, FormData>(saveClientAccessAction, {});
+  return (
+    <form action={action} className="space-y-3">
+      <Feedback state={state} />
+      <Field
+        label="מי יכול לדבר עם הבוט בוואטסאפ"
+        hint="במצב מאושרים בלבד, מספר שלא הוספת מקבל הודעה קצרה (פעם ביום לכל היותר), ואת/ה מקבל/ת בקשת הצטרפות. מה שהוא כותב לא מגיע ל-AI ולא נשמר."
+      >
+        <Select name="clientAccess" defaultValue={mode} className="max-w-sm">
+          <option value="approved_only">רק לקוחות שאישרתי (מומלץ)</option>
+          <option value="open">כל מי שכותב למספר</option>
+        </Select>
+      </Field>
+      <Button size="sm" variant="secondary" disabled={pending}>
+        שמירה
+      </Button>
     </form>
   );
 }

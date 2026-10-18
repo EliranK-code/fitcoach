@@ -17,11 +17,12 @@ export const ALERT_TYPES = [
   "bot_error",
   "rate_limited",
   "spend_cap",
+  "join_request",
   "other",
 ] as const;
 export type AlertType = (typeof ALERT_TYPES)[number];
 /** Alerts only the platform opens; the model can't pick them in escalate_to_coach. */
-export const SYSTEM_ALERT_TYPES: ReadonlySet<AlertType> = new Set(["paused_message", "bot_error", "rate_limited", "spend_cap"]);
+export const SYSTEM_ALERT_TYPES: ReadonlySet<AlertType> = new Set(["paused_message", "bot_error", "rate_limited", "spend_cap", "join_request"]);
 export const SEVERITIES = ["low", "medium", "high", "urgent"] as const;
 export type Severity = (typeof SEVERITIES)[number];
 

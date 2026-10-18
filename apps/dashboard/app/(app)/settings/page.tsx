@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import {
+  clientAccessMode,
   coachCapUsd,
   CONSENT_VERSION,
   consentText,
@@ -16,7 +17,7 @@ import {
 import { MfaCard } from "@/components/mfa-card";
 import { ReminderSettingsForm } from "@/components/reminder-settings-form";
 import { EmbeddedSignup } from "@/components/embedded-signup";
-import { CoachSettingsForm, ConsentForm, PasswordForm } from "@/components/settings-forms";
+import { ClientAccessForm, CoachSettingsForm, ConsentForm, PasswordForm } from "@/components/settings-forms";
 import { Badge, Card, Notice, PageHeader } from "@/components/ui";
 import { UsageSummary } from "@/components/usage-card";
 import { formatDateTime } from "@/lib/labels";
@@ -79,6 +80,10 @@ export default async function SettingsPage() {
               graphVersion={s.cfg.WHATSAPP_GRAPH_VERSION}
             />
           )}
+        </Card>
+
+        <Card title="גישה לבוט" className="lg:col-span-2">
+          <ClientAccessForm mode={clientAccessMode(s.t.settings)} />
         </Card>
 
         <Card title="הודעת ההסכמה (פרטיות)" className="lg:col-span-2">

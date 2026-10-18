@@ -14,7 +14,7 @@ import { connectWhatsAppNumber } from "../src/whatsapp/accounts";
 import { createDryRunApi, createGraphApi } from "../src/whatsapp/api";
 import { enqueueInbound } from "../src/whatsapp/inbox";
 import { InboundWorker } from "../src/whatsapp/worker";
-import { consentedClient, createTestApp, message, text, toolUse, type TestApp } from "./helpers";
+import { consentedClient, createTestApp, message, openToEveryone, text, toolUse, type TestApp } from "./helpers";
 
 const TZ = "Asia/Jerusalem";
 const QUIET = resolveReminderSettings(undefined);
@@ -260,7 +260,7 @@ describe("worker media handling", () => {
   });
 
   it("downloads photos and transcribes voice notes before the engine sees them", async () => {
-    const t = await app.tenant();
+    const t = await openToEveryone(app.handle.db, await app.tenant());
     await connectWhatsAppNumber(app.handle.db, t, { phoneNumberId: "pn-m" });
     const api = createDryRunApi("pn-m", () => {});
     const photo = await sharp({ create: { width: 64, height: 64, channels: 3, background: "#cccccc" } }).jpeg().toBuffer();

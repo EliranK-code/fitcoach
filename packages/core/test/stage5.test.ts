@@ -23,7 +23,7 @@ import { createDryRunApi } from "../src/whatsapp/api";
 import { enqueueInbound } from "../src/whatsapp/inbox";
 import type { InboundWaMessage } from "../src/whatsapp/webhook";
 import { InboundWorker } from "../src/whatsapp/worker";
-import { createTestApp, message, SEED_DIR, testConfig, text, type TestApp } from "./helpers";
+import { createTestApp, message, openToEveryone, SEED_DIR, testConfig, text, type TestApp } from "./helpers";
 
 const SECRET_B = "המתכון הסודי של המאמנת השנייה: שייק בננה וחמאת בוטנים";
 
@@ -234,8 +234,8 @@ describe("two coaches end to end", () => {
   beforeEach(async () => {
     app = await createTestApp({ WORKER_CONCURRENCY: "4" });
     app.clock.now = zonedTimeToUtc("2026-10-18", "07:00", TZ); // Sunday morning
-    a = await app.tenant();
-    b = await addSecondCoach(app.handle.db, a);
+    a = await openToEveryone(app.handle.db, await app.tenant());
+    b = await openToEveryone(app.handle.db, await addSecondCoach(app.handle.db, a));
     await connectWhatsAppNumber(app.handle.db, a, { phoneNumberId: "pn-a" });
     await connectWhatsAppNumber(app.handle.db, b, { phoneNumberId: "pn-b" });
     apiA = createDryRunApi("pn-a", () => {});
