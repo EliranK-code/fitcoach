@@ -13,6 +13,7 @@
   "scripts": {
     "setup": "tsx apps/cli/src/index.ts setup",
     "seed": "tsx apps/cli/src/index.ts seed",
+    "demo:remove": "tsx apps/cli/src/index.ts demo:remove",
     "chat": "tsx apps/cli/src/index.ts chat",
     "coach:import": "tsx apps/cli/src/index.ts coach:import",
     "admin": "tsx apps/cli/src/index.ts",

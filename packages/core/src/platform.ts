@@ -53,6 +53,8 @@ export interface CoachSummary {
   budgetUsd: number | null;
   /** This coach's own hard monthly cap, if an admin set one (otherwise COACH_MONTHLY_CAP_USD applies). */
   capUsd: number | null;
+  /** The demo coach from the seed (removed with `npm run demo:remove`). */
+  demo: boolean;
 }
 
 export async function recordPlatformAction(
@@ -145,6 +147,7 @@ export async function listCoaches(db: Db, now = new Date()): Promise<CoachSummar
         where u.coach_id = coaches.id and u.created_at >= ${monthStart.toISOString()}::timestamptz)`.mapWith(Number),
       budgetUsd: sql<number | null>`(coaches.settings->>'monthlyBudgetUsd')::float8`,
       capUsd: sql<number | null>`(coaches.settings->>'monthlyCapUsd')::float8`,
+      demo: sql<boolean>`coalesce((coaches.settings->>'demo')::boolean, false)`,
     })
     .from(coaches)
     .orderBy(asc(coaches.slug));
@@ -292,4 +295,26 @@ export function suspensionNoticeDue(t: TenantContext, client: ClientRow): boolea
   if (t.status !== "suspended" || !t.suspendedAt) return false;
   const sent = client.flags.suspensionNoticeAt ? Date.parse(client.flags.suspensionNoticeAt) : 0;
   return sent < t.suspendedAt.getTime();
+}
+
+/** Coaches marked as demo (`settings.demo`, set by `npm run seed`). Platform path. */
+export async function listDemoCoaches(db: Db): Promise<{ id: string; slug: string; name: string; status: string }[]> {
+  return db
+    .select({ id: coaches.id, slug: coaches.slug, name: coaches.name, status: coaches.status })
+    .from(coaches)
+    .where(sql`coalesce((${coaches.settings}->>'demo')::boolean, false)`)
+    .orderBy(asc(coaches.slug));
+}
+
+/**
+ * Deletes every demo coach, with all their clients and data, the same way an admin deletes a coach
+ * (suspend, then delete; the usage summary stays in platform_audit). Real coaches are never touched.
+ */
+export async function removeDemoCoaches(db: Db, actor: string, now = new Date()): Promise<DeletionSummary[]> {
+  const removed: DeletionSummary[] = [];
+  for (const coach of await listDemoCoaches(db)) {
+    if (coach.status !== "suspended") await suspendCoach(db, coach.id, actor, now);
+    removed.push(await deleteCoach(db, coach.id, { actor, confirmSlug: coach.slug }));
+  }
+  return removed;
 }

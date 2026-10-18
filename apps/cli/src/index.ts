@@ -21,7 +21,11 @@ import {
   findCoachBySlug,
   findPlatformAdmin,
   listCoaches,
+  listDemoCoaches,
   listPlatformAdmins,
+  openTenant,
+  removeDemoCoaches,
+  updateCoach,
   recordPlatformAction,
   resetPlatformAdmin,
   resumeCoach,
@@ -90,6 +94,7 @@ const USAGE = `שימוש: npm run <פקודה> -- [אפשרויות]
   coach:resume <slug>            ביטול ההשעיה
   coach:delete <slug> --confirm <slug>
                                  מחיקה לצמיתות של מאמן מושהה וכל המידע שלו
+  demo:remove [--confirm demo]   מחיקת מאמן הדמו (וכל מאמן שמסומן כדמו) עם כל המידע שלו. בלי --confirm רק מציג מה יימחק
   superadmin:create --email <email>
                                  אדמין לפאנל /admin (הסיסמה מודפסת פעם אחת, אימות דו-שלבי בכניסה הראשונה)
   superadmin:reset --email <email>
@@ -149,14 +154,18 @@ function printDryRun(entry: DryRunEntry) {
   console.log(styleText("green", `[dry run → ${entry.to}] `) + body);
 }
 
-async function importCoach(app: App, dir: string, slug?: string) {
+async function importCoach(app: App, dir: string, slug?: string, opts: { demo?: boolean } = {}) {
   const res = await importCoachFromDir(app.handle.db, resolve(dir), {
     cfg: app.cfg,
     llm: optionalLlm(app),
     embedder: createEmbedder(),
     slug,
   });
-  console.log(`${res.created ? "נוצר מאמן חדש" : "עודכן מאמן קיים"}: ${res.slug} (גרסת ידע ${res.version})`);
+  if (opts.demo) {
+    // Marked so `npm run demo:remove` can delete it before real coaches join.
+    await updateCoach(app.handle.db, await openTenant(app.handle.db, res.coachId, { allowSuspended: true }), { settings: { demo: true } });
+  }
+  console.log(`${res.created ? "נוצר מאמן חדש" : "עודכן מאמן קיים"}: ${res.slug} (גרסת ידע ${res.version})${opts.demo ? ", מסומן כמאמן דמו" : ""}`);
   console.log(`מסמכים שנטענו: ${res.documents.length ? res.documents.join(", ") : "אין"}`);
   if (res.skipped.length) {
     console.log(styleText("yellow", `דולגו: ${res.skipped.join(", ")} (תמונות דורשות ANTHROPIC_API_KEY; פורמטים נתמכים: md, txt, pdf, docx, png, jpg, webp)`));
@@ -218,7 +227,7 @@ async function main() {
     const db = app.handle.db;
     switch (command) {
       case "seed":
-        return await importCoach(app, "seed/demo-coach", "demo");
+        return await importCoach(app, "seed/demo-coach", "demo", { demo: true });
       case "coach:import": {
         const dir = positionals[0];
         if (!dir) throw new Error("חסרה תיקייה: npm run coach:import -- <dir>");
@@ -265,6 +274,18 @@ async function main() {
         for (const c of await listCoaches(db)) {
           const status = c.status === "suspended" ? styleText("yellow", `מושהה מ-${c.suspendedAt?.toISOString().slice(0, 10)}`) : "פעיל";
           console.log(`${c.slug}  ${c.name}  ${status}  לקוחות:${c.clients}  טוקנים החודש:${c.monthTokens.toLocaleString("he-IL")}`);
+        }
+        return;
+      }
+      case "demo:remove": {
+        const demos = await listDemoCoaches(db);
+        if (!demos.length) return console.log("אין מאמני דמו.");
+        if (values.confirm !== "demo") {
+          for (const c of demos) console.log(`${c.slug}  ${c.name}`);
+          return console.log(styleText("yellow", "אלה המאמנים שיימחקו לצמיתות, עם כל הלקוחות והמידע. למחיקה: npm run demo:remove -- --confirm demo"));
+        }
+        for (const summary of await removeDemoCoaches(db, "cli")) {
+          console.log(`${summary.name} (${summary.slug}) נמחק, עם ${summary.clients} לקוחות. סיכום השימוש נשמר ב-platform_audit.`);
         }
         return;
       }

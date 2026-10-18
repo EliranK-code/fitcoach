@@ -54,6 +54,8 @@ export interface CoachSettings {
   monthlyCapUsd?: number;
   /** Who the bot answers on WhatsApp: only numbers the coach approved (the default), or anyone who writes. See access.ts. */
   clientAccess?: ClientAccessMode;
+  /** The demo coach from `npm run seed`: `npm run demo:remove` deletes every coach marked so, before real coaches join. */
+  demo?: boolean;
 }
 
 export type ClientAccessMode = "approved_only" | "open";

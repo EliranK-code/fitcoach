@@ -59,6 +59,11 @@ export default async function AdminCoachesPage() {
                         <Link href={`/admin/coaches/${c.slug}`} className="font-medium text-emerald-700 hover:underline">
                           {c.name}
                         </Link>
+                        {c.demo && (
+                          <span className="ms-2">
+                            <Badge tone="purple">דמו</Badge>
+                          </span>
+                        )}
                         <div className="text-xs text-slate-500" dir="ltr">
                           {c.slug}
                         </div>
