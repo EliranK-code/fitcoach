@@ -1,6 +1,7 @@
 {
   "name": "fitcoach",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "A WhatsApp AI bot that acts as a digital fitness coach for real fitness coaches",
   "workspaces": [

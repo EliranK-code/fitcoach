@@ -5,7 +5,7 @@
 - **קישורי כניסה (`c340c65`, מוזג):** קישור מ-`/login` ל-`/admin/login` ובחזרה. לאדמין ולמאמן יכול להיות אותו מייל, אבל אלה שני חשבונות נפרדים, עם סיסמאות נפרדות ועמודי כניסה נפרדים. המשתמש התבלבל ביניהם.
 - **מסד הנתונים הפעיל הוא עכשיו Supabase** (`DATABASE_URL` ב-`.env`). הדשבורד, ה-CLI והשרת עובדים מולו. `.data/pglite` לא בשימוש, והנתונים שבו לא הועברו (היו רק בדיקות). הבדיקות האוטומטיות רצות בזיכרון ולא נוגעות ב-Supabase.
 - שלבים 1 עד 5 מוזגו ל-`master` (עד `db0f397`), והחיזוק אחריהם. ה-branches של השלבים, `security-hardening`, `approved-clients`, `supabase-demo` ו-`login-links` נשארו מקומית.
-- האפיון המקורי נמצא ב-`C:\Users\elira\.claude\plans\joyful-herding-matsumoto.md`.
+- האפיון המקורי נמצא בתיקיית התוכניות המקומית של Claude (`joyful-herding-matsumoto.md`), מחוץ ל-repo.
 - **נוהל עבודה:** כל עבודה נבנית ב-branch משלה, ומתחילה רק אחרי תוכנית מאושרת. בסוף: בדיקות, README בעברית והוראות לבדיקה ידנית, ואז מחכים לאישור. אחרי האישור: commit, ואז `git merge --ff-only` ל-`master`. חתימת commit: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - **GitHub:** repo פרטי בכתובת https://github.com/EliranK-code/fitcoach (remote `origin`, ענף `master`). הועלה ב-2026-10-18, עד `c340c65`. push רק באישור מפורש. `gh` מותקן אבל לא ב-PATH של bash: `"/c/Program Files/GitHub CLI/gh.exe"`.
 - **שפה מול המשתמש:** עברית, כולל תיבת הסיכום. **המוצר עצמו באנגלית** (דשבורד, הודעות קבועות, CLI, README). **כשמחכים לאישור שולחים התראה לטלפון** (PushNotification).

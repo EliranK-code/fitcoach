@@ -767,3 +767,7 @@ However, **the consent wording in `packages/core/src/consent.ts` is a draft**. B
 - KMS for keys.
 - The "recommended" findings from the security review: full log redaction, generic 500 errors in the Fastify server, editing a question before saving it to the FAQ, encrypting health flags, `PUBLIC_URL` for links, and `npm audit`.
 - Coexistence with the WhatsApp Business app.
+
+## License
+
+[MIT](LICENSE). You may use, change and redistribute the code, including commercially. It comes with no warranty: if you run it for real clients, you are responsible for your deployment, their data and your compliance with privacy and health regulations.
