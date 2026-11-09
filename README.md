@@ -1,8 +1,10 @@
 # FitCoach: a digital fitness coach on WhatsApp
 
-An AI bot that talks to a real fitness coach's clients in that coach's voice and method. It's built as a multi-coach SaaS: each coach has their own knowledge base, clients and encryption key.
+An AI bot that talks to a real fitness coach's clients in that coach's voice and method. It's built as a multi-coach platform: each coach has their own knowledge base, clients and encryption key.
 
-> **Status: all 5 stages are done.**
+> **This is a self-hosted project. There is no hosted service.** To use it, you run your own instance: your own database (Supabase), your own Claude API key, your own hosting (e.g. Railway) and your own Meta app for WhatsApp. You pay those providers directly, and you are responsible for your clients' data. [Deploy your own instance](#deploy-your-own-instance) explains every step.
+
+> **Features: all 5 stages are done.**
 > - Stage 1: the conversation engine
 > - Stage 2: Meta's official WhatsApp Cloud API
 > - Stage 3: a web dashboard for the coach
@@ -46,6 +48,47 @@ And start talking to the bot as a client:
 ```bash
 npm run chat
 ```
+
+That's enough to try the bot on your own computer. To serve real clients, deploy your own instance.
+
+## Deploy your own instance
+
+### What you need
+
+| Service | What for | Cost |
+|---|---|---|
+| [Anthropic](https://console.anthropic.com) | The Claude API key that runs the bot | Pay per use. Roughly 3.5–7 cents for the first message of a conversation and about a cent for each one after (Sonnet / Opus) |
+| [Supabase](https://supabase.com) | The database (Postgres with pgvector) | Free plan to start |
+| A Node.js host, e.g. [Railway](https://railway.app) | Runs the dashboard, the WhatsApp webhook and the background worker, always on | About $5/month on Railway |
+| [Meta for Developers](https://developers.facebook.com) | A WhatsApp Business app and phone numbers | Replies within 24 hours of a client's message are free; templates are paid |
+| [OpenAI](https://platform.openai.com) (optional) | Vector search in coach documents and voice transcription | Pay per use |
+| Your own domain (optional) | A nicer address than the host's default | Varies |
+
+The host must run a **long-lived Node.js process**, because the WhatsApp worker and the reminder scheduler run in the background. Serverless/edge platforms (Cloudflare Workers, Vercel functions) don't fit as is; Google Cloud Run works with a Dockerfile and one instance always on.
+
+### Steps
+
+1. **Fork or clone this repository** to your own GitHub account.
+2. **Generate your own encryption key** locally: `npm install`, then `npm run setup`. Copy `MASTER_ENCRYPTION_KEY` from `.env` and back it up somewhere safe. Without it, your data can't be decrypted.
+3. **Create the database:** a Supabase project, then `DATABASE_URL` as described in [Moving to Supabase](#moving-to-supabase). Turn on Enforce SSL.
+4. **Create the schema:** with `DATABASE_URL` in your local `.env`, run `npm run seed`. Migrations run automatically, and a demo coach is loaded for testing.
+5. **Deploy to your host.** On Railway: New Project → Deploy from GitHub repo, then:
+
+   | Setting | Value |
+   |---|---|
+   | Build command | `npm install && npm run dashboard:build` |
+   | Start command | `npm run dashboard:start` |
+   | Health check | `/api/health` |
+   | Variables | Everything from your `.env` (the same `DATABASE_URL` and **the same** `MASTER_ENCRYPTION_KEY`), plus `TRUSTED_IP_HEADER` (the header your host sets to the visitor's IP) |
+   | Domain | Generate one (port 3000), or connect your own |
+
+6. **Create your admin account** (from your computer, with the production `DATABASE_URL`): `npm run admin -- superadmin:create --email you@example.com`. Sign in at `https://<your-domain>/admin/login` and set up two-step sign-in.
+7. **Set up WhatsApp:** follow [Option B](#option-b-real-whatsapp-with-metas-test-number), with the callback URL `https://<your-domain>/api/whatsapp/webhook` and `WHATSAPP_DRY_RUN=false`.
+8. **Try it** with the demo coach in the playground, then remove it before real coaches join: `npm run demo:remove -- --confirm demo`.
+9. **Add coaches:** in the admin panel, create a coach, generate an invite link and send it. For each coach, add a WhatsApp number in Meta and connect it on the coach's page.
+10. **Before going live,** read [Privacy and legal](#privacy-and-legal-please-read). The consent wording is a draft that a lawyer should review for your jurisdiction.
+
+Every push to your repository's `master` redeploys the site automatically on Railway.
 
 ## Settings (`.env`)
 
@@ -679,8 +722,9 @@ However, **the consent wording in `packages/core/src/consent.ts` is a draft**. B
 4. ~~Meal photos, voice messages and proactive reminders~~ ✅
 5. ~~Full multi-tenancy: RLS, coach suspension and deletion, admin panel, invitations and MFA, usage metering and budget, Embedded Signup~~ ✅
 
-**Still open before launch:**
-- Real WhatsApp with Meta, and deployment to Railway.
+**Not done yet (contributions welcome):**
+- Testing against real WhatsApp at Meta and a production deployment.
+- A Dockerfile for container hosts (Google Cloud Run and others).
 - Tech Provider status and App Review at Meta (for Embedded Signup).
 - A lawyer for the privacy wording and the data processing agreement.
 - KMS for keys.
