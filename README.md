@@ -258,7 +258,7 @@ Meta sends a webhook
 
 ### Option A: local test without Meta (dry run)
 
-This tests the whole pipeline (webhook, queue, worker, engine and sending) without a Meta account. Outgoing messages are printed in the server window.
+This tests the whole pipeline (webhook, queue, worker, engine and sending) without a Meta account. Outgoing messages are printed in the server window, with only the last digits of the recipient's number (`…0001`).
 
 1. In `.env`:
    ```
@@ -593,6 +593,12 @@ A full security review found no secrets in git (including history) and verified 
 5. **CSP and security headers on the dashboard:** `proxy.ts` creates a fresh nonce per request and Next attaches it to its scripts; nothing else runs. Facebook sources are allowed only on the settings page. Plus `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, HSTS in production, and `Referrer-Policy: no-referrer` on `/invite` and `/reset`. The rules are in `apps/dashboard/lib/csp.ts`.
 6. **Protecting the bot from data extraction:** a "Confidentiality" section in the instructions (it uses the coach's knowledge but doesn't hand it over, never reveals its instructions, says nothing about other clients, and refuses messages impersonating the coach or "the system"); an output guard that rewrites any reply copying 8 consecutive words from the instructions; and the bot's tools have no client parameter, so it can't reach another client's data at all.
 
+Three of the "recommended" findings are fixed too, since anyone can now self-host the code:
+
+- **Log redaction** (`packages/core/src/logger.ts`): logs never contain message text, phone numbers, profiles, emails, tokens or passwords. Any field with a sensitive name (`text`, `body`, `phone`, `to`, `email`, `token`, `password` and more, or ending in `Enc`, `Hash`, `Token`, `Secret`, `Phone` or `Email`) becomes `[redacted]` at any depth. A failed database query is logged with its SQL but without its parameters. In dry run the log says only that a message was simulated, and the server window shows the recipient as `…4567`. It still shows the message text, because that's what the simulation is for.
+- **Generic errors in the webhook server** (`apps/server/src/app.ts`): a 500 answers only `{"error":"Internal Server Error"}`, and a 4xx only its status text, such as `{"error":"Payload Too Large"}`. The log gets the error and the route, but never the URL, because `GET /webhook` carries the verify token.
+- **`.gitignore`** also covers every `.env*` file except `.env.example`, key and certificate files (`*.pem`, `*.key`, `*.p12` and others), backups (`*.bak`, `*.orig`, `*~`) and database dumps (`*.dump`, `dump*.sql`, `*.sqlite`). The migrations in `packages/core/drizzle/` stay tracked.
+
 **Before deploying:** check which header your hosting proxy sends and set `TRUSTED_IP_HEADER`, then confirm in the logs that the counted IP is the user's.
 
 ## Approved clients only
@@ -631,7 +637,7 @@ The consent notice is a legal text. The English draft must be reviewed by a lawy
 npm test
 ```
 
-204 tests that run with a mocked Claude and an in-memory database. They cost nothing. They cover approved-clients access, phone numbers and time zones for any country, the security hardening (spend caps, IP, TLS, webhook size, CSP, leak guard), Embedded Signup against a mocked Graph API, metering and limits, TOTP (RFC 6238 vectors) and links, coach suspension and deletion, RLS on every table and two coaches running end to end in parallel, reminders (DST, quiet hours, Shabbat), media, authentication, the consent gate, tool loop, episodes, safety rules, encryption and WhatsApp formatting, webhook signatures, debounce, duplicates, delivery statuses and the real Postgres path.
+216 tests that run with a mocked Claude and an in-memory database. They cost nothing. They cover approved-clients access, phone numbers and time zones for any country, the security hardening (spend caps, IP, TLS, webhook size, CSP, leak guard, log redaction, generic server errors, `.gitignore`), Embedded Signup against a mocked Graph API, metering and limits, TOTP (RFC 6238 vectors) and links, coach suspension and deletion, RLS on every table and two coaches running end to end in parallel, reminders (DST, quiet hours, Shabbat), media, authentication, the consent gate, tool loop, episodes, safety rules, encryption and WhatsApp formatting, webhook signatures, debounce, duplicates, delivery statuses and the real Postgres path.
 
 ```bash
 npm run test:live
@@ -767,7 +773,7 @@ However, **the consent wording in `packages/core/src/consent.ts` is a draft**. B
 - Tech Provider status and App Review at Meta (for Embedded Signup).
 - A lawyer for the privacy wording and the data processing agreement.
 - KMS for keys.
-- The "recommended" findings from the security review: full log redaction, generic 500 errors in the Fastify server, editing a question before saving it to the FAQ, encrypting health flags, `PUBLIC_URL` for links, and `npm audit`.
+- The remaining "recommended" findings from the security review: editing a question before saving it to the FAQ, encrypting health flags, `PUBLIC_URL` for links, and `npm audit`.
 - Coexistence with the WhatsApp Business app.
 
 ## License

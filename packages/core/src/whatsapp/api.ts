@@ -185,11 +185,20 @@ export interface DryRunEntry {
   template?: { name: string; languageCode: string; bodyParams: string[] };
 }
 
+/** The default dry-run sink: logs that a message was simulated, never its recipient or its text. */
+export function logDryRun(entry: DryRunEntry): void {
+  if (entry.type === "read") return;
+  logger.info({ dryRun: entry.type, phoneNumberId: entry.phoneNumberId }, "WhatsApp dry run");
+}
+
+/** Enough of a phone number to tell clients apart on screen: `…4567`. */
+export function maskPhone(phone: string | undefined): string {
+  if (!phone) return "?";
+  return `…${phone.slice(-Math.min(4, Math.max(1, phone.length - 2)))}`;
+}
+
 /** Records instead of sending (WHATSAPP_DRY_RUN=true, and tests). */
-export function createDryRunApi(
-  phoneNumberId: string,
-  sink: (entry: DryRunEntry) => void = (e) => logger.info({ dryRun: e.type, to: e.to }, "WhatsApp dry run"),
-): WhatsAppApi & { sent: DryRunEntry[] } {
+export function createDryRunApi(phoneNumberId: string, sink: (entry: DryRunEntry) => void = logDryRun): WhatsAppApi & { sent: DryRunEntry[] } {
   const sent: DryRunEntry[] = [];
   let n = 0;
   const record = (entry: DryRunEntry) => {

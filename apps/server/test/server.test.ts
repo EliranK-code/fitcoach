@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
+import { DrizzleQueryError } from "drizzle-orm/errors";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { applyDeliveryStatus, connectWhatsAppNumber, logChatMessage, schema } from "@fitcoach/core";
+import { applyDeliveryStatus, connectWhatsAppNumber, createLogger, logChatMessage, schema, WEBHOOK_MAX_BYTES, type AppConfig, type Db } from "@fitcoach/core";
 import { createTestApp, testConfig, type TestApp } from "../../../packages/core/test/helpers";
 import { buildServer } from "../src/app";
 
@@ -115,5 +116,68 @@ describe("POST /webhook", () => {
     const res = await open.inject({ method: "POST", url: "/webhook", payload: body, headers: { "content-type": "application/json", "x-hub-signature-256": sign(body) } });
     expect(res.statusCode).toBe(500);
     await open.close();
+  });
+});
+
+describe("errors", () => {
+  // Fake values that must never reach the client or the log.
+  const PHONE = "972501234567";
+  const NOTE = "fake private note";
+  const failingDb = () =>
+    new Proxy({} as Db, {
+      get() {
+        throw new DrizzleQueryError("insert into whatsapp_inbox (phone_hash, body_enc) values ($1, $2)", [PHONE, NOTE], new Error("connection reset"));
+      },
+    });
+  const captured = () => {
+    const lines: string[] = [];
+    return { logger: createLogger({ write: (s: string) => void lines.push(s) }, "info"), text: () => lines.join("") };
+  };
+
+  it("answers an internal error with a generic 500 and logs it without query parameters", async () => {
+    const log = captured();
+    const broken = buildServer({ db: failingDb(), cfg: testConfig({ WHATSAPP_APP_SECRET: SECRET }), logger: log.logger });
+    const body = textPayload("wamid.err", "my knee hurts");
+    const res = await broken.inject({ method: "POST", url: "/webhook", payload: body, headers: { "content-type": "application/json", "x-hub-signature-256": sign(body) } });
+    await broken.close();
+
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({ error: "Internal Server Error" });
+    for (const leak of ["insert into", "whatsapp_inbox", PHONE, NOTE, "connection reset"]) expect(res.body).not.toContain(leak);
+
+    const out = log.text();
+    expect(out).toContain("request failed");
+    expect(out).toContain('"route":"/webhook"');
+    expect(out).toContain("params: [redacted]");
+    for (const leak of [PHONE, NOTE, "my knee hurts"]) expect(out).not.toContain(leak);
+  });
+
+  it("never logs the URL, which carries the verify token", async () => {
+    const log = captured();
+    const cfg = new Proxy(testConfig(), {
+      get(target, prop) {
+        if (prop === "WHATSAPP_VERIFY_TOKEN") throw new Error("config unavailable");
+        return target[prop as keyof AppConfig];
+      },
+    });
+    const broken = buildServer({ db: app.handle.db, cfg, logger: log.logger });
+    const res = await broken.inject({ method: "GET", url: "/webhook?hub.mode=subscribe&hub.verify_token=fake-verify-token-77&hub.challenge=1" });
+    await broken.close();
+
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({ error: "Internal Server Error" });
+    expect(res.body).not.toContain("config unavailable");
+    expect(log.text()).toContain("config unavailable");
+    expect(log.text()).not.toContain("fake-verify-token-77");
+  });
+
+  it("answers client errors with the status text only", async () => {
+    const big = await server.inject({ method: "POST", url: "/webhook", payload: "x".repeat(WEBHOOK_MAX_BYTES + 1), headers: { "content-type": "application/json" } });
+    expect(big.statusCode).toBe(413);
+    expect(big.json()).toEqual({ error: "Payload Too Large" });
+
+    const wrongType = await server.inject({ method: "POST", url: "/webhook", payload: "<xml/>", headers: { "content-type": "application/xml" } });
+    expect(wrongType.statusCode).toBe(415);
+    expect(wrongType.json()).toEqual({ error: "Unsupported Media Type" });
   });
 });

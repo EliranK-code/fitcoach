@@ -11,6 +11,7 @@ import {
   InboundWorker,
   loadConfig,
   logger,
+  maskPhone,
   openDatabase,
   WhatsAppConfigError,
   type DryRunEntry,
@@ -18,9 +19,10 @@ import {
 } from "@fitcoach/core";
 import { buildServer } from "./app";
 
+// Dry run prints the outgoing text on purpose (it's the simulation), but only the last digits of the number.
 function printDryRun(entry: DryRunEntry) {
   if (entry.type === "read") return;
-  const head = styleText("green", `[dry run → ${entry.to}]`);
+  const head = styleText("green", `[dry run → ${maskPhone(entry.to)}]`);
   if (entry.type === "template") {
     console.log(`${head} template ${entry.template?.name} (${entry.template?.languageCode}): ${entry.template?.bodyParams.join(" | ")}`);
     return;

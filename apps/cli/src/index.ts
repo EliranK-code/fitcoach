@@ -39,6 +39,7 @@ import {
   listChatMessages,
   listClients,
   loadConfig,
+  maskPhone,
   purgeInactiveClients,
   resolveAlert,
   revokeClientAccess,
@@ -152,7 +153,7 @@ function optionalLlm(app: App): LlmClient | null {
 function printDryRun(entry: DryRunEntry) {
   if (entry.type === "read") return;
   const body = entry.type === "template" ? `template ${entry.template?.name}: ${entry.template?.bodyParams.join(" | ")}` : entry.body;
-  console.log(styleText("green", `[dry run → ${entry.to}] `) + body);
+  console.log(styleText("green", `[dry run → ${maskPhone(entry.to)}] `) + body);
 }
 
 async function importCoach(app: App, dir: string, slug?: string, opts: { demo?: boolean } = {}) {

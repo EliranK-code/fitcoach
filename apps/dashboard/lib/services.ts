@@ -9,7 +9,6 @@ import {
   ReminderScheduler,
   InboundWorker,
   loadConfig,
-  logger,
   openDatabase,
   WhatsAppConfigError,
   type AppConfig,
@@ -46,7 +45,7 @@ async function init(): Promise<Services> {
   const whatsappApi = async (t: TenantContext, phoneNumberId: string) => {
     const account = await findAccountByPhoneNumberId(handle.db, phoneNumberId);
     if (!account || account.coachId !== t.coachId) throw new WhatsAppConfigError(`No WhatsApp account ${phoneNumberId} for this coach`);
-    return createApiForAccount(t, account, cfg, (e) => logger.info({ dryRun: e.type, to: e.to }, "WhatsApp dry run"));
+    return createApiForAccount(t, account, cfg);
   };
 
   // The dashboard process also runs the WhatsApp worker and the reminder scheduler, so one process serves
@@ -63,7 +62,7 @@ async function init(): Promise<Services> {
         cfg,
         async apiFor(t) {
           const account = await getCoachAccount(handle.db, t);
-          return account ? createApiForAccount(t, account, cfg, (e) => logger.info({ dryRun: e.type, to: e.to }, "WhatsApp dry run")) : null;
+          return account ? createApiForAccount(t, account, cfg) : null;
         },
       })
     : null;

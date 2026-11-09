@@ -1,18 +1,33 @@
+import { STATUS_CODES } from "node:http";
 import Fastify, { LogController } from "fastify";
 import { handleWebhookGet, handleWebhookPost, logger, WEBHOOK_MAX_BYTES, type AppConfig, type Db } from "@fitcoach/core";
 
 export interface ServerDeps {
   db: Db;
   cfg: AppConfig;
+  /** Tests pass their own to read what gets logged. */
+  logger?: typeof logger;
 }
 
 export function buildServer(deps: ServerDeps) {
   const { db, cfg } = deps;
   // Request logging stays off: webhook URLs carry the verify token and bodies carry health data.
   const app = Fastify({
-    loggerInstance: logger,
+    loggerInstance: deps.logger ?? logger,
     logController: new LogController({ disableRequestLogging: true }),
     bodyLimit: WEBHOOK_MAX_BYTES,
+  });
+
+  // An error's message can hold SQL, query parameters or file paths, so the client only gets the status
+  // text. The log gets the error (redacted by the logger) and the route, never the URL: GET /webhook
+  // carries the verify token in its query string.
+  app.setErrorHandler((err, req, reply) => {
+    const { statusCode, code } = (err ?? {}) as { statusCode?: unknown; code?: unknown };
+    const status = typeof statusCode === "number" && statusCode >= 400 && statusCode < 500 ? statusCode : 500;
+    const where = { method: req.method, route: req.routeOptions.url ?? null };
+    if (status >= 500) req.log.error({ err, ...where }, "request failed");
+    else req.log.info({ code: typeof code === "string" ? code : null, status, ...where }, "request rejected");
+    return reply.code(status).type("application/json").send({ error: STATUS_CODES[status] ?? "Error" });
   });
 
   // Keep the raw bytes: the signature is an HMAC over the exact body Meta sent.

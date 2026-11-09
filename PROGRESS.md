@@ -1,7 +1,7 @@
 # PROGRESS (עודכן 2026-11-09)
 
 ## 1. שלב נוכחי
-**ברירות מחדל ניטרליות (`neutral-defaults`, 2026-11-09, מוזג ל-`master` ב-`40c3ccb`, עוד לא עלה ל-GitHub).** `DEFAULT_COUNTRY_CODE` חדש, ו-`TIMEZONE` עובר ל-`UTC` כברירת מחדל. השבת נשארה דלוקה כברירת מחדל, לפי החלטת המשתמש. לפני כן: הממשק והבוט באנגלית (`english-ui`). ה-repo כבר ציבורי, עם רישיון MIT.
+**ממצאי "מומלץ" מ1 עד מ3 (`security-recommended`, 2026-11-09, מוזג ל-`master`, עוד לא עלה ל-GitHub).** `.gitignore` מלא, הסתרה בלוגים ושגיאות גנריות בשרת Fastify. `security-review` לא מצא ממצאים, ובדיקת דליפה (ערכי `.env`, המייל הפרטי, צילומי המסך) נקייה. לפני כן: ברירות מחדל ניטרליות (`neutral-defaults`, ב-GitHub) והממשק באנגלית. ה-repo ציבורי, עם רישיון MIT.
 - **מסד הנתונים הפעיל הוא עכשיו Supabase** (`DATABASE_URL` ב-`.env`). הדשבורד, ה-CLI והשרת עובדים מולו. `.data/pglite` לא בשימוש, והנתונים שבו לא הועברו (היו רק בדיקות). הבדיקות האוטומטיות רצות בזיכרון ולא נוגעות ב-Supabase.
 - שלבים 1 עד 5 מוזגו ל-`master` (עד `db0f397`), והחיזוק אחריהם. ה-branches של השלבים, `security-hardening`, `approved-clients`, `supabase-demo` ו-`login-links` נשארו מקומית.
 - האפיון המקורי נמצא בתיקיית התוכניות המקומית של Claude (`joyful-herding-matsumoto.md`), מחוץ ל-repo.
@@ -25,16 +25,19 @@
   - `npm run chat` מול Supabase עובד: הסכמה, פתיחה בקול המאמן ו-onboarding. הפרופיל וההודעות נשמרים מוצפנים, והשימוש נמדד (3 קריאות Opus עלו כ-‎$0.10).
   - נוצרו ב-Supabase משתמש דשבורד (של מאמן הדמו) ואדמין פלטפורמה. ה-TOTP של האדמין יוגדר בכניסה הראשונה ל-`/admin`.
 - **אנגלית (`english-ui`, 2026-11-09):**
-  - תרגום במקום, בלי שכבת i18n. הדשבורד ופאנל הניהול ב-LTR (`lang="en"`), ותאריכים ב-`en-US`.
-  - הבוט: הסכמה (`CONSENT_VERSION` = `2026-11-en-v1`), הודעות קבועות, התראות, תזכורות ושגיאות. ה-AI עונה בשפת הלקוח.
-  - עדיין מזוהים בעברית: אישור ומחיקה, "הסר", וגלאי הבטיחות. תוקן באג: "I don't agree" לא זוהה, כי `normalize` מוחק גרש.
-  - מאמן הדמו הוא עכשיו "Alex Carter" (`seed/demo-coach`, מסמכים באנגלית). שפת ברירת המחדל בידע ובתבניות היא `en`.
-  - תמונות ו-GIF ב-`docs/screenshots/`, צולמו ב-Edge headless על PGlite מקומי (`capture.mjs` ו-`run-shots.cjs` ב-scratchpad). הצ'אט ב-GIF מול Claude אמיתי.
+  - תרגום במקום, בלי שכבת i18n. הדשבורד ב-LTR, תאריכים ב-`en-US`. הבוט: הסכמה (`CONSENT_VERSION` = `2026-11-en-v1`), הודעות קבועות, התראות ותזכורות. ה-AI עונה בשפת הלקוח.
+  - עדיין מזוהים בעברית: אישור ומחיקה, "הסר", וגלאי הבטיחות. מאמן הדמו: "Alex Carter" (`seed/demo-coach`). שפת ברירת המחדל בידע ובתבניות: `en`.
+  - תמונות ו-GIF ב-`docs/screenshots/`, צולמו ב-Edge headless על PGlite מקומי (`capture.mjs` ו-`run-shots.cjs` ב-scratchpad).
 - **ברירות מחדל ניטרליות (`neutral-defaults`):**
   - `DEFAULT_COUNTRY_CODE` (`config.ts`): מספר שמתחיל ב-0 אחד מקבל את הקידומת הזו. כשהיא ריקה, `parseClientPhone` דוחה מספר מקומי ומבקש פורמט בינלאומי. `normalizePhone` קורא אותה מה-config אם לא מעבירים קידומת, ו-`""` פירושו בלי קידומת. ב-`.env` של המשתמש: `972`.
   - `TIMEZONE`: ברירת המחדל היא `UTC`, וערך לא תקין עוצר את ההפעלה. `isValidTimeZone` ו-`timeZoneOptions` נמצאים ב-`time.ts`. בטפסים של אדמין ומאמן מוצגת רשימת IANA המלאה, שנבנית בשרת. `createCoachFromPanel` בודק עכשיו את אזור הזמן.
   - ב-`vitest.config.ts`: `DEFAULT_COUNTRY_CODE=""`, כדי שהבדיקות לא יהיו תלויות ב-`.env`. ICU מחזיר שמות ישנים (`Europe/Kiev`, `Asia/Calcutta`), ו-`RENAMED_ZONES` מציג את השמות הנוכחיים.
-  - 204 בדיקות, typecheck ו-build עוברים. נבדק בדפדפן מול PGlite זמני: עם 972 ובלי קידומת (מספר מקומי נדחה), ועם TIMEZONE ריק (UTC).
+  - נבדק בדפדפן מול PGlite זמני: עם 972 ובלי קידומת (מספר מקומי נדחה), ועם TIMEZONE ריק (UTC).
+- **מ1 עד מ3 (`security-recommended`):**
+  - `logger.ts`: ‏`formatters.log` מסתיר בכל עומק (עד 6) שדה לפי שם (`REDACTED_KEYS`) או סיומת (`Enc`, `Hash`, `Token`, `Secret`, `Phone`, `Email`), ורק באובייקטים רגילים ומערכים. serializer ל-`err` מוחק את `params: ...` של `DrizzleQueryError` מה-message, מה-stack ומהשדות, גם כשהשגיאה היא cause. `createLogger(dest, level)` בשביל בדיקות.
+  - dry run: ‏`logDryRun` (ברירת המחדל, גם בדשבורד) כותב רק סוג ו-`phoneNumberId`. ‏`maskPhone` (`…4567`) בחלון השרת וב-CLI. גוף ההודעה עדיין מודפס לטרמינל, בכוונה.
+  - `apps/server/src/app.ts`: ‏`setErrorHandler`. ב-5xx הלקוח מקבל `{"error":"Internal Server Error"}`, ב-4xx רק את טקסט הסטטוס. בלוג: השגיאה, method ו-route, בלי URL (בגלל ה-verify token). `ServerDeps.logger` אופציונלי.
+  - בדיקות: `packages/core/test/logging.test.ts` (כולל `git check-ignore`, שמדולג בלי `.git`) ו-describe "errors" ב-`apps/server/test/server.test.ts`.
 
 ## 3. החלטות שהתקבלו
 - **מוצר:** מספרים מנוהלים תחת חשבון ה-Meta של הפלטפורמה, או מספר של המאמן דרך Embedded Signup. OpenAI ל-embeddings ולתמלול. PGlite עכשיו, Supabase בהמשך.
@@ -65,9 +68,6 @@
   - לוודא שב-Supabase דלוק Enforce SSL (Database → Settings). מהצד שלנו TLS תמיד חובה.
   - לבדוק איזו כותרת IP הפרוקסי שולח, ולהגדיר `TRUSTED_IP_HEADER`.
 - **ממצאי "מומלץ" שלא תוקנו** (המשתמש בחר לדחות):
-  - מ1: להשלים את `.gitignore`.
-  - מ2: הסתרה בלוגים. רשימת REDACT חלקית, וב-dry run נרשם הטלפון.
-  - מ3: שגיאות 500 גנריות ב-Fastify.
   - מ4: עריכת שאלה לפני שמירה ל-FAQ.
   - מ5: הצפנת דגלי בריאות.
   - מ6: `PUBLIC_URL` לקישורים.
@@ -78,7 +78,7 @@
 - `test:live` לא הורץ אחרי התרגום (עולה כסף). התרחישים עודכנו למאמן הדמו באנגלית.
 
 ## 5. הצעד הבא
-**push של `master` ל-GitHub, רק באישור מפורש של המשתמש.** `neutral-defaults` כבר מוזג מקומית. המטרה הכללית: הפרויקט פתוח ב-GitHub לשימוש של אחרים (self-hosted). המשתמש עצמו לא מקים אתר.
+**push של `master` ל-GitHub, רק באישור מפורש של המשתמש.** `security-recommended` כבר מוזג מקומית. אחר כך לבחור משימה: `npm run test:live` (עולה כסף) או מ4 עד מ8. המטרה הכללית: הפרויקט פתוח ב-GitHub לשימוש של אחרים (self-hosted). המשתמש עצמו לא מקים אתר.
 
 ## 6. איך להריץ ולבדוק
 ```
@@ -86,7 +86,7 @@ npm install
 npm run setup                 # .env + MASTER_ENCRYPTION_KEY, ומוסיף משתנים חדשים
 npm run seed                  # מאמן הדמו (מסומן כדמו)
 npm run demo:remove           # מציג. עם -- --confirm demo מוחק את מאמני הדמו
-npm test && npm run typecheck # 204 בדיקות
+npm test && npm run typecheck # 216 בדיקות
 npm run chat -- --new --debug
 npm run admin -- user:create --email you@example.com
 npm run admin -- superadmin:create --email ops@example.com

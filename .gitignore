@@ -1,16 +1,48 @@
 node_modules/
 .data/
-.env
-.env.*
-!.env.example
 dist/
 .next/
 coverage/
 *.log
 __pycache__/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets: every env file except the template, and key or certificate files
+.env
+.env.*
+!.env.example
+*.env
+.envrc
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+
+# Backups and editor leftovers
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*~
+
+# Local database files and dumps (migrations in packages/core/drizzle/*.sql stay tracked)
+*.dump
+*.sql.gz
+*.sql.zip
+dump*.sql
+backup*.sql
+*.sqlite
+*.sqlite3
+*.db
+pgdata/
 
 # Local agent skills (tooling, not project code)
 .agents/
 .claude/skills/
-*.tsbuildinfo
-next-env.d.ts
