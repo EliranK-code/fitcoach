@@ -1,7 +1,7 @@
 # PROGRESS (עודכן 2026-11-09)
 
 ## 1. שלב נוכחי
-**ממצאי "מומלץ" מ1 עד מ3 (`security-recommended`, 2026-11-09, מוזג ל-`master`, עוד לא עלה ל-GitHub).** `.gitignore` מלא, הסתרה בלוגים ושגיאות גנריות בשרת Fastify. `security-review` לא מצא ממצאים, ובדיקת דליפה (ערכי `.env`, המייל הפרטי, צילומי המסך) נקייה. לפני כן: ברירות מחדל ניטרליות (`neutral-defaults`, ב-GitHub) והממשק באנגלית. ה-repo ציבורי, עם רישיון MIT.
+**כפתור העלאה באנגלית (`upload-button-english`, 2026-11-09, מוזג ל-`master` ועלה ל-GitHub).** בצילומי המסך הופיע "בחר קובץ": הכפתור המובנה של הדפדפן מדבר בשפת המערכת. עכשיו יש כפתור משלנו, "Choose file" (`document-upload.tsx`), והצילומים חודשו. לפני כן: מ1 עד מ3 (`security-recommended`, ‏`edbd04e`, ב-GitHub). `security-review` לא מצא שם ממצאים, ובדיקת דליפה (ערכי `.env`, המייל הפרטי, צילומי המסך) נקייה. ה-repo ציבורי, עם רישיון MIT.
 - **מסד הנתונים הפעיל הוא עכשיו Supabase** (`DATABASE_URL` ב-`.env`). הדשבורד, ה-CLI והשרת עובדים מולו. `.data/pglite` לא בשימוש, והנתונים שבו לא הועברו (היו רק בדיקות). הבדיקות האוטומטיות רצות בזיכרון ולא נוגעות ב-Supabase.
 - שלבים 1 עד 5 מוזגו ל-`master` (עד `db0f397`), והחיזוק אחריהם. ה-branches של השלבים, `security-hardening`, `approved-clients`, `supabase-demo` ו-`login-links` נשארו מקומית.
 - האפיון המקורי נמצא בתיקיית התוכניות המקומית של Claude (`joyful-herding-matsumoto.md`), מחוץ ל-repo.
@@ -27,7 +27,7 @@
 - **אנגלית (`english-ui`, 2026-11-09):**
   - תרגום במקום, בלי שכבת i18n. הדשבורד ב-LTR, תאריכים ב-`en-US`. הבוט: הסכמה (`CONSENT_VERSION` = `2026-11-en-v1`), הודעות קבועות, התראות ותזכורות. ה-AI עונה בשפת הלקוח.
   - עדיין מזוהים בעברית: אישור ומחיקה, "הסר", וגלאי הבטיחות. מאמן הדמו: "Alex Carter" (`seed/demo-coach`). שפת ברירת המחדל בידע ובתבניות: `en`.
-  - תמונות ו-GIF ב-`docs/screenshots/`, צולמו ב-Edge headless על PGlite מקומי (`capture.mjs` ו-`run-shots.cjs` ב-scratchpad).
+  - תמונות ו-GIF ב-`docs/screenshots/`: ‏Edge headless על PGlite זמני (`capture.mjs shots` ו-`run-shots.cjs` ב-scratchpad), עם `--lang=en-US` ו-`DEFAULT_COUNTRY_CODE=""` (כמו שהפרויקט יוצא, לא ה-`.env`). `chat.gif` ו-`playground.png` מול Claude אמיתי, ולא צולמו מחדש.
 - **ברירות מחדל ניטרליות (`neutral-defaults`):**
   - `DEFAULT_COUNTRY_CODE` (`config.ts`): מספר שמתחיל ב-0 אחד מקבל את הקידומת הזו. כשהיא ריקה, `parseClientPhone` דוחה מספר מקומי ומבקש פורמט בינלאומי. `normalizePhone` קורא אותה מה-config אם לא מעבירים קידומת, ו-`""` פירושו בלי קידומת. ב-`.env` של המשתמש: `972`.
   - `TIMEZONE`: ברירת המחדל היא `UTC`, וערך לא תקין עוצר את ההפעלה. `isValidTimeZone` ו-`timeZoneOptions` נמצאים ב-`time.ts`. בטפסים של אדמין ומאמן מוצגת רשימת IANA המלאה, שנבנית בשרת. `createCoachFromPanel` בודק עכשיו את אזור הזמן.
@@ -78,7 +78,7 @@
 - `test:live` לא הורץ אחרי התרגום (עולה כסף). התרחישים עודכנו למאמן הדמו באנגלית.
 
 ## 5. הצעד הבא
-**push של `master` ל-GitHub, רק באישור מפורש של המשתמש.** `security-recommended` כבר מוזג מקומית. אחר כך לבחור משימה: `npm run test:live` (עולה כסף) או מ4 עד מ8. המטרה הכללית: הפרויקט פתוח ב-GitHub לשימוש של אחרים (self-hosted). המשתמש עצמו לא מקים אתר.
+**לבחור עם המשתמש את המשימה הבאה:** `npm run test:live` (עולה כסף) או מ4 עד מ8. המטרה הכללית: הפרויקט פתוח ב-GitHub לשימוש של אחרים (self-hosted). המשתמש עצמו לא מקים אתר.
 
 ## 6. איך להריץ ולבדוק
 ```
