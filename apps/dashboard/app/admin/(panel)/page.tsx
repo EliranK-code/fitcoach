@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { budgetStatus, formatUsd, listCoaches, platformDaySpendMicros } from "@fitcoach/core";
+import { budgetStatus, formatUsd, listCoaches, platformDaySpendMicros, timeZoneOptions } from "@fitcoach/core";
 import { NewCoachForm } from "@/components/admin-forms";
 import { Badge, Card, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/admin-session";
@@ -87,7 +87,7 @@ export default async function AdminCoachesPage() {
           <p className="mb-4 text-sm text-slate-500">
             The coach is created with an empty knowledge template. After creating it, send them an invite link and they fill in the knowledge base themselves. You can connect a WhatsApp number only after they publish it.
           </p>
-          <NewCoachForm />
+          <NewCoachForm zones={timeZoneOptions(s.cfg.TIMEZONE)} defaultZone={s.cfg.TIMEZONE} />
         </Card>
       </div>
     </>

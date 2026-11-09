@@ -5,6 +5,7 @@ import {
   audit,
   completeEmbeddedSignup,
   EmbeddedSignupError,
+  isValidTimeZone,
   onboardingApiFor,
   PLATFORM_FLOOR,
   updateCoach,
@@ -24,13 +25,7 @@ export async function saveCoachSettingsAction(_prev: FormState, form: FormData):
   if (female && female < PLATFORM_FLOOR.female) return { error: `The floor for women can't be lower than ${PLATFORM_FLOOR.female}` };
   if (male && male < PLATFORM_FLOOR.male) return { error: `The floor for men can't be lower than ${PLATFORM_FLOOR.male}` };
   const timezone = String(form.get("timezone") ?? "").trim() || undefined;
-  if (timezone) {
-    try {
-      new Intl.DateTimeFormat("en", { timeZone: timezone });
-    } catch {
-      return { error: "Invalid time zone" };
-    }
-  }
+  if (timezone && !isValidTimeZone(timezone)) return { error: "Invalid time zone" };
   await updateCoach(s.handle.db, s.t, {
     name,
     settings: {

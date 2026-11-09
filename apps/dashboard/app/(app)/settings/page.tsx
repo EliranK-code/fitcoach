@@ -12,6 +12,7 @@ import {
   schema,
   onboardingMode,
   spendCaps,
+  timeZoneOptions,
   withTenant,
 } from "@fitcoach/core";
 import { MfaCard } from "@/components/mfa-card";
@@ -42,6 +43,7 @@ export default async function SettingsPage() {
           <CoachSettingsForm
             name={s.t.coachName}
             timezone={tz}
+            zones={timeZoneOptions(tz)}
             floorFemale={s.t.settings.calorieFloorFemale}
             floorMale={s.t.settings.calorieFloorMale}
             minFemale={PLATFORM_FLOOR.female}

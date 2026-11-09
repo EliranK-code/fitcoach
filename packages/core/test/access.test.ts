@@ -92,7 +92,7 @@ describe("client access", () => {
 
   it("lets the coach add a number in advance, in any common format", async () => {
     const db = app.handle.db;
-    const { client, created } = await addApprovedClient(db, t, "050-123 4567", "user:coach@example.com");
+    const { client, created } = await addApprovedClient(db, t, "+972 50-123 4567", "user:coach@example.com");
     expect(created).toBe(true);
     expect(decryptText(t, client.phoneEnc)).toBe("972501234567"); // the form WhatsApp sends to
     expect((await addApprovedClient(db, t, "+972501234567", "user:coach@example.com")).created).toBe(false);
@@ -108,6 +108,15 @@ describe("client access", () => {
     expect(() => parseClientPhone("abc")).toThrow(ClientAccessError);
     expect(() => parseClientPhone("123")).toThrow(ClientAccessError);
     expect(parseClientPhone("00972-50-1234567")).toBe("972501234567");
+  });
+
+  it("accepts a local number only with a country code, and otherwise asks for international form", () => {
+    // DEFAULT_COUNTRY_CODE is empty in tests, as on a fresh install.
+    expect(() => parseClientPhone("050-123 4567")).toThrow(/international form, with the country code/);
+    expect(() => parseClientPhone("050-123 4567", "")).toThrow(ClientAccessError);
+    expect(parseClientPhone("050-123 4567", "972")).toBe("972501234567");
+    expect(parseClientPhone("07700 900123", "44")).toBe("447700900123");
+    expect(parseClientPhone("+1 415 555 0123")).toBe("14155550123");
   });
 
   it("stops the bot and the reminders for a client whose access the coach removed, without a new join request", async () => {

@@ -10,6 +10,8 @@ export default defineConfig({
       // מפתח בדיקה בלבד, לא לשימוש אמיתי
       MASTER_ENCRYPTION_KEY: "dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktMzJieXQ=",
       LOG_LEVEL: "silent",
+      // As shipped: no local-number country code, whatever the developer's .env says (tests pass one explicitly).
+      DEFAULT_COUNTRY_CODE: "",
     },
   },
 });

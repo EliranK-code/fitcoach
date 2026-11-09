@@ -67,7 +67,8 @@ const USAGE = `Usage: npm run <command> -- [options]
 
 Coach commands (npm run admin -- <command> [--coach demo]):
   clients                        List clients
-  client:approve <phone>         Approve a WhatsApp number so the bot answers it (also a number that hasn't written yet)
+  client:approve <phone>         Approve a WhatsApp number so the bot answers it (also a number that hasn't written yet).
+                                 International form (+14155550123); a local number needs DEFAULT_COUNTRY_CODE
   client:revoke <phone>          Remove a client's access to the bot (their data is kept)
   history <phone>                The conversation with a client, with delivery status
   alerts [--all]                 Open alerts (or all)

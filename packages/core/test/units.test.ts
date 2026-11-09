@@ -16,7 +16,8 @@ import { applyProfileUpdate, missingOnboardingFields, ProfileValueError } from "
 import { calorieFloor, estimateTdee } from "../src/safety/calories";
 import { containsNutritionNumbers } from "../src/safety/outputGuards";
 import { detectRedFlags } from "../src/safety/redFlags";
-import { localDate, localStamp } from "../src/time";
+import { isValidTimeZone, localDate, localStamp, timeZoneOptions } from "../src/time";
+import { loadConfig } from "../src/config";
 
 describe("crypto", () => {
   it("round-trips text and binds ciphertext to its coach", () => {
@@ -38,12 +39,24 @@ describe("crypto", () => {
   });
 
   it("normalizes phones and hashes them per coach", () => {
-    expect(normalizePhone("050-123-4567")).toBe("972501234567");
     expect(normalizePhone("+972 50 123 4567")).toBe("972501234567");
     expect(normalizePhone("00972501234567")).toBe("972501234567");
+    expect(normalizePhone("+1 (415) 555-0123")).toBe("14155550123");
     expect(normalizePhone("CLI-Demo-1")).toBe("cli-demo-1");
-    expect(phoneHash("a", "0501234567")).toBe(phoneHash("a", "+972501234567"));
-    expect(phoneHash("a", "0501234567")).not.toBe(phoneHash("b", "0501234567"));
+    expect(phoneHash("a", "+972 50-123-4567")).toBe(phoneHash("a", "00972501234567"));
+    expect(phoneHash("a", "+972501234567")).not.toBe(phoneHash("b", "+972501234567"));
+  });
+
+  it("gives a local number (one leading 0) the configured country code, and no country by default", () => {
+    expect(normalizePhone("050-123-4567", "972")).toBe("972501234567");
+    expect(normalizePhone("07700 900123", "44")).toBe("447700900123");
+    expect(normalizePhone("0044 7700 900123", "972")).toBe("447700900123"); // 00 is the international prefix, not local
+    expect(normalizePhone("+1 415 555 0123", "972")).toBe("14155550123");
+    // No code: the number stays as typed, so it can't match a WhatsApp number by accident.
+    expect(normalizePhone("050-123-4567", "")).toBe("0501234567");
+    // Without an argument the code comes from DEFAULT_COUNTRY_CODE, which the test environment leaves empty.
+    expect(normalizePhone("050-123-4567")).toBe("0501234567");
+    expect(phoneHash("a", "050-123-4567")).not.toBe(phoneHash("a", "972501234567"));
   });
 });
 
@@ -215,6 +228,28 @@ describe("misc", () => {
     expect(localStamp(d, "Asia/Jerusalem")).toBe("2026-10-17 00:30 Sat");
   });
 
+  it("validates time zones and lists them all, UTC first", () => {
+    expect(isValidTimeZone("UTC")).toBe(true);
+    expect(isValidTimeZone("America/Sao_Paulo")).toBe(true);
+    expect(isValidTimeZone("Mars/Olympus_Mons")).toBe(false);
+    expect(isValidTimeZone("")).toBe(false);
+    expect(isValidTimeZone(`Europe/${"x".repeat(80)}`)).toBe(false);
+
+    const zones = timeZoneOptions("Etc/GMT-3", "Not/AZone");
+    expect(zones[0]).toBe("UTC");
+    expect(zones.length).toBeGreaterThan(300);
+    expect(new Set(zones).size).toBe(zones.length);
+    expect(zones).toEqual(expect.arrayContaining(["Asia/Jerusalem", "Australia/Sydney", "America/Sao_Paulo", "Asia/Kolkata", "Etc/GMT-3"]));
+    expect(zones).not.toContain("Not/AZone");
+    // Current IANA names, not the old ones ICU still lists.
+    expect(zones).toEqual(expect.arrayContaining(["Europe/Kyiv", "Asia/Kathmandu", "Asia/Ho_Chi_Minh"]));
+    expect(zones).not.toContain("Asia/Calcutta");
+    expect(zones).not.toContain("Europe/Kiev");
+    // A coach who saved an old name still sees it selected.
+    expect(timeZoneOptions("Asia/Calcutta")).toContain("Asia/Calcutta");
+    expect(zones.slice(1)).toEqual([...zones.slice(1)].sort());
+  });
+
   it("drops the declined model's thinking and tool calls before a fallback boundary", () => {
     const content = [
       { type: "thinking", thinking: "", signature: "s1" },
@@ -225,5 +260,21 @@ describe("misc", () => {
       { type: "text", text: "final", citations: null },
     ] as never;
     expect(sanitizeAssistantContent(content).map((b) => b.type)).toEqual(["text", "thinking", "text"]);
+  });
+});
+
+describe("config defaults for other countries", () => {
+  it("defaults TIMEZONE to UTC and rejects a zone that doesn't exist", () => {
+    expect(loadConfig({ TIMEZONE: "" }).TIMEZONE).toBe("UTC");
+    expect(loadConfig({ TIMEZONE: "Europe/Lisbon" }).TIMEZONE).toBe("Europe/Lisbon");
+    expect(() => loadConfig({ TIMEZONE: "Middle/Earth" })).toThrow(/TIMEZONE/);
+  });
+
+  it("reads DEFAULT_COUNTRY_CODE with or without the plus, and rejects anything else", () => {
+    expect(loadConfig({ DEFAULT_COUNTRY_CODE: "" }).DEFAULT_COUNTRY_CODE).toBeUndefined();
+    expect(loadConfig({ DEFAULT_COUNTRY_CODE: "+" }).DEFAULT_COUNTRY_CODE).toBeUndefined();
+    expect(loadConfig({ DEFAULT_COUNTRY_CODE: "+44" }).DEFAULT_COUNTRY_CODE).toBe("44");
+    expect(loadConfig({ DEFAULT_COUNTRY_CODE: " 972 " }).DEFAULT_COUNTRY_CODE).toBe("972");
+    for (const bad of ["0972", "1234", "UK"]) expect(() => loadConfig({ DEFAULT_COUNTRY_CODE: bad })).toThrow(/DEFAULT_COUNTRY_CODE/);
   });
 });

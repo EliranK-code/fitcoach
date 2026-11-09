@@ -19,6 +19,7 @@ import { publishKnowledge } from "./knowledge/store";
 import { nextOccurrence, resolveReminderSettings } from "./reminders/schedule";
 import type { ClientRow } from "./repos/clients";
 import { createCoach, forgetTenantKey, openTenant, updateCoach, type TenantContext } from "./tenancy";
+import { isValidTimeZone } from "./time";
 
 // Platform operations on whole coaches. They run unscoped (as the table owner) on purpose: they act on a
 // coach from the outside, and a deleted coach's records must outlive it in platform_audit.
@@ -93,6 +94,7 @@ export async function createCoachFromPanel(db: Db, input: { slug: string; name: 
   const name = input.name.trim();
   if (!SLUG.test(slug)) throw new CoachLifecycleError("The slug: lowercase English letters, digits and hyphens, 2 to 40 characters");
   if (!name) throw new CoachLifecycleError("Name is missing");
+  if (input.timezone && !isValidTimeZone(input.timezone)) throw new CoachLifecycleError("Unknown time zone");
   const [existing] = await db.select({ id: coaches.id }).from(coaches).where(eq(coaches.slug, slug));
   if (existing) throw new CoachLifecycleError(`A coach with the slug ${slug} already exists`);
   const coachId = await createCoach(db, { slug, name, settings: input.timezone ? { timezone: input.timezone } : {} });

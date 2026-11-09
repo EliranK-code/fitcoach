@@ -87,7 +87,7 @@ The host must run a **long-lived Node.js process**, because the WhatsApp worker 
 ### Steps
 
 1. **Fork or clone this repository** to your own GitHub account.
-2. **Generate your own encryption key** locally: `npm install`, then `npm run setup`. Copy `MASTER_ENCRYPTION_KEY` from `.env` and back it up somewhere safe. Without it, your data can't be decrypted.
+2. **Generate your own encryption key** locally: `npm install`, then `npm run setup`. Copy `MASTER_ENCRYPTION_KEY` from `.env` and back it up somewhere safe. Without it, your data can't be decrypted. While you're in `.env`, set `TIMEZONE` to your region (the default is `UTC`) and, if coaches will type local phone numbers, `DEFAULT_COUNTRY_CODE` (see [Settings](#settings-env)).
 3. **Create the database:** a Supabase project, then `DATABASE_URL` as described in [Moving to Supabase](#moving-to-supabase). Turn on Enforce SSL.
 4. **Create the schema:** with `DATABASE_URL` in your local `.env`, run `npm run seed`. Migrations run automatically, and a demo coach is loaded for testing.
 5. **Deploy to your host.** On Railway: New Project → Deploy from GitHub repo, then:
@@ -124,7 +124,8 @@ Every push to your repository's `master` redeploys the site automatically on Rai
 | `EPOCH_IDLE_HOURS` | | `72` | After a longer break the conversation is summarized |
 | `KNOWLEDGE_INLINE_MAX_TOKENS` | | `30000` | Up to this size the coach's whole knowledge goes into the prompt; above it, search (RAG) is used |
 | `RETENTION_MONTHS` | | `24` | Clients inactive longer than this are deleted by `purge` |
-| `TIMEZONE` | | `Asia/Jerusalem` | The clients' time zone |
+| `TIMEZONE` | | `UTC` | The default time zone (an IANA name such as `Europe/London`) for coaches who haven't picked their own in Settings, and for the admin pages. The admin's "New coach" form starts from it |
+| `DEFAULT_COUNTRY_CODE` | | | The country calling code (e.g. `44` or `972`) for client numbers a coach types in local form, with one leading `0`. Empty = numbers must be in international form (`+14155550123`) |
 | `WHATSAPP_ACCESS_TOKEN` | for WhatsApp | | A permanent System User token from Meta |
 | `WHATSAPP_APP_SECRET` | for WhatsApp | | The Meta app's App Secret. The server rejects any webhook without a valid signature |
 | `WHATSAPP_VERIFY_TOKEN` | for WhatsApp | | A secret string you make up and also enter in Meta |
@@ -598,7 +599,7 @@ A full security review found no secrets in git (including history) and verified 
 
 By default **the bot answers only numbers the coach approved**, so strangers can't use the bot at the coach's expense and their data never enters the system. The code is in `packages/core/src/access.ts`.
 
-- **Adding a client:** on the Clients page, by phone number, in international format (`+14155550123` or `0014155550123`). Note: a number that starts with a single `0` is currently treated as an Israeli local number and gets the `972` prefix. When the client writes, the bot sends the consent notice as usual. Also from the terminal: `npm run admin -- client:approve <phone>`.
+- **Adding a client:** on the Clients page, by phone number, in international format (`+14155550123` or `0014155550123`). A local number (one leading `0`) is accepted only when `DEFAULT_COUNTRY_CODE` is set: with `44`, `07700 900123` becomes `447700900123`. Without it, the form asks for international format. When the client writes, the bot sends the consent notice as usual. Also from the terminal: `npm run admin -- client:approve <phone>`.
 - **An unapproved number** gets a short notice at most once a day; nothing it writes reaches the AI or is stored. The coach gets one "join request" alert, and the number appears at the top of the client list.
 - **Approving a request:** "approve client", in the alert or on the client page. If the client wrote in the last 24 hours, they get the consent notice at once.
 - **Removing access:** "remove bot access" on the client page (e.g. for a client who finished coaching). The bot stops answering and sending reminders; data is kept. "Restore access" brings everything back.
@@ -630,7 +631,7 @@ The consent notice is a legal text. The English draft must be reviewed by a lawy
 npm test
 ```
 
-199 tests that run with a mocked Claude and an in-memory database. They cost nothing. They cover approved-clients access, the security hardening (spend caps, IP, TLS, webhook size, CSP, leak guard), Embedded Signup against a mocked Graph API, metering and limits, TOTP (RFC 6238 vectors) and links, coach suspension and deletion, RLS on every table and two coaches running end to end in parallel, reminders (DST, quiet hours, Shabbat), media, authentication, the consent gate, tool loop, episodes, safety rules, encryption and WhatsApp formatting, webhook signatures, debounce, duplicates, delivery statuses and the real Postgres path.
+204 tests that run with a mocked Claude and an in-memory database. They cost nothing. They cover approved-clients access, phone numbers and time zones for any country, the security hardening (spend caps, IP, TLS, webhook size, CSP, leak guard), Embedded Signup against a mocked Graph API, metering and limits, TOTP (RFC 6238 vectors) and links, coach suspension and deletion, RLS on every table and two coaches running end to end in parallel, reminders (DST, quiet hours, Shabbat), media, authentication, the consent gate, tool loop, episodes, safety rules, encryption and WhatsApp formatting, webhook signatures, debounce, duplicates, delivery statuses and the real Postgres path.
 
 ```bash
 npm run test:live
@@ -742,6 +743,7 @@ However, **the consent wording in `packages/core/src/consent.ts` is a draft**. B
 | Lost the phone with the authenticator app | Coach: the admin resets it from the panel, or `user:reset-mfa --email ...`. Admin: `superadmin:reset --email ...` |
 | No dashboard user, or forgot the password | `npm run admin -- user:create --email ...` or `user:reset-password --email ...` |
 | A voice message gets "can't listen" | `OPENAI_API_KEY` is missing in `.env` |
+| Adding a client says "Write the number in international form" | The number starts with `0` and `DEFAULT_COUNTRY_CODE` is empty. Type it with the country code (`+44…`), or set `DEFAULT_COUNTRY_CODE` in `.env` and restart |
 | A reminder wasn't sent | Check: is the client on WhatsApp? Inside the 24-hour window, or is a template configured? Not in quiet hours or on Shabbat? Didn't the client write "STOP"? |
 | Port 3000 is taken | The dashboard and `npm run server` both use 3000. Usually the dashboard alone is enough |
 | Meta can't verify the webhook | Make sure the server and tunnel are running, the URL ends in `/api/whatsapp/webhook` (or `/webhook` for `npm run server`), and the verify token matches `.env` |

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { z } from "zod";
+import { isValidTimeZone } from "./time";
 
 const emptyToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const optionalString = z.preprocess(emptyToUndefined, z.string().optional());
@@ -29,7 +30,19 @@ const envSchema = z.object({
   EPOCH_IDLE_HOURS: z.preprocess(emptyToUndefined, z.coerce.number().positive().default(72)),
   KNOWLEDGE_INLINE_MAX_TOKENS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(30000)),
   RETENTION_MONTHS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(24)),
-  TIMEZONE: z.preprocess(emptyToUndefined, z.string().default("Asia/Jerusalem")),
+  /** The default IANA time zone: coaches who haven't picked their own, and the admin pages. */
+  TIMEZONE: z.preprocess(
+    emptyToUndefined,
+    z.string().refine(isValidTimeZone, "TIMEZONE: an IANA time zone such as Europe/London, or UTC").default("UTC"),
+  ),
+  /**
+   * The country calling code for numbers typed in local form, with one leading 0 (e.g. 44 or 972). Unset = a coach
+   * must type numbers in international form.
+   */
+  DEFAULT_COUNTRY_CODE: z.preprocess(
+    (v) => (typeof v === "string" ? v.replace(/[\s+]/g, "") || undefined : v),
+    z.string().regex(/^[1-9]\d{0,2}$/, "DEFAULT_COUNTRY_CODE: a country calling code such as 44 or 972").optional(),
+  ),
   LOG_LEVEL: z.preprocess(emptyToUndefined, z.string().default("warn")),
 
   // WhatsApp Cloud API (stage 2)

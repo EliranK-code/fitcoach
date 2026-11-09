@@ -32,7 +32,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
       />
       <div className="mb-6">
         <Card title="Add a client by WhatsApp number">
-          <AddClientForm />
+          <AddClientForm countryCode={s.cfg.DEFAULT_COUNTRY_CODE} />
           <p className="mt-2 text-xs text-slate-500">When the client writes to the bot's number, the bot sends the consent notice and gets started.</p>
         </Card>
       </div>

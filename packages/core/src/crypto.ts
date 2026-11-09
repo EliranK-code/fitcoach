@@ -115,13 +115,17 @@ function hashKey(): Buffer {
   return hashKeyCache;
 }
 
-/** Normalizes Israeli/international phone numbers to digits with country code; other identifiers are lower-cased. */
-export function normalizePhone(raw: string): string {
+/**
+ * Phone numbers become digits with the country code, the form WhatsApp sends; other identifiers are lower-cased.
+ * A number with one leading 0 is local: the country code replaces the 0. Without one it stays as typed, so it never
+ * matches a WhatsApp number (parseClientPhone rejects it). The code is DEFAULT_COUNTRY_CODE unless given; "" = none.
+ */
+export function normalizePhone(raw: string, defaultCountryCode = loadConfig().DEFAULT_COUNTRY_CODE ?? ""): string {
   const trimmed = raw.trim();
   if (/[a-z]/i.test(trimmed)) return trimmed.toLowerCase();
   let digits = trimmed.replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
-  if (digits.startsWith("0")) digits = "972" + digits.slice(1);
+  else if (digits.startsWith("0") && defaultCountryCode) digits = defaultCountryCode + digits.slice(1);
   return digits;
 }
 

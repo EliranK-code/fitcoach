@@ -196,6 +196,7 @@ describe("accounts, links and starter coaches", () => {
     const db = handle.db;
     await expect(createCoachFromPanel(db, { slug: "Bad Slug", name: "x" }, "admin:a")).rejects.toThrow(CoachLifecycleError);
     await expect(createCoachFromPanel(db, { slug: "demo", name: "x" }, "admin:a")).rejects.toThrow(/already exists/);
+    await expect(createCoachFromPanel(db, { slug: "zone-x", name: "x", timezone: "Asia/Atlantis" }, "admin:a")).rejects.toThrow(/Unknown time zone/);
     const coachId = await createCoachFromPanel(db, { slug: "dana-fit", name: "דנה", timezone: "Asia/Jerusalem" }, "admin:a");
     let dana = await openTenant(db, coachId);
     expect(dana.settings).toMatchObject({ starterKnowledge: true, timezone: "Asia/Jerusalem" });

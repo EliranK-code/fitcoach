@@ -30,9 +30,8 @@ export function AdminLoginForm() {
   );
 }
 
-const ZONES = ["Asia/Jerusalem", "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles"];
-
-export function NewCoachForm() {
+/** `zones` and `defaultZone` come from the server (timeZoneOptions and TIMEZONE), so SSR and the browser agree. */
+export function NewCoachForm({ zones, defaultZone }: { zones: string[]; defaultZone: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createCoachAction, {});
   return (
     <form action={action} className="space-y-3">
@@ -45,8 +44,8 @@ export function NewCoachForm() {
           <Input name="slug" required dir="ltr" pattern="[a-z0-9][a-z0-9\-]{1,39}" placeholder="dana-fit" />
         </Field>
         <Field label="Time zone">
-          <Select name="timezone" defaultValue="Asia/Jerusalem">
-            {ZONES.map((z) => (
+          <Select name="timezone" defaultValue={defaultZone}>
+            {zones.map((z) => (
               <option key={z}>{z}</option>
             ))}
           </Select>

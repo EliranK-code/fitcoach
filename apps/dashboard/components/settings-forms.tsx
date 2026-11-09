@@ -11,9 +11,16 @@ function Feedback({ state }: { state: FormState }) {
   return null;
 }
 
-const ZONES = ["Asia/Jerusalem", "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles"];
-
-export function CoachSettingsForm(props: { name: string; timezone: string; floorFemale?: number; floorMale?: number; minFemale: number; minMale: number }) {
+/** `zones` comes from the server (timeZoneOptions, including the coach's current zone), so SSR and the browser agree. */
+export function CoachSettingsForm(props: {
+  name: string;
+  timezone: string;
+  zones: string[];
+  floorFemale?: number;
+  floorMale?: number;
+  minFemale: number;
+  minMale: number;
+}) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveCoachSettingsAction, {});
   return (
     <form action={action} className="space-y-4">
@@ -24,7 +31,7 @@ export function CoachSettingsForm(props: { name: string; timezone: string; floor
         </Field>
         <Field label="Time zone">
           <Select name="timezone" defaultValue={props.timezone}>
-            {ZONES.map((z) => (
+            {props.zones.map((z) => (
               <option key={z} value={z}>
                 {z}
               </option>

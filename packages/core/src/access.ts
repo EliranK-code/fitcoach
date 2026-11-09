@@ -25,9 +25,13 @@ export function joinRequestSummary(): string {
   return "A number that isn't approved yet wrote to the bot. The bot doesn't answer it or keep what it wrote. If this is your client, approve them on the client page and the bot will send the consent notice right away.";
 }
 
-/** A phone number the coach typed, in the international form WhatsApp uses (972…), or an error. */
-export function parseClientPhone(raw: string): string {
-  const phone = normalizePhone(raw);
+/**
+ * A phone number the coach typed, in the international form WhatsApp uses (digits with the country code), or an
+ * error. A local number (leading 0) needs DEFAULT_COUNTRY_CODE; `defaultCountryCode` overrides it ("" = none).
+ */
+export function parseClientPhone(raw: string, defaultCountryCode?: string): string {
+  const phone = normalizePhone(raw, defaultCountryCode);
+  if (phone.startsWith("0")) throw new ClientAccessError("Write the number in international form, with the country code, for example +14155550123");
   if (!/^\d{9,15}$/.test(phone)) throw new ClientAccessError("Invalid phone number. Write it in international form, for example +14155550123");
   return phone;
 }

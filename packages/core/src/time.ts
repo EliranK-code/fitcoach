@@ -1,4 +1,37 @@
-// Client-facing dates are in the client's local time zone (Asia/Jerusalem by default).
+// Client-facing dates are in the coach's time zone (their setting, or TIMEZONE from the config).
+
+/** True for a time zone the runtime knows: an IANA name such as Europe/London, or UTC. */
+export function isValidTimeZone(timeZone: string): boolean {
+  if (!timeZone || timeZone.length > 64) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** ICU still lists these zones under their old names; the list shows the current IANA ones (both work in Intl). */
+const RENAMED_ZONES: Record<string, string> = {
+  "America/Godthab": "America/Nuuk",
+  "Asia/Calcutta": "Asia/Kolkata",
+  "Asia/Katmandu": "Asia/Kathmandu",
+  "Asia/Rangoon": "Asia/Yangon",
+  "Asia/Saigon": "Asia/Ho_Chi_Minh",
+  "Atlantic/Faeroe": "Atlantic/Faroe",
+  "Europe/Kiev": "Europe/Kyiv",
+  "Pacific/Enderbury": "Pacific/Kanton",
+  "Pacific/Ponape": "Pacific/Pohnpei",
+  "Pacific/Truk": "Pacific/Chuuk",
+};
+
+/** UTC first, then every IANA zone the runtime knows plus the given ones (a coach's current zone), sorted. */
+export function timeZoneOptions(...include: string[]): string[] {
+  const known = Intl.supportedValuesOf("timeZone").map((z) => (RENAMED_ZONES[z] && isValidTimeZone(RENAMED_ZONES[z]) ? RENAMED_ZONES[z] : z));
+  const zones = new Set([...known, ...include.filter(isValidTimeZone)]);
+  zones.delete("UTC");
+  return ["UTC", ...[...zones].sort()];
+}
 
 function parts(date: Date, timeZone: string) {
   const fmt = new Intl.DateTimeFormat("en-CA", {
