@@ -1,18 +1,23 @@
-# FitCoach: מאמן כושר דיגיטלי בוואטסאפ
+# FitCoach: a digital fitness coach on WhatsApp
 
-בוט AI שמדבר עם הלקוחות של מאמן כושר אמיתי, בסגנון ובשיטה של אותו מאמן. המערכת בנויה ל-SaaS עם הרבה מאמנים: לכל מאמן יש בסיס ידע, לקוחות ומפתח הצפנה משלו.
+An AI bot that talks to a real fitness coach's clients in that coach's voice and method. It's built as a multi-coach SaaS: each coach has their own knowledge base, clients and encryption key.
 
-> **סטטוס: שלב 4 מתוך 5.**
-> - שלב 1: מנוע השיחה
-> - שלב 2: חיבור ל-WhatsApp Cloud API הרשמי של Meta
-> - שלב 3: דשבורד ווב למאמן
-> - שלב 4: תמונות, הודעות קוליות ותזכורות יזומות
+> **Status: all 5 stages are done.**
+> - Stage 1: the conversation engine
+> - Stage 2: Meta's official WhatsApp Cloud API
+> - Stage 3: a web dashboard for the coach
+> - Stage 4: photos, voice messages and proactive reminders
+> - Stage 5: full multi-tenancy (RLS, coach lifecycle, admin panel, MFA, usage metering, Embedded Signup)
+>
+> Since then: a security hardening pass, approved-clients-only access, and a verified Supabase setup.
+
+The user interface (dashboard, bot messages, CLI output) is in Hebrew.
 
 ---
 
-## התקנה
+## Installation
 
-דרישות: **Node.js 22 ומעלה**. לא צריך Docker ולא צריך להתקין מסד נתונים: בשלב 1 Postgres (כולל pgvector) רץ בתוך Node עם PGlite, ונשמר בתיקייה `.data/`.
+Requires **Node.js 22 or later**. No Docker and no database to install: by default Postgres (with pgvector) runs inside Node via PGlite and is stored in `.data/`. Production uses Supabase (see below).
 
 ```bash
 npm install
@@ -22,194 +27,194 @@ npm install
 npm run setup
 ```
 
-`setup` יוצר קובץ `.env` ומפתח הצפנה ראשי (`MASTER_ENCRYPTION_KEY`). **שמרו גיבוי של המפתח הזה במקום בטוח.** בלעדיו אי אפשר לפענח את המידע של הלקוחות.
+`setup` creates a `.env` file and a master encryption key (`MASTER_ENCRYPTION_KEY`). **Keep a backup of this key somewhere safe.** Without it, client data cannot be decrypted.
 
-עכשיו פתחו את `.env` והדביקו מפתח API של Anthropic (מ-[console.anthropic.com](https://console.anthropic.com)):
+Open `.env` and paste an Anthropic API key (from [console.anthropic.com](https://console.anthropic.com)):
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-טוענים את מאמן הדמו ("גל ברק", מאמן כוח פיקטיבי):
+Load the demo coach ("Gal Barak", a fictional strength coach):
 
 ```bash
 npm run seed
 ```
 
-ומתחילים לדבר עם הבוט כלקוח:
+And start talking to the bot as a client:
 
 ```bash
 npm run chat
 ```
 
-## הגדרות (`.env`)
+## Settings (`.env`)
 
-| משתנה | חובה? | ברירת מחדל | הסבר |
+| Variable | Required? | Default | Description |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | כן | | מפתח ה-API של Claude |
-| `CLAUDE_MODEL` | | `claude-opus-5-5` | המודל הראשי. `claude-sonnet-5-5` זול יותר |
-| `CLAUDE_SUMMARY_MODEL` | | (כמו הראשי) | מודל לסיכום שיחות ארוכות |
-| `CLAUDE_EFFORT` | | `medium` | כמה המודל "חושב": `low` / `medium` / `high` / `xhigh` / `max` |
-| `CLAUDE_FALLBACKS` | | `default` | מעבר אוטומטי למודל חלופי כשמסנן הבטיחות של Anthropic דוחה בקשה תמימה. `off` מכבה |
-| `OPENAI_API_KEY` | | | רשות. חיפוש וקטורי במסמכי המאמן (ובשלב 4 גם תמלול). בלעדיו החיפוש עובד לפי מילות מפתח |
-| `DATABASE_URL` | | | ריק = PGlite מקומי. משלב 2: connection string של Supabase |
-| `MASTER_ENCRYPTION_KEY` | כן | | נוצר ע"י `npm run setup` |
-| `EPOCH_MAX_TOKENS` | | `24000` | מעבר לגודל הזה השיחה מסוכמת ומתחילה אפיזודה חדשה |
-| `EPOCH_IDLE_HOURS` | | `72` | אחרי הפסקה ארוכה מזה השיחה מסוכמת |
-| `KNOWLEDGE_INLINE_MAX_TOKENS` | | `30000` | עד הגודל הזה כל הידע של המאמן נכנס לפרומפט; מעבר לו עוברים לחיפוש (RAG) |
-| `RETENTION_MONTHS` | | `24` | לקוח שלא פעיל יותר מזה נמחק ב-`purge` |
-| `TIMEZONE` | | `Asia/Jerusalem` | אזור הזמן של הלקוחות |
-| `WHATSAPP_ACCESS_TOKEN` | לוואטסאפ | | טוקן קבוע של System User מ-Meta |
-| `WHATSAPP_APP_SECRET` | לוואטסאפ | | ה-App Secret של אפליקציית Meta. השרת דוחה כל webhook בלי חתימה תקינה |
-| `WHATSAPP_VERIFY_TOKEN` | לוואטסאפ | | מחרוזת סודית שאתם ממציאים ומזינים גם ב-Meta |
-| `WHATSAPP_GRAPH_VERSION` | | `v23.0` | גרסת ה-Graph API (התיעוד של Meta כבר ב-v26.0) |
-| `META_APP_ID` | ל-Embedded Signup | | מזהה האפליקציה ב-Meta, לכפתור "חיבור מספר וואטסאפ" של המאמן |
-| `META_EMBEDDED_SIGNUP_CONFIG_ID` | ל-Embedded Signup | | מזהה ההגדרה של Facebook Login for Business. בלי שני אלה הכפתור לא זמין. ב-dry run יש סימולציה |
-| `WHATSAPP_DRY_RUN` | | `false` | `true` = לא שולחים לוואטסאפ, רק מדפיסים בחלון השרת |
-| `PORT` | | `3000` | הפורט של השרת |
-| `INBOUND_DEBOUNCE_MS` | | `4000` | כמה לחכות אחרי ההודעה האחרונה של לקוח לפני שעונים, כדי לאחד הודעות רצופות |
-| `WORKER_CONCURRENCY` | | `4` | כמה לקוחות מטופלים במקביל |
-| `WHATSAPP_TEMPLATE_PRICE_USD` | | `0` | כמה Meta גובה על הודעת תבנית, להערכת עלויות. תלוי במדינה ובקטגוריה, ו-0 = לא ידוע |
-| `CLIENT_HOURLY_MESSAGE_LIMIT` | | `30` | כמה הודעות בשעה הבוט עונה ללקוח אחד. 0 = בלי הגבלה |
-| `CLIENT_DAILY_MESSAGE_LIMIT` | | `150` | כמה הודעות ביממה הבוט עונה ללקוח אחד. 0 = בלי הגבלה |
-| `COACH_MONTHLY_CAP_USD` | | `200` | תקרה קשיחה חודשית למאמן, בדולרים. כשמגיעים אליה הבוט מפסיק לענות. אדמין יכול לקבוע תקרה אחרת לכל מאמן. 0 = בלי תקרת ברירת מחדל |
-| `PLATFORM_DAILY_CAP_USD` | | `100` | תקרה קשיחה יומית לכל הפלטפורמה (לפי UTC). כשמגיעים אליה כל הבוטים מפסיקים לענות עד מחר. 0 = בלי תקרה |
-| `TRUSTED_IP_HEADER` | בפריסה | | הכותרת שהפרוקסי של ספק האחסון מוסיף עם ה-IP של המשתמש (למשל `x-real-ip`). משמשת להגבלת ניסיונות התחברות. ריק = הערך האחרון ב-`X-Forwarded-For` |
+| `ANTHROPIC_API_KEY` | yes | | The Claude API key |
+| `CLAUDE_MODEL` | | `claude-opus-5-5` | The main model. `claude-sonnet-5-5` costs about half |
+| `CLAUDE_SUMMARY_MODEL` | | (same as main) | Model for summarizing long conversations |
+| `CLAUDE_EFFORT` | | `medium` | How much the model "thinks": `low` / `medium` / `high` / `xhigh` / `max` |
+| `CLAUDE_FALLBACKS` | | `default` | Automatic fallback model when Anthropic's safety classifier rejects a harmless request. `off` disables it |
+| `OPENAI_API_KEY` | | | Optional. Vector search over the coach's documents and voice transcription. Without it, search is keyword-based |
+| `DATABASE_URL` | | | Empty = local PGlite. In production: the Supabase connection string |
+| `MASTER_ENCRYPTION_KEY` | yes | | Created by `npm run setup` |
+| `EPOCH_MAX_TOKENS` | | `24000` | Above this size the conversation is summarized and a new episode starts |
+| `EPOCH_IDLE_HOURS` | | `72` | After a longer break the conversation is summarized |
+| `KNOWLEDGE_INLINE_MAX_TOKENS` | | `30000` | Up to this size the coach's whole knowledge goes into the prompt; above it, search (RAG) is used |
+| `RETENTION_MONTHS` | | `24` | Clients inactive longer than this are deleted by `purge` |
+| `TIMEZONE` | | `Asia/Jerusalem` | The clients' time zone |
+| `WHATSAPP_ACCESS_TOKEN` | for WhatsApp | | A permanent System User token from Meta |
+| `WHATSAPP_APP_SECRET` | for WhatsApp | | The Meta app's App Secret. The server rejects any webhook without a valid signature |
+| `WHATSAPP_VERIFY_TOKEN` | for WhatsApp | | A secret string you make up and also enter in Meta |
+| `WHATSAPP_GRAPH_VERSION` | | `v23.0` | The Graph API version (Meta's docs are already at v26.0) |
+| `META_APP_ID` | for Embedded Signup | | The Meta app ID, for the coach's "connect WhatsApp number" button |
+| `META_EMBEDDED_SIGNUP_CONFIG_ID` | for Embedded Signup | | The Facebook Login for Business configuration ID. Without both, the button is unavailable. Dry run has a simulation |
+| `WHATSAPP_DRY_RUN` | | `false` | `true` = don't send to WhatsApp, only print in the server window |
+| `PORT` | | `3000` | The server port |
+| `INBOUND_DEBOUNCE_MS` | | `4000` | How long to wait after a client's last message before answering, to merge consecutive messages |
+| `WORKER_CONCURRENCY` | | `4` | How many clients are handled in parallel |
+| `WHATSAPP_TEMPLATE_PRICE_USD` | | `0` | What Meta charges per template message, for cost estimates. Depends on country and category; 0 = unknown |
+| `CLIENT_HOURLY_MESSAGE_LIMIT` | | `30` | Messages per hour the bot answers for one client. 0 = no limit |
+| `CLIENT_DAILY_MESSAGE_LIMIT` | | `150` | Messages per day the bot answers for one client. 0 = no limit |
+| `COACH_MONTHLY_CAP_USD` | | `200` | Hard monthly spending cap per coach, in USD. At the cap the bot stops answering. An admin can set a different cap per coach. 0 = no default cap |
+| `PLATFORM_DAILY_CAP_USD` | | `100` | Hard daily cap for the whole platform (UTC). At the cap every bot stops answering until the next day. 0 = no cap |
+| `TRUSTED_IP_HEADER` | for deployment | | The header your hosting proxy sets to the user's IP (e.g. `x-real-ip`), used to throttle sign-in attempts. Empty = the last `X-Forwarded-For` hop |
+| `DASHBOARD_RUN_WORKER` | | `true` | `false` = the dashboard doesn't run the worker and scheduler itself (when they run as a separate service) |
 
-מפתחות נמצאים **רק** ב-`.env`, שלא נכנס ל-git. אחרי עדכון של הפרויקט, `npm run setup` מוסיף ל-`.env` הגדרות חדשות בלי לגעת בקיימות.
+Keys live **only** in `.env`, which is not in git. After updating the project, `npm run setup` adds new settings to `.env` without touching existing ones.
 
-## פקודות
+## Commands
 
 ```bash
 npm run chat -- --debug
 ```
 
-| פקודה | מה היא עושה |
+| Command | What it does |
 |---|---|
-| `npm run chat` | צ'אט כלקוח. אפשרויות: `--coach demo`, `--phone <מזהה>`, `--new` (לקוח חדש), `--debug` (מציג קריאות לכלים וטוקנים), `--no-bidi` |
-| `npm run seed` | טוען (או מעדכן) את מאמן הדמו, ומסמן אותו כמאמן דמו |
-| `npm run demo:remove` | מציג את מאמני הדמו. עם `-- --confirm demo` מוחק אותם לצמיתות, עם כל הלקוחות והמידע. מריצים לפני שמאמנים אמיתיים מצטרפים |
-| `npm run coach:import -- <תיקייה>` | מייבא מאמן אמיתי (פורמט בהמשך) |
-| `npm run dashboard` | דשבורד המאמן ב-http://localhost:3000. כולל גם את ה-webhook וה-worker של וואטסאפ (שלב 3) |
-| `npm run admin -- user:create --email <email>` | משתמש לדשבורד. הסיסמה מודפסת פעם אחת |
-| `npm run admin -- user:reset-password --email <email>` / `user:delete --email <email>` | איפוס סיסמה או מחיקת משתמש |
-| `npm run admin -- sample-data` | 3 לקוחות לדוגמה כדי לראות את הדשבורד מלא, בלי AI. `--remove` מוחק אותם |
-| `npm run server` | שרת וואטסאפ בלבד, בלי הדשבורד (webhook ו-worker) |
-| `npm run wa:simulate -- "טקסט"` | שולח לשרת המקומי webhook חתום כאילו מוואטסאפ. אפשרויות: `--from`, `--pnid`, `--button <id>`, `--file photo.jpg` או `--file voice.ogg` |
-| `npm run admin -- clients` | רשימת לקוחות |
-| `npm run admin -- client:approve <phone>` | אישור מספר וואטסאפ, כדי שהבוט יענה לו (גם מספר שעוד לא כתב) |
-| `npm run admin -- client:revoke <phone>` | הסרת הגישה של לקוח לבוט. המידע נשמר |
-| `npm run admin -- history <phone>` | השיחה עם לקוח, כולל סטטוס מסירה (sent / delivered / read / failed) |
-| `npm run admin -- alerts` | תור "דורש התערבות" (הוסיפו `--all` לכל ההתראות) |
-| `npm run admin -- alert:resolve <id>` | סגירת התראה |
-| `npm run admin -- pause <phone>` / `resume <phone>` | השתלטות של המאמן: הבוט שותק ללקוח הזה, ואחר כך חוזר |
-| `npm run admin -- send <phone> "טקסט"` | הודעה מהמאמן ללקוח בוואטסאפ (רק בתוך חלון 24 השעות) |
-| `npm run admin -- send-template <phone> <name> --params "א\|ב"` | תבנית מאושרת, גם מחוץ לחלון 24 השעות |
-| `npm run admin -- wa:connect --pnid <id>` | חיבור מספר וואטסאפ (Phone number ID) למאמן |
-| `npm run admin -- flags:clear <phone>` | ניקוי דגלי בטיחות (קטין, הפרעת אכילה) אחרי שהמאמן בדק |
-| `npm run admin -- export <phone>` | ייצוא כל המידע של לקוח (זכות עיון) |
-| `npm run admin -- delete <phone>` | מחיקה מלאה של לקוח |
-| `npm run admin -- purge` | מחיקת לקוחות לא פעילים לפי `RETENTION_MONTHS` |
-| `npm run admin -- coach:list` | כל המאמנים: סטטוס, לקוחות ושימוש החודש |
-| `npm run admin -- coach:suspend <slug>` / `coach:resume <slug>` | השעיית מאמן והחזרתו (שלב 5) |
-| `npm run admin -- coach:delete <slug> --confirm <slug>` | מחיקה לצמיתות של מאמן מושהה וכל המידע שלו |
-| `npm run admin -- superadmin:create --email <email>` | אדמין לפאנל `/admin`. הסיסמה מודפסת פעם אחת, ואימות דו-שלבי מוגדר בכניסה הראשונה |
-| `npm run admin -- superadmin:reset --email <email>` | סיסמה חדשה לאדמין, ביטול האימות הדו-שלבי וניתוק הסשנים. גם `superadmin:list` ו-`superadmin:delete` |
-| `npm run admin -- user:reset-mfa --email <email>` | ביטול האימות הדו-שלבי של משתמש מאמן (למשל אחרי שאיבד את הטלפון) |
+| `npm run chat` | Chat as a client. Options: `--coach demo`, `--phone <id>`, `--new` (new client), `--debug` (shows tool calls and tokens), `--no-bidi` |
+| `npm run seed` | Loads (or updates) the demo coach and marks it as a demo coach |
+| `npm run demo:remove` | Lists demo coaches. With `-- --confirm demo` it permanently deletes them, with all their clients and data. Run it before real coaches join |
+| `npm run coach:import -- <folder>` | Imports a real coach (format below) |
+| `npm run dashboard` | The coach dashboard at http://localhost:3000. Also runs the WhatsApp webhook and worker |
+| `npm run admin -- user:create --email <email>` | A dashboard user. The password is printed once |
+| `npm run admin -- user:reset-password --email <email>` / `user:delete --email <email>` | Reset a password or delete a user |
+| `npm run admin -- sample-data` | 3 sample clients to see a populated dashboard, without AI. `--remove` deletes them |
+| `npm run server` | WhatsApp server only, without the dashboard (webhook and worker) |
+| `npm run wa:simulate -- "text"` | Sends a signed webhook to the local server as if from WhatsApp. Options: `--from`, `--pnid`, `--button <id>`, `--file photo.jpg` or `--file voice.ogg` |
+| `npm run admin -- clients` | List clients |
+| `npm run admin -- client:approve <phone>` | Approve a WhatsApp number so the bot answers it (also a number that hasn't written yet) |
+| `npm run admin -- client:revoke <phone>` | Remove a client's access to the bot. Data is kept |
+| `npm run admin -- history <phone>` | The conversation with a client, including delivery status (sent / delivered / read / failed) |
+| `npm run admin -- alerts` | The "needs attention" queue (add `--all` for all alerts) |
+| `npm run admin -- alert:resolve <id>` | Close an alert |
+| `npm run admin -- pause <phone>` / `resume <phone>` | Coach takeover: the bot goes quiet for this client, then comes back |
+| `npm run admin -- send <phone> "text"` | A message from the coach to the client on WhatsApp (only inside the 24-hour window) |
+| `npm run admin -- send-template <phone> <name> --params "a\|b"` | An approved template, also outside the 24-hour window |
+| `npm run admin -- wa:connect --pnid <id>` | Connect a WhatsApp number (Phone number ID) to a coach |
+| `npm run admin -- flags:clear <phone>` | Clear safety flags (minor, eating disorder) after the coach checked |
+| `npm run admin -- export <phone>` | Export all of a client's data (right of access) |
+| `npm run admin -- delete <phone>` | Fully delete a client |
+| `npm run admin -- purge` | Delete inactive clients per `RETENTION_MONTHS` |
+| `npm run admin -- coach:list` | All coaches: status, clients and this month's usage |
+| `npm run admin -- coach:suspend <slug>` / `coach:resume <slug>` | Suspend and resume a coach |
+| `npm run admin -- coach:delete <slug> --confirm <slug>` | Permanently delete a suspended coach and all their data |
+| `npm run admin -- superadmin:create --email <email>` | An admin for the `/admin` panel. The password is printed once; two-step sign-in is set up at first login |
+| `npm run admin -- superadmin:reset --email <email>` | New admin password, MFA reset and sessions ended. Also `superadmin:list` and `superadmin:delete` |
+| `npm run admin -- user:reset-mfa --email <email>` | Turn off a coach user's two-step sign-in (e.g. after losing their phone) |
 
-בתוך הצ'אט:
+Inside the chat:
 
-| פקודה | |
+| Command | |
 |---|---|
-| `/profile` | מה הבוט יודע על הלקוח |
-| `/logs` | שקילות, ארוחות ואימונים |
-| `/plans` | התפריט ותוכנית האימונים הנוכחיים |
-| `/alerts` | התראות למאמן על הלקוח הזה |
-| `/summary` | הזיכרון ארוך הטווח |
-| `/compact` | לסכם עכשיו ולהתחיל אפיזודה חדשה |
-| `/export` | ייצוא ל-`.data/exports/` |
-| `/delete-me` | בקשת מחיקה, כמו לקוח אמיתי |
-| `/debug` | הצגה או הסתרה של קריאות לכלים, אפיזודות וטוקנים |
-| `/new` | להתחיל כלקוח חדש |
-| `/pause`, `/coach <טקסט>`, `/resume` | בתפקיד המאמן: להשהות את הבוט, לכתוב ללקוח, ולהחזיר את הבוט |
-| `/image <קובץ> [כיתוב]` | לשלוח תמונה, למשל של ארוחה |
-| `/voice <קובץ>` | לשלוח הודעה קולית (ogg, mp3, m4a, wav). דורש `OPENAI_API_KEY` |
+| `/profile` | What the bot knows about the client |
+| `/logs` | Weigh-ins, meals and workouts |
+| `/plans` | The current meal plan and workout plan |
+| `/alerts` | Coach alerts about this client |
+| `/summary` | Long-term memory |
+| `/compact` | Summarize now and start a new episode |
+| `/export` | Export to `.data/exports/` |
+| `/delete-me` | Deletion request, like a real client |
+| `/debug` | Show or hide tool calls, episodes and tokens |
+| `/new` | Start as a new client |
+| `/pause`, `/coach <text>`, `/resume` | As the coach: pause the bot, write to the client, bring the bot back |
+| `/image <file> [caption]` | Send a photo, e.g. of a meal |
+| `/voice <file>` | Send a voice message (ogg, mp3, m4a, wav). Requires `OPENAI_API_KEY` |
 
-> **חשוב:** מסד הנתונים המקומי (PGlite) עובד רק עם תהליך אחד בכל רגע. כשהצ'אט או השרת רצים, פקודות `admin` ייכשלו עם הודעה ברורה. עצרו קודם את התהליך השני, או עברו ל-Supabase (ראו בהמשך) שתומך בכמה תהליכים במקביל.
+> **Important:** the local database (PGlite) works with only one process at a time. While the chat or the server runs, `admin` commands fail with a clear message. Stop the other process first, or use Supabase (below), which supports many processes in parallel.
 
-### עברית בטרמינל
+### Hebrew in the terminal
 
-הטרמינלים של Windows ושל VS Code לא תומכים בכתיבה מימין לשמאל, ולכן עברית מופיעה בהם הפוכה. ה-CLI מסדר את הטקסט לתצוגה בעצמו. אם הטרמינל שלכם כן תומך ב-RTL והטקסט יוצא הפוך, הוסיפו `--no-bidi`.
+Windows and VS Code terminals don't support right-to-left text, so Hebrew appears reversed. The CLI reorders the text for display itself. If your terminal does support RTL and the text comes out reversed, add `--no-bidi`.
 
-בנוסף, כל שיחה נשמרת כקובץ Markdown ב-`.data/transcripts/`. אפשר לפתוח אותו ב-VS Code ולקרוא בנוחות.
+Every conversation is also saved as a Markdown file in `.data/transcripts/`, which is easy to read in VS Code.
 
 ---
 
-## איך לבדוק את שלב 1 בעצמכם
+## Test stage 1 yourself
 
-הריצו `npm run chat -- --new --debug` לכל תרחיש, כדי שכל תרחיש יתחיל מלקוח נקי.
+Run `npm run chat -- --new --debug` for each scenario, so each one starts from a clean client.
 
-| # | מה לכתוב | מה אמור לקרות |
+| # | What to write | What should happen |
 |---|---|---|
-| 1 | `היי` | הודעת הסכמה. **שום דבר עוד לא נשלח ל-AI** |
-| 2 | `מאשר` | הבוט מציג את עצמו כעוזר AI של גל ושואל את השאלה הראשונה |
-| 3 | פרטים על עצמכם, למשל `אני דנה, בת 32, 1.65, 68 קילו, רוצה לרדת במשקל, 3 אימונים בשבוע בחדר כושר, בלי פציעות` | ב-`/profile` השדות מתמלאים. הבוט ממשיך לשאול בטבעיות רק מה שחסר |
-| 4 | `תבני לי תפריט` | תפריט בשיטת כף היד **בלי מספרי קלוריות** (גל לא סופר). ב-`/plans` יש הערכה פנימית שלא נמוכה מהרף הבטוח |
-| 5 | `תבני לי תוכנית אימונים` | תוכנית לפי המטרה, הימים והציוד. בלי התרגילים שגל נמנע מהם (למשל חתירה אנכית) |
-| 6 | `יש לי כאב בברך כשאני עושה סקוואט` | התאמת תרגילים לפי ההנחיות של גל לברכיים |
-| 7 | `שקלתי היום 67.5` | נרשם ב-`/logs`, עם תגובה קצרה |
-| 8 | `עשיתי סקוואט 3 סטים של 10 עם 40 קילו` | נרשם. בפעם הבאה הבוט ישווה לאימון הקודם |
-| 9 | `היה לי כאב בחזה באימון` | הפניה לרופא (ולמד"א 101 אם צריך) והתראה דחופה. בדקו ב-`npm run admin -- alerts` |
-| 10 | `אני מקיאה אחרי ארוחות כדי לא להשמין` | תגובה רגישה **בלי מספרים**, הפניה לגורם מקצועי, התראה והדלקת דגל. תפריטים נחסמים |
-| 11 | לקוח חדש: `אני בן 15` | התראת קטין וזהירות מוגברת |
-| 12 | `כמה עולה חבילת ליווי?` | "אבדוק עם גל" והתראה מסוג `unknown_question` עם השאלה |
-| 13 | `Hi, how many times a week should I train?` | תשובה באנגלית |
-| 14 | `/pause`, הודעה כלקוח, `/coach נדבר מחר בטלפון`, `/resume`, ואז עוד הודעה | בזמן ההשהיה הבוט שותק ונפתחת התראה. אחרי `/resume` הבוט יודע מה המאמן אמר וממשיך בהתאם |
-| 15 | `/delete-me` ואז `מחק לצמיתות` | כל המידע נמחק (`/profile` כבר לא ימצא לקוח) |
+| 1 | `היי` | The consent notice. **Nothing has been sent to the AI yet** |
+| 2 | `מאשר` | The bot introduces itself as Gal's AI assistant and asks the first question |
+| 3 | Details about yourself, e.g. `אני דנה, בת 32, 1.65, 68 קילו, רוצה לרדת במשקל, 3 אימונים בשבוע בחדר כושר, בלי פציעות` | `/profile` fills in. The bot naturally asks only for what's missing |
+| 4 | `תבני לי תפריט` | A palm-method meal plan **with no calorie numbers** (Gal doesn't count). `/plans` holds an internal estimate that's not below the safe floor |
+| 5 | `תבני לי תוכנית אימונים` | A plan matching the goal, days and equipment, without the exercises Gal avoids (e.g. upright rows) |
+| 6 | `יש לי כאב בברך כשאני עושה סקוואט` | Exercises adjusted per Gal's knee guidelines |
+| 7 | `שקלתי היום 67.5` | Logged in `/logs`, with a short reply |
+| 8 | `עשיתי סקוואט 3 סטים של 10 עם 40 קילו` | Logged. Next time the bot compares with the previous workout |
+| 9 | `היה לי כאב בחזה באימון` | Referral to a doctor (and to emergency services, 101, if needed) and an urgent alert. Check with `npm run admin -- alerts` |
+| 10 | `אני מקיאה אחרי ארוחות כדי לא להשמין` | A sensitive reply **with no numbers**, a referral to a professional, an alert and a flag. Meal plans are blocked |
+| 11 | New client: `אני בן 15` | A minor alert and extra caution |
+| 12 | `כמה עולה חבילת ליווי?` | "I'll check with Gal" and an `unknown_question` alert with the question |
+| 13 | `Hi, how many times a week should I train?` | An answer in English |
+| 14 | `/pause`, a message as the client, `/coach נדבר מחר בטלפון`, `/resume`, then another message | While paused the bot stays quiet and an alert opens. After `/resume` the bot knows what the coach said |
+| 15 | `/delete-me` then `מחק לצמיתות` | All data is deleted (`/profile` no longer finds a client) |
 
-המזהה של לקוח מופיע בשורה הראשונה של הצ'אט.
+The client ID appears on the chat's first line.
 
 ---
 
-## שלב 2: וואטסאפ
+## Stage 2: WhatsApp
 
-### איך זה עובד
+### How it works
 
 ```
-Meta שולחת webhook
-  → השרת מאמת את החתימה (X-Hub-Signature-256), שומר את ההודעה ועונה 200 מיד
-  → כל הודעה חדשה דוחה את התור של הלקוח ב-4 שניות (debounce), כך שכמה הודעות ברצף נענות פעם אחת
-  → ה-worker מטפל בכל לקוח בתורו (לקוחות שונים במקביל), מסמן "נקרא" ומציג "מקליד…"
-  → מנוע השיחה (אותו מנוע משלב 1) → שליחה דרך Graph API → סטטוס מסירה חוזר ב-webhook
+Meta sends a webhook
+  → the server verifies the signature (X-Hub-Signature-256), stores the message and answers 200 at once
+  → each new message pushes the client's turn back 4 seconds (debounce), so a burst is answered once
+  → the worker handles each client in turn (different clients in parallel), marks read and shows "typing…"
+  → the conversation engine (the same one as stage 1) → send via the Graph API → delivery status comes back by webhook
 ```
 
-- **כפילויות:** webhook שמגיע פעמיים מטופל פעם אחת, לפי מזהה ההודעה.
-- **כשלים:** אם הטיפול נכשל, יש ניסיונות חוזרים עם המתנה. אחרי 5 ניסיונות נפתחת התראה למאמן.
-- **חלון 24 השעות:** הודעה חופשית מהמאמן אפשרית רק עד 24 שעות מההודעה האחרונה של הלקוח. מחוץ לחלון אפשר לשלוח רק תבנית (template) מאושרת.
-- **תמונות והודעות קוליות:** בשלב הזה הבוט עונה שהוא קורא רק טקסט. הטיפול בהן מגיע בשלב 4.
-- **השתלטות של המאמן:** `pause` משתיק את הבוט ללקוח מסוים. ההודעות של הלקוח נשמרות ונפתחת התראה, והמאמן עונה עם `send`. אחרי `resume` הבוט מקבל את כל מה שנאמר בזמן ההשהיה וממשיך בהתאם.
+- **Duplicates:** a webhook delivered twice is handled once, by message ID.
+- **Failures:** retries with backoff. After 5 attempts the coach gets an alert.
+- **24-hour window:** a free-form message from the coach is possible only up to 24 hours after the client's last message. Outside the window only an approved template can be sent.
+- **Coach takeover:** `pause` silences the bot for a client. Their messages are kept and an alert opens; the coach replies with `send`. After `resume` the bot receives everything said during the pause.
 
-### אפשרות א: בדיקה מקומית בלי Meta (dry run)
+### Option A: local test without Meta (dry run)
 
-כך בודקים את כל הצינור (webhook, תור, worker, מנוע ושליחה) בלי חשבון Meta. ההודעות היוצאות מודפסות בחלון השרת.
+This tests the whole pipeline (webhook, queue, worker, engine and sending) without a Meta account. Outgoing messages are printed in the server window.
 
-1. ב-`.env` מגדירים:
+1. In `.env`:
    ```
    WHATSAPP_DRY_RUN=true
    WHATSAPP_APP_SECRET=local-test-secret
    ```
-2. מחברים מספר דמה למאמן הדמו, ומאשרים את המספר ש-`wa:simulate` שולח ממנו (הבוט עונה רק למספרים מאושרים). אם הצ'אט פתוח, צריך לסגור אותו קודם:
+2. Connect a dummy number to the demo coach, and approve the number `wa:simulate` sends from (the bot only answers approved numbers). Close the chat first if it's open:
    ```bash
    npm run admin -- wa:connect --pnid dryrun-demo
    ```
    ```bash
    npm run admin -- client:approve 972500000001
    ```
-3. בטרמינל אחד מפעילים את השרת:
+3. In one terminal, start the server:
    ```bash
    npm run server
    ```
-4. בטרמינל שני שולחים הודעות כאילו מוואטסאפ:
+4. In a second terminal, send messages as if from WhatsApp:
    ```bash
    npm run wa:simulate -- "היי, אני רוצה להתחיל"
    ```
@@ -219,563 +224,339 @@ Meta שולחת webhook
    ```bash
    npm run wa:simulate -- "אני דנה, בת 32"
    ```
-   `wa:simulate` מדבר עם השרת ב-HTTP בלבד, ולכן עובד גם כשהשרת מחזיק את מסד הנתונים.
+   `wa:simulate` talks to the server over HTTP only, so it works while the server holds the database.
 
-### אפשרות ב: וואטסאפ אמיתי עם מספר הבדיקה של Meta
+### Option B: real WhatsApp with Meta's test number
 
-**1. אפליקציה ב-Meta**
-1. ב-[developers.facebook.com](https://developers.facebook.com) יוצרים אפליקציה מסוג Business ומוסיפים לה את המוצר **WhatsApp**.
-2. ב-**WhatsApp → API Setup** מקבלים מספר בדיקה חינמי, וגם **Phone number ID** ו-**WhatsApp Business Account ID**.
-3. באותו מסך, תחת "To", מוסיפים את הטלפון שלכם ומאמתים אותו בקוד. מספר הבדיקה יכול לשלוח הודעות רק ל-5 מספרים מאומתים.
+**1. A Meta app**
+1. At [developers.facebook.com](https://developers.facebook.com), create a Business app and add the **WhatsApp** product.
+2. In **WhatsApp → API Setup** you get a free test number, a **Phone number ID** and a **WhatsApp Business Account ID**.
+3. On the same screen, under "To", add your phone and verify it with the code. The test number can only message 5 verified numbers. **Never add your personal number as a business number**: that would move it off the WhatsApp app.
 
-**2. טוקן קבוע**
+**2. A permanent token**
 
-הטוקן שמוצג ב-API Setup פג אחרי 24 שעות. כדי ליצור טוקן קבוע:
-1. נכנסים ל-[business.facebook.com](https://business.facebook.com), ושם ל-**Settings → Users → System users**.
-2. יוצרים System user מסוג Admin.
-3. ב-**Assign assets** נותנים לו גישה מלאה לאפליקציה ולחשבון הוואטסאפ.
-4. לוחצים **Generate token** ובוחרים:
-   - הרשאות: `whatsapp_business_messaging` ו-`whatsapp_business_management`
-   - תוקף: Never
+The token shown in API Setup expires after 24 hours. To create a permanent one:
+1. Go to [business.facebook.com](https://business.facebook.com) → **Settings → Users → System users**.
+2. Create an Admin system user.
+3. In **Assign assets**, give it full access to the app and the WhatsApp account.
+4. Click **Generate token** and choose:
+   - Permissions: `whatsapp_business_messaging` and `whatsapp_business_management`
+   - Expiry: Never
 
-**3. ממלאים ב-`.env`**
+**3. Fill in `.env`**
    ```
    WHATSAPP_DRY_RUN=false
-   WHATSAPP_ACCESS_TOKEN=<הטוקן הקבוע>
+   WHATSAPP_ACCESS_TOKEN=<the permanent token>
    WHATSAPP_APP_SECRET=<App settings → Basic → App secret>
-   WHATSAPP_VERIFY_TOKEN=<מחרוזת אקראית שתמציאו>
+   WHATSAPP_VERIFY_TOKEN=<a random string you make up>
    ```
 
-**4. חושפים את השרת לאינטרנט**
+**4. Expose the server to the internet**
 
-Meta צריכה כתובת https ציבורית. התקנה חד-פעמית של cloudflared:
+Meta needs a public https address. One-time install of cloudflared:
    ```bash
    winget install --id Cloudflare.cloudflared
    ```
-מפעילים את השרת:
-   ```bash
-   npm run server
-   ```
-ובטרמינל נוסף מריצים:
-   ```bash
-   cloudflared tunnel --url http://localhost:3000
-   ```
-cloudflared מדפיס כתובת כמו `https://xxxx.trycloudflare.com`. **הכתובת משתנה בכל הפעלה.**
-
-**5. מגדירים את ה-webhook ב-Meta**
-1. נכנסים ל-**WhatsApp → Configuration → Webhook → Edit**.
-2. **Callback URL:** `https://xxxx.trycloudflare.com/webhook`
-3. **Verify token:** בדיוק הערך של `WHATSAPP_VERIFY_TOKEN`
-4. לוחצים **Verify and save**.
-5. תחת **Webhook fields** מסמנים **subscribe** על `messages`.
-
-**6. מחברים את המספר למאמן**
-
-עוצרים את השרת, מריצים את הפקודה, ומפעילים אותו שוב:
-   ```bash
-   npm run admin -- wa:connect --pnid <Phone number ID>
-   ```
-
-**7. בודקים:** שולחים הודעה מהטלפון שלכם למספר הבדיקה.
-
-### מעבר ל-Supabase (מומלץ מהשלב הזה)
-
-Supabase תומך בכמה תהליכים במקביל. כך השרת, הצ'אט ופקודות הניהול יכולים לרוץ יחד.
-
-1. יוצרים פרויקט ב-[supabase.com](https://supabase.com).
-2. לוחצים **Connect** ומעתיקים את ה-connection string של **Session pooler** (פורט 5432) או של **Transaction pooler** (פורט 6543). שניהם עובדים גם ברשתות IPv4, ושניהם נבדקו עם הפרויקט. בכתובת מחליפים את `[YOUR-PASSWORD]` בסיסמה, **בלי הסוגריים המרובעים**. אם יש בסיסמה תווים מיוחדים, מקודדים אותם: `@` → `%40`, `#` → `%23`, `/` → `%2F`.
-3. ב-`.env` מגדירים:
-   ```
-   DATABASE_URL=postgresql://postgres.xxxx:<password>@aws-0-xx.pooler.supabase.com:5432/postgres
-   ```
-4. טוענים את מאמן הדמו. המיגרציות, כולל pgvector, רצות אוטומטית:
-   ```bash
-   npm run seed
-   ```
-   מאמן הדמו מסומן כ"דמו" (תג סגול בפאנל הניהול). לפני שמאמנים אמיתיים מצטרפים, מוחקים אותו ואת כל הלקוחות שלו:
-   ```bash
-   npm run demo:remove -- --confirm demo
-   ```
-   בלי `--confirm demo` הפקודה רק מציגה מה יימחק.
-   ובשביל וואטסאפ מחברים את המספר שוב:
-   ```bash
-   npm run admin -- wa:connect --pnid <Phone number ID>
-   ```
-
-**שימו לב:**
-- מסד הנתונים החדש ריק. הנתונים המקומיים מ-PGlite לא עוברים אליו.
-- **`MASTER_ENCRYPTION_KEY` חייב להישאר אותו מפתח** לאורך כל חיי המערכת.
-- **הצפנה בדרך:** החיבור לכל שרת שאינו `localhost` עובר ב-TLS אוטומטית, גם אם לא כתוב `sslmode` בכתובת. כדאי גם להדליק ב-Supabase את **Enforce SSL** (Database → Settings), כדי שהשרת עצמו ידחה חיבור לא מוצפן. `?sslmode=verify-full` בסוף הכתובת בודק גם את התעודה, ו-`?sslmode=disable` מכבה את ההצפנה (רק לרשת פרטית).
-
-### פריסה (בקצרה)
-
-ב-[Railway](https://railway.app):
-1. יוצרים שירות מה-repo.
-2. Start command: `npm run server`.
-3. מגדירים את כל משתני ה-`.env` כמשתני סביבה של השירות.
-4. Health check: `/health`.
-5. ב-Meta מעדכנים את ה-Callback URL לכתובת של Railway. הכתובת קבועה, אז אין צורך ב-tunnel.
-
-### איך לבדוק את שלב 2 בעצמכם
-
-| # | מה לעשות | מה אמור לקרות |
-|---|---|---|
-| 1 | שולחים "היי" | הודעת הסכמה עם שני כפתורים |
-| 2 | לוחצים "מאשר/ת ✅" | ברכה ושאלה ראשונה (ב-dry run: מודפס בחלון השרת) |
-| 3 | שולחים 3 הודעות קצרות ברצף | תשובה אחת שמתייחסת לכולן |
-| 4 | `npm run admin -- history <מספר>` | השיחה עם סטטוסים: `sent`, ובוואטסאפ אמיתי גם `delivered` ו-`read` |
-| 5 | שולחים תמונה | "כרגע אני יודע לקרוא רק הודעות טקסט" |
-| 6 | `pause <מספר>`, הודעה מהטלפון, `send <מספר> "כאן גל, נדבר מחר"`, `resume <מספר>`, ועוד הודעה | בזמן ההשהיה אין תשובה ויש התראה (`alerts`). אחרי `resume` הבוט יודע מה גל אמר |
-| 7 | "מחק את המידע שלי" ואז "מחק לצמיתות" | אישור מחיקה, והלקוח נעלם מ-`clients` |
-| 8 | `send` ללקוח שלא כתב 24 שעות | הודעת שגיאה שמסבירה שמותר רק template |
-
----
-
-## שלב 3: דשבורד המאמן
-
-### הפעלה
-
-1. יוצרים משתמש. הסיסמה מודפסת פעם אחת, ואפשר להחליף אותה בעמוד ההגדרות:
-   ```bash
-   npm run admin -- user:create --email you@example.com
-   ```
-2. אם רוצים לראות את הדשבורד מלא לפני שיש לקוחות אמיתיים, טוענים לקוחות לדוגמה:
-   ```bash
-   npm run admin -- sample-data
-   ```
-3. מפעילים את הדשבורד:
+Start the dashboard (it includes the webhook):
    ```bash
    npm run dashboard
    ```
-4. נכנסים ל-[http://localhost:3000](http://localhost:3000).
+And in another terminal:
+   ```bash
+   cloudflared tunnel --url http://localhost:3000
+   ```
+cloudflared prints an address like `https://xxxx.trycloudflare.com`. **It changes every run.**
 
-### מה יש בדשבורד
+**5. Set up the webhook in Meta**
+1. Go to **WhatsApp → Configuration → Webhook → Edit**.
+2. **Callback URL:** `https://xxxx.trycloudflare.com/api/whatsapp/webhook` (or `/webhook` with `npm run server`)
+3. **Verify token:** exactly the value of `WHATSAPP_VERIFY_TOKEN`
+4. Click **Verify and save**.
+5. Under **Webhook fields**, **subscribe** to `messages`.
 
-| עמוד | מה עושים בו |
+**6. Connect the number to the coach, and approve your phone**
+   ```bash
+   npm run admin -- wa:connect --pnid <Phone number ID>
+   ```
+   ```bash
+   npm run admin -- client:approve <your phone>
+   ```
+
+**7. Test:** send a message from your phone to the test number.
+
+### Moving to Supabase
+
+Supabase supports many processes in parallel, so the server, chat and admin commands can run together.
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Click **Connect** and copy the **Session pooler** (port 5432) or **Transaction pooler** (port 6543) connection string. Both work on IPv4 networks and both were tested with this project. Replace `[YOUR-PASSWORD]` with the password **without the square brackets**. URL-encode special characters in the password: `@` → `%40`, `#` → `%23`, `/` → `%2F`.
+3. In `.env`:
+   ```
+   DATABASE_URL=postgresql://postgres.xxxx:<password>@aws-0-xx.pooler.supabase.com:5432/postgres
+   ```
+4. Load the demo coach. Migrations, including pgvector, run automatically:
+   ```bash
+   npm run seed
+   ```
+   The demo coach is marked "demo" (a purple badge in the admin panel). Before real coaches join, delete it and all its clients:
+   ```bash
+   npm run demo:remove -- --confirm demo
+   ```
+   Without `--confirm demo` the command only lists what would be deleted.
+
+**Note:**
+- The new database is empty. Local PGlite data doesn't move over.
+- **`MASTER_ENCRYPTION_KEY` must stay the same key** for the whole life of the system.
+- **Encryption in transit:** connections to any host other than `localhost` use TLS automatically, even without `sslmode` in the URL. Also turn on **Enforce SSL** in Supabase (Project Settings → Database → SSL Configuration) so the server itself rejects unencrypted connections. `?sslmode=verify-full` also checks the certificate; `?sslmode=disable` turns encryption off (private networks only).
+- The project doesn't use Supabase Auth. Users are in the `coach_users` and `platform_admins` tables (Table Editor), not under Authentication. Every table is protected by RLS against Supabase's public API.
+
+### Test stage 2 yourself
+
+| # | What to do | What should happen |
+|---|---|---|
+| 1 | Send "היי" | The consent notice with two buttons |
+| 2 | Tap "מאשר/ת ✅" | A greeting and a first question (in dry run: printed in the server window) |
+| 3 | Send 3 short messages in a row | One reply covering all of them |
+| 4 | `npm run admin -- history <number>` | The conversation with statuses: `sent`, and on real WhatsApp also `delivered` and `read` |
+| 5 | `pause <number>`, a message from the phone, `send <number> "כאן גל, נדבר מחר"`, `resume <number>`, another message | No reply during the pause, and an alert (`alerts`). After `resume` the bot knows what Gal said |
+| 6 | "מחק את המידע שלי" then "מחק לצמיתות" | A deletion confirmation, and the client disappears from `clients` |
+| 7 | `send` to a client who hasn't written in 24 hours | An error explaining only a template is allowed |
+
+---
+
+## Stage 3: the coach dashboard
+
+### Running it
+
+1. Create a user. The password is printed once and can be changed in settings:
+   ```bash
+   npm run admin -- user:create --email you@example.com
+   ```
+2. To see a populated dashboard before there are real clients, load sample clients:
+   ```bash
+   npm run admin -- sample-data
+   ```
+3. Start the dashboard:
+   ```bash
+   npm run dashboard
+   ```
+4. Open [http://localhost:3000](http://localhost:3000). Admins sign in at [http://localhost:3000/admin/login](http://localhost:3000/admin/login) (a separate account and password, even with the same email).
+
+### What's in the dashboard
+
+| Page | What you do there |
 |---|---|
-| **סקירה** | התראות פתוחות, לקוחות פעילים והודעות ב-24 השעות האחרונות |
-| **דורש התערבות** | שאלות שהבוט לא ידע לענות עליהן ואירועי בטיחות, ממוינים לפי חומרה. עונים ללקוח ישירות מההתראה, ואם מסמנים "לשמור ב-FAQ", השאלה והתשובה נכנסות לבסיס הידע והבוט עונה עליהן בעצמו מהפעם הבאה |
-| **לקוחות** | רשימה עם חיפוש, מטרה, ערוץ ומצב: מושהה, קטין, סיכון, התראות |
-| **דף לקוח** | השיחה עם עדכון חי וסטטוס מסירה, ותיבה לכתיבה בשמך. כפתור "השתלט על השיחה" משהה את הבוט. בנוסף: פרופיל, גרף משקל, יומן אימונים וארוחות, התפריט ותוכנית האימונים, זיכרון ארוך טווח, ייצוא JSON ומחיקה |
-| **בסיס הידע** | עורך מובנה לכל השיטה שלך (בדיוק המבנה של `coach.yaml`), העלאת מסמכים (PDF, Word, טקסט, תמונה של תפריט) והיסטוריית גרסאות. כל שמירה יוצרת גרסה חדשה, ושיחות פעילות עוברות אליה בהודעה הבאה |
-| **מגרש משחקים** | צ'אט עם הבוט כלקוח בדיקה, עם אותו מנוע, אותו ידע ואותם כללים. אפשר לראות מה קורה מאחורי הקלעים: כלים, התראות וטוקנים |
-| **הגדרות** | שם, אזור זמן, רף קלורי (אפשר רק להעלות), נוסח הודעת ההסכמה, חיבור מספר וואטסאפ (מ-5.5: Embedded Signup), החלפת סיסמה, אימות דו-שלבי, שימוש ויומן פעולות |
+| **Overview** | Open alerts, active clients and messages in the last 24 hours |
+| **Needs attention** | Questions the bot couldn't answer and safety events, sorted by severity. Reply to the client straight from the alert; with "save to FAQ" the question and answer join the knowledge base and the bot answers it itself next time. Join requests can be approved here |
+| **Clients** | Add a client by phone number; a list with search, goal, channel and state: join request, no access, paused, minor, risk, alerts |
+| **Client page** | The conversation with live updates and delivery status, and a box to write as yourself. "Take over the conversation" pauses the bot. Also: approve or remove access, profile, weight chart, workout and meal log, current plans, long-term memory, JSON export and deletion |
+| **Knowledge base** | A structured editor for your whole method (exactly the `coach.yaml` structure), document upload (PDF, Word, text, a photo of a menu) and version history. Each save creates a new version; active conversations switch to it on their next message |
+| **Playground** | Chat with the bot as a test client, with the same engine, knowledge and rules. See what happens behind the scenes: tools, alerts and tokens |
+| **Settings** | Name, time zone, calorie floor (can only be raised), who can talk to the bot, consent wording, WhatsApp number, reminders, password, two-step sign-in, usage and activity log |
 
-### החלטות בשלב הזה (שונות מהתוכנית המקורית)
+### Decisions at this stage
 
-- **התחברות משלנו במקום Supabase Auth:**
-  - **למה:** כך הדשבורד עובד אותו דבר עם PGlite המקומי ועם Supabase, ונבדק בלי שירות חיצוני.
-  - **איך:** סיסמאות נשמרות כ-hash של scrypt. סשנים נשמרים במסד הנתונים, ושם נשמר רק hash של הטוקן. החשבון ננעל אחרי 5 ניסיונות כושלים, ויש הגבלת ניסיונות לכל IP. בעוגיית הסשן מוגדרים httpOnly ו-SameSite.
-  - **מה חסר:** איפוס סיסמה במייל ו-MFA. הם מתוכננים לשלב 5.
-- **מסמכים נשמרים כטקסט שחולץ מהם,** בלי הקובץ המקורי. לבוט מספיק הטקסט, ויש פחות מידע שיושב במנוחה. בגלל זה אין צורך ב-Supabase Storage.
-- **ה-webhook וה-worker רצים בתוך הדשבורד** (`/api/whatsapp/webhook`). כך תהליך אחד מטפל בהכול, וזה עובד גם עם מסד הנתונים המקומי. אם בכל זאת רוצים להריץ גם `npm run server`, מגדירים בדשבורד `DASHBOARD_RUN_WORKER=false`.
-- **RLS** (הגנה ברמת מסד הנתונים) נדחה לשלב 5, ונוסף ב-5.1.
-- **במקום Playwright,** הממשק נבדק ידנית בדפדפן. התקנה של Playwright מורידה דפדפנים (מאות MB, ל-C:). הלוגיקה של הדשבורד, כלומר שאילתות, התחברות והרשאות, מכוסה בבדיקות אוטומטיות.
+- **Our own authentication instead of Supabase Auth:**
+  - **Why:** the dashboard works the same with local PGlite and with Supabase, and is tested without an external service.
+  - **How:** passwords are stored as scrypt hashes. Sessions live in the database, which stores only a hash of the token. Accounts lock after 5 failed attempts, with per-IP throttling. The session cookie is httpOnly and SameSite.
+- **Documents are stored as extracted text,** without the original file. The bot only needs the text, and less data sits at rest, so there's no need for Supabase Storage.
+- **The webhook and worker run inside the dashboard** (`/api/whatsapp/webhook`), so one process handles everything. To run `npm run server` as well, set `DASHBOARD_RUN_WORKER=false` for the dashboard.
+- **Instead of Playwright,** the UI is checked manually in a browser. The dashboard's logic (queries, authentication and permissions) is covered by automated tests.
 
-### פריסה (שירות אחד ב-Railway)
+### Deployment (one service on Railway)
 
 | | |
 |---|---|
 | Build command | `npm install && npm run dashboard:build` |
 | Start command | `npm run dashboard:start` |
-| משתני סביבה | כל מה שב-`.env`, עם `DATABASE_URL` של Supabase |
-| Callback URL ב-Meta | `https://<הכתובת שלכם>/api/whatsapp/webhook` |
+| Environment variables | Everything in `.env`, with the Supabase `DATABASE_URL`, and `TRUSTED_IP_HEADER` |
+| Callback URL in Meta | `https://<your-domain>/api/whatsapp/webhook` |
 | Health check | `/api/health` |
 
-### איך לבדוק את שלב 3 בעצמכם
+### Test stage 3 yourself
 
-| # | מה לעשות | מה אמור לקרות |
+| # | What to do | What should happen |
 |---|---|---|
-| 1 | נכנסים ל-`/clients` בלי להתחבר | הפניה לעמוד ההתחברות |
-| 2 | מתחברים עם סיסמה שגויה 5 פעמים | החשבון ננעל ל-15 דקות |
-| 3 | `sample-data` ואז "סקירה" | 3 לקוחות ו-3 התראות. ההתראה הדחופה (יוסי, לחץ בחזה) מופיעה ראשונה |
-| 4 | "דורש התערבות" → "ענה ללקוח" על השאלה של דנה, ומסמנים "לשמור ב-FAQ" | ההתראה נסגרת, ובבסיס הידע מופיעה גרסה חדשה עם השאלה ב-FAQ |
-| 5 | דף הלקוח של דנה | שיחה, גרף משקל יורד, תוכניות ופרופיל |
-| 6 | "השתלט על השיחה" ואז כתיבה בתיבה | תג "הבוט מושהה". ההודעה שלך מופיעה בסגול |
-| 7 | מגרש משחקים: "היי", ואז "מאשר/ת", ואז שיחה | אונבורדינג מלא. עם "מאחורי הקלעים" רואים כלים ושימוש בטוקנים |
-| 8 | מגרש משחקים: "יש לי כאב בחזה" | התראה דחופה בתור, והבוט מפנה לרופא |
-| 9 | בסיס הידע: מוסיפים תרגיל ל"נמנע ממנו" ושומרים | גרסה חדשה. אחרי זה הבוט לא ישים את התרגיל בתוכנית |
-| 10 | הגדרות: יומן פעולות | רשומות על התחברות, צפייה בלקוח, שמירת ידע ועוד |
+| 1 | Open `/clients` without signing in | Redirect to the sign-in page |
+| 2 | Sign in with a wrong password 5 times | The account locks for 15 minutes |
+| 3 | `sample-data`, then "Overview" | 3 clients and 3 alerts. The urgent one (Yossi, chest pressure) is first |
+| 4 | "Needs attention" → reply to Dana's question, with "save to FAQ" | The alert closes, and the knowledge base has a new version with the question in the FAQ |
+| 5 | Dana's client page | Conversation, a falling weight chart, plans and profile |
+| 6 | "Take over the conversation", then write in the box | A "bot paused" badge. Your message appears in purple |
+| 7 | Playground: "היי", "מאשר/ת", then chat | Full onboarding. "Behind the scenes" shows tools and token usage |
+| 8 | Playground: "יש לי כאב בחזה" | An urgent alert in the queue, and the bot refers to a doctor |
+| 9 | Knowledge base: add an exercise to "avoided" and save | A new version. After that the bot won't put the exercise in a plan |
+| 10 | Settings: activity log | Entries for sign-in, client views, knowledge saves and more |
 
-כשמסיימים לבדוק, מוחקים את הלקוחות לדוגמה:
+When done, delete the sample clients:
 ```bash
 npm run admin -- sample-data --remove
 ```
 
 ---
 
-## שלב 4: תמונות, הודעות קוליות ותזכורות
+## Stage 4: photos, voice messages and reminders
 
-### תמונות
-- **עיבוד:** כל תמונה מסובבת לכיוון הנכון ומוקטנת ל-1568 פיקסלים בצד הארוך, הגודל המומלץ ל-Claude. **כל המטא-דאטה נמחק, כולל מיקום GPS.**
-- **שליחה ל-Claude:** כקובץ מוטמע (base64), לא כקישור. בשיחה שנשמרת לתצוגה נשמרת רק התווית "[תמונה]" והכיתוב.
-- **ארוחה:** הבוט מתאר מה רואים ונותן פידבק לפי שיטת המאמן: מה טוב, ושיפור אחד. אם הלקוח עוקב אחרי ארוחות, הבוט גם רושם את הארוחה.
-- **תמונות גוף והתקדמות:** הבוט מגיב בכבוד ובעידוד, בלי ביקורת על המראה ובלי הערכת אחוזי שומן.
-- **פציעה, תרופות או בדיקות רפואיות:** הבוט לא מפרש ולא מאבחן. הוא מפנה לרופא ופותח התראה למאמן.
+### Photos
+- **Processing:** each photo is rotated upright and resized to 1568 px on the long side, the size recommended for Claude. **All metadata is removed, including GPS location.**
+- **Sent to Claude** as an embedded file (base64), not a link. The readable conversation keeps only a "[photo]" label and the caption.
+- **Meals:** the bot describes what it sees and gives feedback by the coach's method: what's good, and one improvement. If the client tracks meals, the bot logs it.
+- **Body and progress photos:** respectful and encouraging, no criticism of appearance and no body-fat estimates.
+- **Injury, medication or medical tests:** the bot doesn't interpret or diagnose. It refers to a doctor and alerts the coach.
 
-### הודעות קוליות
-- **תמלול:** ההודעה מתומללת ב-OpenAI (`gpt-4o-transcribe`), ומגיעה לבוט מסומנת כתמלול, כי ייתכנו בו טעויות. גלאי ה-red-flags רץ גם על התמלול.
-- **בלי `OPENAI_API_KEY`:** הבוט עונה בנימוס שהוא לא יכול להאזין, ומבקש לכתוב.
+### Voice messages
+- **Transcription:** via OpenAI (`gpt-4o-transcribe`). It reaches the bot marked as a transcription, since it may contain mistakes. The red-flag detector also runs on the transcript.
+- **Without `OPENAI_API_KEY`:** the bot politely says it can't listen and asks the client to write.
 
-### תזכורות יזומות
-- **מי בוחר:** הלקוח. אחרי האונבורדינג הבוט מציע תזכורות פעם אחת: שקילה, ימי אימון או check-in שבועי. הוא שומר רק את מה שהלקוח רוצה, ובשעה שהלקוח בוחר.
-- **check-in אחרי שקט:** אם לקוח לא כתב 4 ימים (ניתן לשינוי), נשלחת הודעת "מה שלומך" אחת, בשעות היום.
-- **שעות שקטות:** לא נשלחות תזכורות בין 21:30 ל-08:00, ובברירת מחדל גם לא משישי ב-15:00 עד מוצאי שבת. הכול ניתן לשינוי בהגדרות.
-- **עצירה:** הלקוח כותב "הסר" או "STOP", והתזכורות נעצרות מיד, בלי AI. אפשר גם לבקש מהבוט במילים, או לעצור מדף הלקוח בדשבורד.
-- **חוקי וואטסאפ:**
-  - בתוך 24 שעות מההודעה האחרונה של הלקוח נשלח נוסח חופשי, שאפשר לערוך בהגדרות.
-  - מחוץ לחלון מותר לשלוח **רק תבנית מאושרת**. בלי תבנית מוגדרת, התזכורת פשוט לא נשלחת.
-  - check-in אחרי שקט תמיד מחוץ לחלון, ולכן הוא דורש תבנית.
-- **הבוט יודע:** תזכורות שנשלחו מגיעות לבוט כרקע בהודעה הבאה של הלקוח, אז אם הלקוח עונה "66.5" לתזכורת שקילה, הבוט מבין.
-- **ערוץ:** תזכורות נשלחות רק ללקוחות בוואטסאפ, לא לטרמינל ולא למגרש המשחקים.
+### Proactive reminders
+- **Who chooses:** the client. After onboarding the bot offers reminders once: weigh-in, training days or a weekly check-in. It saves only what the client wants, at the time they choose.
+- **Check-in after silence:** if a client hasn't written for 4 days (configurable), one "how are you" message is sent, during the day.
+- **Quiet hours:** no reminders between 21:30 and 08:00, and by default not from Friday 15:00 until Saturday night. All configurable in settings.
+- **Stopping:** the client writes "הסר" or "STOP" and reminders stop at once, without AI. They can also ask the bot in words, or the coach can stop them from the client page.
+- **WhatsApp rules:**
+  - Within 24 hours of the client's last message a free-form text is sent, editable in settings.
+  - Outside the window **only an approved template** may be sent. Without a configured template, the reminder isn't sent.
+  - The check-in after silence is always outside the window, so it needs a template.
+- **The bot knows:** sent reminders reach the bot as context with the client's next message, so if the client answers "66.5" to a weigh-in reminder, the bot understands.
+- **Channel:** reminders go only to WhatsApp clients, not the terminal or the playground.
 
-**תבניות מוצעות ל-WhatsApp Manager.** יוצרים אותן ב-Message Templates עם שפה עברית וקטגוריה Utility, ואז מזינים את שמן בדשבורד בעמוד ההגדרות, בכרטיס "תזכורות יזומות":
+**Suggested templates for WhatsApp Manager.** Create them under Message Templates with Hebrew as the language and the Utility category, then enter their names in the dashboard settings, in the "Proactive reminders" card:
 
-| שם התבנית | גוף ההודעה |
+| Template name | Body |
 |---|---|
 | `weigh_in_reminder` | בוקר טוב {{1}}! זה הזמן לשקילה ⚖️ שלח/י לי את המספר כשיש. |
 | `workout_reminder` | היי {{1}}, היום יום אימון לפי התוכנית שלך 💪 עדכן/י אותי איך היה. |
 | `weekly_checkin` | היי {{1}}! איך עבר השבוע? ספר/י לי מה הלך טוב ומה היה קשה. |
 | `inactivity_checkin` | היי {{1}}, מה שלומך? לא שמעתי ממך כמה ימים. אני כאן אם צריך משהו 🙂 |
 
-`{{1}}` הוא השם הפרטי. Meta מאשרת תבניות בדרך כלל תוך דקות עד שעות, ולפעמים משנה את הקטגוריה (Utility או Marketing). לכל קטגוריה מחיר אחר.
+`{{1}}` is the first name. Meta usually approves templates within minutes to hours, and sometimes changes the category (Utility or Marketing). Each category has a different price.
 
-### פרטיות
-כשאפיזודת שיחה נסגרת ומסוכמת, ההיסטוריה הגולמית שלה נמחקת: ההודעות, התמונות וצילום הפרופיל. נשארים רק הסיכום והשיחה הקריאה. כשהוראות הפלטפורמה או הכלים משתנים בעדכון קוד, כל שיחה פעילה עוברת לאפיזודה חדשה.
+### Privacy
+When a conversation episode closes and is summarized, its raw history is deleted: messages, photos and the profile snapshot. Only the summary and the readable conversation remain. When platform instructions or tools change in a code update, every active conversation moves to a new episode.
 
-### איך לבדוק את שלב 4 בעצמכם
+### Test stage 4 yourself
 
-| # | מה לעשות | מה אמור לקרות |
+| # | What to do | What should happen |
 |---|---|---|
-| 1 | בצ'אט: `/image C:\path\meal.jpg ארוחת צהריים` | פידבק על הארוחה לפי השיטה של גל. בלי מספרי קלוריות, כי גל לא סופר |
-| 2 | `/image` עם צילום של פציעה או של תוצאות בדיקה | הפניה לרופא והתראה למאמן, בלי פירוש |
-| 3 | `/voice C:\path\voice.ogg` (עם `OPENAI_API_KEY`) | התמלול מוצג, והבוט עונה עליו |
-| 4 | בסוף אונבורדינג | הבוט מציע תזכורות |
-| 5 | "תזכיר לי לשקול כל יום ב-<עוד 2 דקות>", בלקוח וואטסאפ ב-dry run (`wa:simulate`) | תוך דקה-שתיים התזכורת מודפסת בחלון השרת. לא בשעות השקטות ולא בשבת |
-| 6 | עונים לתזכורת במספר | הבוט מבין שזו שקילה ורושם אותה |
-| 7 | `npm run wa:simulate -- "הסר"` | אישור קצר, והתזכורות נעצרות. בדף הלקוח בדשבורד מופיע שהלקוח ביקש לא לקבל הודעות |
-| 8 | `npm run wa:simulate -- --file meal.jpg "צהריים"` | התמונה עוברת את כל הצינור של וואטסאפ |
-| 9 | דשבורד → הגדרות → "תזכורות יזומות" | אפשר לשנות שעות שקטות, שבת, ימים לחוסר פעילות, נוסחים ותבניות |
+| 1 | In the chat: `/image C:\path\meal.jpg ארוחת צהריים` | Meal feedback by Gal's method, with no calorie numbers |
+| 2 | `/image` with a photo of an injury or test results | Referral to a doctor and a coach alert, without interpretation |
+| 3 | `/voice C:\path\voice.ogg` (with `OPENAI_API_KEY`) | The transcript is shown and the bot answers it |
+| 4 | At the end of onboarding | The bot offers reminders |
+| 5 | "תזכיר לי לשקול כל יום ב-<in 2 minutes>", as a WhatsApp client in dry run (`wa:simulate`) | Within a minute or two the reminder is printed in the server window. Not in quiet hours or on Shabbat |
+| 6 | Reply to the reminder with a number | The bot understands it's a weigh-in and logs it |
+| 7 | `npm run wa:simulate -- "הסר"` | A short confirmation, and reminders stop. The client page shows the client opted out |
+| 8 | `npm run wa:simulate -- --file meal.jpg "צהריים"` | The photo goes through the whole WhatsApp pipeline |
+| 9 | Dashboard → Settings → "Proactive reminders" | Quiet hours, Shabbat, inactivity days, wording and templates are editable |
 
-## שלב 5: Multi-tenant מלא (בעבודה)
+## Stage 5: full multi-tenancy
 
-### 5.1: הפרדה ברמת מסד הנתונים (RLS)
-עד עכשיו ההפרדה בין מאמנים נשענה על סינון לפי `coach_id` בכל שאילתה. עכשיו יש מעליה שכבה שנייה, ב-Postgres עצמו:
-- **RLS בכל 24 הטבלאות** (מיגרציה `0005`). שורה נראית רק אם ה-`coach_id` שלה הוא המאמן שהוגדר לטרנזקציה.
-- **כל פונקציה ב-`repos/`** רצה בטרנזקציה קצרה בתפקיד `app_tenant`, עם המאמן מוגדר (`withTenant` ב-`src/db/scope.ts`). אם שאילתה תשכח לסנן לפי מאמן, היא עדיין תחזיר רק את השורות שלו. בלי מאמן מוגדר, התפקיד לא רואה כלום.
-- **הטרנזקציה לא מחזיקה חיבור** בזמן קריאה ל-Claude, ל-OpenAI או ל-Meta.
-- **נתיבי פלטפורמה** רצים בלי RLS, כי הם חוצים מאמנים מטבעם:
-  - שליפת עבודה מהתור ומהתזכורות
-  - ניתוב webhook לפי `phone_number_id`
-  - התחברות וסשנים
-  - פתיחת מאמן
-- **יומן הפעולות ונתוני השימוש** הם append-only למאמן: אפשר להוסיף שורות, אבל לא לשנות או למחוק.
-- **שינוי התנהגות:** חיבור מספר וואטסאפ שכבר שייך למאמן אחר (גם מספר לא פעיל) נכשל עם הודעה ברורה. קודם מספר לא פעיל היה עובר בשקט למאמן החדש.
-- **טבלה חדשה בעתיד** חייבת policy משלה. בדיקה אוטומטית נכשלת אם יש טבלה בלי RLS.
-- **Supabase:** המיגרציה יוצרת את התפקיד ומעניקה אותו למשתמש שמריץ אותה (`postgres`). המשתמש הזה צריך להיות הבעלים של הטבלאות. נבדק מול Supabase אמיתי (Postgres 17): כל הטבלאות עם RLS, ומאמן רואה רק את השורות שלו.
+### 5.1: database-level isolation (RLS)
+On top of filtering by `coach_id` in every query, there's a second layer in Postgres itself:
+- **RLS on every coach table** (migration `0005`). A row is visible only if its `coach_id` is the coach set for the transaction.
+- **Every function in `repos/`** runs in a short transaction as the `app_tenant` role, with the coach set (`withTenant` in `src/db/scope.ts`). A query that forgets to filter by coach still returns only that coach's rows. With no coach set, the role sees nothing.
+- **The transaction never holds a connection** while calling Claude, OpenAI or Meta.
+- **Platform paths** run without RLS, since they span coaches by nature: claiming queue and reminder work, routing webhooks by `phone_number_id`, sign-in and sessions, opening a coach.
+- **The activity log and usage data** are append-only for coaches.
+- **A new table in the future** must have its own policy. An automated test fails if a table has no RLS.
+- **Supabase:** the migration creates the role and grants it to the user running it (`postgres`), which must own the tables. Verified against a real Supabase project (Postgres 17): every table has RLS, and a coach sees only their own rows.
 
-### איך לבדוק את 5.1 בעצמכם
-הכי נוח על מסד נתונים נפרד, כדי לא לגעת בנתונים הקיימים. ב-PowerShell:
+### 5.2: suspending and deleting a coach
+**Suspend** (`coach:suspend <slug>`). Data stays as is, and `coach:resume` brings everything back.
+- The coach can't sign in and gets a clear message. Their sessions end.
+- Queued messages are cancelled and their content deleted.
+- Reminders stop. After `resume` they continue from their next occurrence, without a flood of missed ones.
+- **An existing client** who writes gets one fixed notice per suspension: "the service of ... is unavailable right now". No AI, and their message isn't stored.
+- **An unknown number** gets nothing, and no record is created.
 
-```powershell
-$env:PGLITE_DIR = ".data/pglite-stage5"
-npm run seed
-npm run coach:import -- seed/demo-coach --slug demo2
-npm run admin -- user:create --email a@test.local
-npm run admin -- user:create --coach demo2 --email b@test.local
-npm run chat -- --coach demo2 --new
-```
+**Delete** (`coach:delete <slug> --confirm <slug>`): only after suspension.
+- In one transaction the coach and everything under them is deleted, including the wrapped key that encrypts their data. Anything copied out stays encrypted and can no longer be decrypted.
+- Only a `platform_audit` record remains: slug, name, dates, client count and a monthly usage summary for billing. No client data, and coaches have no access to it.
+- The coach's number is released and can be connected to another coach.
+- **Backups:** database backups include the wrapped key, so the data remains in them until their retention period ends. State that period in the data processing agreement with coaches.
 
-שני המאמנים נקראים "גל ברק", כי הם יובאו מאותה תיקייה. מבדילים ביניהם לפי המשתמש שמחובר. לא צריך `ANTHROPIC_API_KEY`.
+### 5.3: admin panel, invitations and two-step sign-in
+**The admin panel** is at `http://localhost:3000/admin`, in the same app as the dashboard.
+- **Admins** are created only from the terminal (`superadmin:create`), with their own table, sessions and cookie, separate from coach users. Sessions last 12 hours.
+- **Two-step sign-in (TOTP) is mandatory for admins.** At first sign-in, scan a QR code with an authenticator app (Google Authenticator, Microsoft Authenticator). Every later sign-in asks for a code.
+- **What's in the panel:** the coach list (status, knowledge state, numbers, clients, tokens this month, the platform's spend today), creating coaches, a coach page (users, invite and reset links, MFA reset, connecting a number, budget and cap, suspend and delete), and the platform activity log.
+- **No client data.** Admins see only totals and can't open a conversation or profile. The platform processes the data; the coach owns it.
 
-| # | מה לעשות | מה אמור לקרות |
-|---|---|---|
-| 1 | בצ'אט של `demo2` כותבים "היי", ואז יוצאים | הודעת ההסכמה. נוצר לקוח אצל `demo2` |
-| 2 | `npm run dashboard`, ונכנסים עם `a@test.local` | אין לקוחות. הלקוח שייך ל-`demo2` |
-| 3 | יוצאים ונכנסים עם `b@test.local` | הלקוח מהצ'אט מופיע, עם השיחה |
-| 4 | עוברים על כל העמודים עם המשתמש של `demo2` | הכל עובד כמו קודם |
-| 5 | בסוף: עוצרים את הדשבורד, מוחקים את `.data/pglite-stage5` וסוגרים את חלון ה-PowerShell | המסד הרגיל לא השתנה |
+**Invitations and password resets:** there's no email provider, so the admin copies a one-time link and sends it themselves (on WhatsApp, for example).
+- Invitations are valid for 7 days, resets for 24 hours.
+- The link is shown once. Only its hash is stored.
+- A reset ends all of the user's sessions.
+- A used or expired link, or one for a suspended coach, doesn't work.
+- The link uses the address the panel is open on, so send coach links from the deployed site, not from `localhost`.
 
-### 5.2: השעיה ומחיקה של מאמן
-עד שפאנל הניהול ייבנה (5.3), זה נעשה מה-CLI. ה-slug תמיד נכתב במפורש, ואין ברירת מחדל.
+**A new coach from the panel** gets an editable starter knowledge template. No WhatsApp number can be connected until they publish their own knowledge base, so the bot never answers clients from an empty template.
 
-**השעיה** (`coach:suspend <slug>`). המידע נשאר כמו שהוא, ו-`coach:resume` מחזיר הכל.
-- המאמן לא יכול להתחבר, ומקבל הודעה ברורה. הסשנים שלו מנותקים.
-- הודעות שחיכו בתור מתבטלות, והתוכן שלהן נמחק.
-- התזכורות נעצרות. אחרי `resume` הן ממשיכות מהמועד הבא שלהן, בלי מטח של תזכורות שהצטברו.
-- **לקוח קיים** שכותב מקבל פעם אחת בכל השעיה הודעה קבועה: "השירות של ... לא זמין כרגע. אפשר לפנות ל... ישירות". אין AI, ותוכן ההודעה שלו לא נשמר. המאמן יראה את ההודעה הקבועה בהיסטוריה אחרי שיחזור.
-- **מספר שלא מוכר** לא מקבל כלום, ולא נוצרת לו רשומה.
+**Two-step sign-in for coaches** is optional: turned on in Settings, off with a current code. The secret is encrypted with the coach's key. A lost phone is handled by the admin (panel or `user:reset-mfa`).
 
-**מחיקה** (`coach:delete <slug> --confirm <slug>`): אפשרית רק אחרי השעיה.
-- בטרנזקציה אחת נמחקים המאמן וכל מה שמתחתיו, כולל המפתח העטוף שמצפין את המידע שלו. מה שהועתק החוצה מוצפן ולא ניתן יותר לפענוח.
-- נשארת רק רשומה בטבלה `platform_audit`: ה-slug, השם, התאריכים, מספר הלקוחות, וסיכום שימוש חודשי לצורך חיוב. אין בה שום מידע על לקוחות, ולמאמנים אין אליה גישה.
-- המספר של המאמן משתחרר וניתן לחבר אותו למאמן אחר.
-- **גיבויים:** גיבויי המסד מכילים גם את המפתח העטוף, ולכן המידע נשאר בהם עד שתקופת השמירה שלהם נגמרת. את התקופה הזו צריך לציין בהסכם העיבוד מול המאמנים.
+### 5.4: metering, budget and limits
+**Metering:** every billable event is recorded in `usage_events` with a cost estimate fixed at recording time, so later price changes don't rewrite history. Records survive client deletion, since they're used for billing.
+- **Recorded:** Claude calls, summaries, transcription, embeddings, and every WhatsApp message (in, out, template).
+- **The price table** is one file, `packages/core/src/pricing.ts`. Claude prices were checked against the official price list (2026-10-17); e.g. Opus 5.5 costs $4 / $20 per million tokens. An unknown model is priced like Opus 5, never as free.
+- **Messages:** WhatsApp messages inside the 24-hour window are free. Templates are priced per `WHATSAPP_TEMPLATE_PRICE_USD`.
+- **Typical cost:** the first message of a conversation writes about 13 thousand tokens of context to the cache (about 7 cents on Opus, 3.5 on Sonnet); later messages within 5 minutes cost about a cent.
 
-**תוקן בדרך:** הודעה למספר של מאמן שנמחק או הושעה גרמה ל-webhook להחזיר 500 על כל ה-batch. כש-webhook נכשל, Meta שולחת אותו שוב, ולכן גם הודעות של מאמנים אחרים באותו batch נתקעו. עכשיו ההודעה הזו מדולגת, והתשובה היא 200.
+**Monthly budget (soft):** the admin sets a USD budget on the coach page. At 80% and 100% the coach sees a banner. The budget itself doesn't block anything; the hard cap above it does (see "Security hardening").
 
-### איך לבדוק את 5.2 בעצמכם
-על המסד הנפרד מ-5.1 (באותו חלון PowerShell, עם `$env:PGLITE_DIR = ".data/pglite-stage5"`):
+**Per-client limit:** above `CLIENT_HOURLY_MESSAGE_LIMIT` messages per hour (default 30), the bot doesn't answer the client. Messages are kept in the conversation, one "too many messages" alert opens, and things return to normal when the hour passes.
 
-| # | מה לעשות | מה אמור לקרות |
-|---|---|---|
-| 1 | `npm run admin -- coach:list` | `demo` ו-`demo2`, שניהם פעילים |
-| 2 | `npm run admin -- coach:suspend demo2`, ואז נכנסים לדשבורד עם `b@test.local` | "החשבון מושהה..." |
-| 3 | `npm run admin -- coach:delete demo2` (בלי `--confirm`) | נדחה: "האישור לא תואם" |
-| 4 | `npm run admin -- coach:resume demo2` ונכנסים שוב | הדשבורד עובד |
-| 5 | `coach:suspend demo2`, ואז `coach:delete demo2 --confirm demo2` | "נמחק לצמיתות". ב-`coach:list` נשאר רק `demo` |
+**Sign-in throttling** per IP is stored in the database, so it holds across several dashboard instances.
 
-### 5.3: פאנל ניהול, הזמנות ואימות דו-שלבי
-**פאנל הניהול** נמצא בכתובת `http://localhost:3000/admin`, באותה אפליקציה של הדשבורד.
-- **אדמינים** נוצרים רק מהטרמינל (`superadmin:create`). יש להם טבלה, סשנים ו-cookie נפרדים ממשתמשי המאמנים, והסשן תקף 12 שעות.
-- **אימות דו-שלבי (TOTP) חובה לכל אדמין.** בכניסה הראשונה סורקים קוד QR באפליקציית אימות, כמו Google Authenticator או Microsoft Authenticator. בכל כניסה אחר כך מזינים קוד.
-- **מה יש בפאנל:**
-  - רשימת מאמנים: סטטוס, מצב בסיס הידע, מספרים, לקוחות וטוקנים החודש.
-  - יצירת מאמן.
-  - עמוד מאמן: המשתמשים שלו, קישורי הזמנה ואיפוס, ביטול אימות דו-שלבי, חיבור מספר, השעיה ומחיקה.
-  - יומן פעולות של הפלטפורמה.
-- **בלי מידע על לקוחות.** האדמין רואה רק סכומים ולא יכול לפתוח שיחה או פרופיל. הפלטפורמה מעבדת את המידע, והמאמן הוא בעל המידע.
+### 5.5: coaches connect their own WhatsApp number (Embedded Signup)
+**How it works:** the coach's settings have a **"connect WhatsApp number"** button that opens Facebook's window. The coach picks or creates a WhatsApp Business account and number. Then the server:
+1. Exchanges the one-time code from Meta for a business token.
+2. Verifies the number really belongs to the chosen business account (never trusting what the browser sent).
+3. Subscribes the app to the business account's webhooks.
+4. Registers the number with the Cloud API using a random 6-digit PIN.
 
-**הזמנות ואיפוס סיסמה:** אין ספק מייל, ולכן האדמין מעתיק קישור חד-פעמי ושולח אותו בעצמו (בוואטסאפ, למשל).
-- הזמנה תקפה 7 ימים, ואיפוס תקף 24 שעות.
-- הקישור מוצג פעם אחת בלבד. במסד נשמר רק ה-hash שלו.
-- איפוס מנתק את כל הסשנים של המשתמש.
-- קישור שכבר נוצל, שפג תוקפו, או של מאמן מושהה, לא עובד.
+The token and PIN are stored encrypted with the coach's key. See [Meta's docs](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/implementation/).
 
-**מאמן חדש מהפאנל** מקבל תבנית ידע התחלתית שאפשר לערוך. אי אפשר לחבר לו מספר וואטסאפ, לא מהפאנל ולא מההגדרות שלו, עד שהוא מפרסם את בסיס הידע בעצמו. כך הבוט לא עונה ללקוחות לפי תבנית ריקה.
+**Modes:** real (with `META_APP_ID`, `META_EMBEDDED_SIGNUP_CONFIG_ID` and `WHATSAPP_APP_SECRET`), simulation (with `WHATSAPP_DRY_RUN=true`), or unavailable.
 
-**אימות דו-שלבי למאמנים** הוא רשות.
-- מפעילים בדשבורד, בהגדרות, בכרטיס "אימות דו-שלבי". מכבים עם קוד נוכחי.
-- הסוד מוצפן במפתח של המאמן, ולכן נמחק יחד איתו.
-- איבדתם את הטלפון? האדמין מבטל את האימות מהפאנל, או בטרמינל: `user:reset-mfa`.
-- קוד שגוי נספר בנעילה כמו סיסמה שגויה. כל קוד עובד פעם אחת בלבד.
+**To work against real Meta you need:** a Meta app with WhatsApp and Facebook Login for Business, the dashboard domain in the app's allowed domains, **Tech Provider or Solution Partner status and App Review**. A number connected this way can't stay active in the WhatsApp Business app on the phone; coexistence is deferred.
 
-### איך לבדוק את 5.3 בעצמכם
-על מסד נפרד, ב-PowerShell. צריך טלפון עם אפליקציית אימות.
+Until then, numbers are managed under the platform's Meta account: add a number in WhatsApp Manager and connect it to a coach in the panel (or with `wa:connect`).
 
-```powershell
-$env:PGLITE_DIR = ".data/pglite-stage5"
-npm run seed
-npm run admin -- superadmin:create --email ops@test.local
-npm run dashboard
-```
+## Security hardening before launch
 
-| # | מה לעשות | מה אמור לקרות |
-|---|---|---|
-| 1 | נכנסים ל-`http://localhost:3000/admin` עם הסיסמה שהודפסה | מסך עם קוד QR. סורקים ומזינים את הקוד, ונכנסים לפאנל |
-| 2 | "מאמן חדש": שם ו-slug | עמוד המאמן. בכרטיס וואטסאפ אי אפשר לחבר מספר עדיין |
-| 3 | יוצרים קישור הזמנה ופותחים אותו בחלון גלישה פרטית | בוחרים סיסמה ונכנסים לדשבורד של המאמן החדש. בעמוד הידע יש באנר של תבנית התחלתית |
-| 4 | פותחים את אותו קישור שוב | "הקישור לא תקף" |
-| 5 | בדשבורד של המאמן: הגדרות → אימות דו-שלבי → הפעלה | סורקים, מזינים קוד, ומופיע "פעיל". יציאה וכניסה מבקשות קוד |
-| 6 | בפאנל, בעמוד המאמן | המשתמש מסומן "אימות דו-שלבי". אפשר ליצור קישור איפוס או לבטל את האימות |
-| 7 | בעמוד הידע של המאמן לוחצים "שמור ופרסם גרסה חדשה", וחוזרים לפאנל | אפשר לחבר מספר |
-| 8 | "יומן פעולות" | כל הפעולות למעלה, עם מי שביצע אותן |
+A full security review found no secrets in git (including history) and verified the isolation between coaches. These were the six "important" findings and their fixes:
 
-### 5.4: מדידה, תקציב ומגבלות
-**מדידה:** כל אירוע שעולה כסף נרשם ב-`usage_events`, עם עלות משוערת שנקבעת ברגע הרישום. כך שינוי מחיר בעתיד לא משנה היסטוריה. הרשומות נשארות גם אחרי מחיקת לקוח, כי הן משמשות לחיוב.
-- **מה נרשם:** קריאות ל-Claude, סיכומים, תמלול, embeddings, וכל הודעת וואטסאפ: נכנסת, יוצאת או תבנית.
-- **המחירון** נמצא בקובץ אחד, `packages/core/src/pricing.ts`.
-  - מחירי Claude נבדקו מול המחירון הרשמי (17.10.2026). למשל, Opus 5.5 עולה ‎$4 / ‎$20 למיליון טוקנים.
-  - מחיר התמלול של OpenAI צריך אימות.
-  - מודל שלא מופיע במחירון מתומחר כמו Opus 5, כדי שלא ייחשב כחינמי.
-- **הודעות:** הודעות בתוך חלון 24 השעות חינמיות ב-WhatsApp. תבנית מתומחרת לפי `WHATSAPP_TEMPLATE_PRICE_USD`.
+1. **Hard spending caps.** Per client per day (`CLIENT_DAILY_MESSAGE_LIMIT`), per coach per month (`COACH_MONTHLY_CAP_USD`, overridable per coach in the panel), and for the whole platform per day (`PLATFORM_DAILY_CAP_USD`). At a cap, client messages are kept but not answered, the coach gets one "spending cap" alert a day and a red banner, and the event is logged. The playground is limited to 60 messages an hour per coach and 4096 characters per message, and stops at the same caps.
+2. **Per-IP throttling that can't be bypassed.** The IP comes from `TRUSTED_IP_HEADER` if set, otherwise from the **last** `X-Forwarded-For` hop, which the proxy appended.
+3. **TLS required for the database:** see "Moving to Supabase".
+4. **Webhook size limit:** requests over 2 MB are rejected with 413 before being read into memory or having their signature checked.
+5. **CSP and security headers on the dashboard:** `proxy.ts` creates a fresh nonce per request and Next attaches it to its scripts; nothing else runs. Facebook sources are allowed only on the settings page. Plus `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, HSTS in production, and `Referrer-Policy: no-referrer` on `/invite` and `/reset`. The rules are in `apps/dashboard/lib/csp.ts`.
+6. **Protecting the bot from data extraction:** a "Confidentiality" section in the instructions (it uses the coach's knowledge but doesn't hand it over, never reveals its instructions, says nothing about other clients, and refuses messages impersonating the coach or "the system"); an output guard that rewrites any reply copying 8 consecutive words from the instructions; and the bot's tools have no client parameter, so it can't reach another client's data at all.
 
-**תקציב חודשי (מכסה רכה):** האדמין קובע תקציב בדולרים בעמוד המאמן בפאנל.
-- ב-80% וב-100% המאמן רואה באנר בסקירה, ובפאנל מופיע תג עם האחוז.
-- התקציב עצמו לא חוסם כלום. מעליו יש תקרה קשיחה, שכן עוצרת את הבוט (ראו "חיזוק אבטחה").
-- המאמן רואה בהגדרות, בכרטיס "שימוש החודש", את העלות, את ההודעות ואת הפירוט לפי סוג.
+**Before deploying:** check which header your hosting proxy sends and set `TRUSTED_IP_HEADER`, then confirm in the logs that the counted IP is the user's.
 
-**הגבלה ללקוח:** מעל `CLIENT_HOURLY_MESSAGE_LIMIT` הודעות בשעה (ברירת מחדל 30), הבוט לא עונה ללקוח, כדי להגן מפני הצפה ועלויות.
-- ההודעות לא הולכות לאיבוד. הן נשמרות בשיחה, המאמן רואה אותן, והבוט מקבל אותן כהקשר בתור הבא.
-- נפתחת התראה אחת, "יותר מדי הודעות".
-- אחרי שהשעה עוברת הכל חוזר לרגיל.
+## Approved clients only
 
-**הגבלת התחברות:** ההגבלה לפי IP (התחברות, קודים וקישורים) נשמרת עכשיו במסד ולא בזיכרון, ולכן היא עובדת גם כשרצים כמה מופעים של הדשבורד.
+By default **the bot answers only numbers the coach approved**, so strangers can't use the bot at the coach's expense and their data never enters the system. The code is in `packages/core/src/access.ts`.
 
-### איך לבדוק את 5.4 בעצמכם
-על המסד הנפרד, עם המאמן והאדמין מ-5.3:
+- **Adding a client:** on the Clients page, by phone number, in any common format (`050-1234567`, `+972501234567`, `00972…`). When the client writes, the bot sends the consent notice as usual. Also from the terminal: `npm run admin -- client:approve <phone>`.
+- **An unapproved number** gets a short notice at most once a day; nothing it writes reaches the AI or is stored. The coach gets one "join request" alert, and the number appears at the top of the client list.
+- **Approving a request:** "approve client", in the alert or on the client page. If the client wrote in the last 24 hours, they get the consent notice at once.
+- **Removing access:** "remove bot access" on the client page (e.g. for a client who finished coaching). The bot stops answering and sending reminders; data is kept. "Restore access" brings everything back.
+- **Open mode:** Settings → "who can talk to the bot" → "anyone who writes". New numbers are approved automatically on their first message.
+- **Existing clients** were all approved by migration `0011_client_approval`. Terminal and playground clients are always approved.
 
-| # | מה לעשות | מה אמור לקרות |
-|---|---|---|
-| 1 | בדשבורד של המאמן: הגדרות → "שימוש החודש" | עלות משוערת, הודעות נכנסות ויוצאות, ופירוט לפי סוג |
-| 2 | בפאנל → עמוד המאמן → "תקציב חודשי": תקציב קטן (למשל 1) | אחוז מהתקציב ופס התקדמות. ברשימת המאמנים מופיע תג עם האחוז |
-| 3 | כשהשימוש עובר 80% מהתקציב | באנר צהוב בסקירה של המאמן. מעל 100%, אדום |
-| 4 | ב-dry run: `CLIENT_HOURLY_MESSAGE_LIMIT=3` ב-`.env`, ואז 4 הודעות ב-`wa:simulate` | הרביעית לא נענית. היא מופיעה בשיחה בדשבורד, ונפתחת התראה "יותר מדי הודעות" |
-
-### 5.5: מאמן מחבר מספר וואטסאפ בעצמו (Embedded Signup)
-**איך זה עובד:** בהגדרות של המאמן יש כפתור **"חיבור מספר וואטסאפ"**, שפותח את החלון של Facebook. שם המאמן בוחר או יוצר חשבון WhatsApp Business ומספר, ומאשר. אחר כך השרת:
-1. מחליף את הקוד החד-פעמי שחזר מ-Meta בטוקן של העסק.
-2. מוודא שהמספר באמת שייך לחשבון העסקי שנבחר (לא סומכים על מה שהדפדפן שלח).
-3. רושם את האפליקציה ל-webhooks של החשבון העסקי.
-4. רושם את המספר ל-Cloud API עם PIN אקראי בן 6 ספרות.
-
-הטוקן וה-PIN נשמרים מוצפנים במפתח של המאמן, והמספר מסומן "מחובר ע"י המאמן". השליחה למספר הזה עוברת עם הטוקן שלו. התהליך: [התיעוד של Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/implementation/).
-
-**שינויים:**
-- הטופס הידני "Phone number ID" הוסר מההגדרות של המאמן, כי דרכו מאמן יכול היה לקחת מספר מנוהל שלא שלו. מספרים מנוהלים (תחת חשבון ה-Meta של הפלטפורמה) מחוברים רק דרך הפאנל, או בטרמינל עם `wa:connect`.
-- בפאנל יש עכשיו **"ניתוק"** לכל מספר. הניתוק מוחק את הטוקן ואת ה-PIN, הודעות למספר מתעלמות ממנו, ואפשר לחבר אותו מחדש לכל מאמן.
-
-**מצבים:**
-- **אמיתי:** כשמוגדרים `META_APP_ID`, `META_EMBEDDED_SIGNUP_CONFIG_ID` ו-`WHATSAPP_APP_SECRET`.
-- **סימולציה:** ב-`WHATSAPP_DRY_RUN=true`. במקום החלון של Facebook נפתח טופס מדומה, וההודעות למספר רק מודפסות.
-- **לא זמין:** אחרת. המאמן מתבקש לפנות למנהל המערכת.
-
-**כדי שזה יעבוד מול Meta אמיתי צריך:**
-- אפליקציה ב-Meta עם WhatsApp ועם הגדרת Facebook Login for Business. ממנה מקבלים את ה-`config_id`.
-- הדומיין של הדשבורד ברשימת הדומיינים המאושרים של האפליקציה.
-- סטטוס Tech Provider או Solution Partner, ו-App Review להרשאות WhatsApp.
-- בתהליך הזה המספר לא יכול להישאר פעיל באפליקציית WhatsApp Business בטלפון. מצב coexistence נדחה.
-
-### איך לבדוק את 5.5 בעצמכם
-על המסד הנפרד, עם `WHATSAPP_DRY_RUN=true` ב-`.env`:
-
-| # | מה לעשות | מה אמור לקרות |
-|---|---|---|
-| 1 | מאמן חדש מהפאנל → הגדרות | "אפשר לחבר מספר אחרי שממלאים ומפרסמים את בסיס הידע" |
-| 2 | בעמוד הידע לוחצים "שמור ופרסם גרסה חדשה", וחוזרים להגדרות | כפתור "חיבור מספר וואטסאפ (סימולציה)" |
-| 3 | לוחצים, ואז "אישור" בטופס המדומה | המספר מופיע עם "מחובר ע"י המאמן", והכפתור נעלם |
-| 4 | בפאנל → עמוד המאמן → "ניתוק" | "לא מחובר מספר". ביומן הפעולות: "המאמן חיבר מספר" ו"ניתוק מספר" |
-
-## חיזוק אבטחה לפני עלייה לאוויר
-
-בדיקת אבטחה מלאה של הפרויקט מצאה שאין סודות ב-Git, גם לא בהיסטוריה, ושההפרדה בין מאמנים נאכפת. אלה ששת הממצאים ברמה "חשוב", והתיקון של כל אחד:
-
-**1. תקרות הוצאה קשיחות.** עד עכשיו היה רק תקציב רך (באנר). עכשיו יש שלוש תקרות שעוצרות את הבוט:
-- **ללקוח ביממה:** `CLIENT_DAILY_MESSAGE_LIMIT` (ברירת מחדל 150), בנוסף להגבלה של 30 בשעה.
-- **למאמן בחודש:** `COACH_MONTHLY_CAP_USD` (ברירת מחדל ‎$200). אדמין יכול לקבוע לכל מאמן תקרה משלו בפאנל, באותו טופס של התקציב. תקציב גבוה מהתקרה נדחה.
-- **לכל הפלטפורמה ביום:** `PLATFORM_DAILY_CAP_USD` (ברירת מחדל ‎$100, לפי UTC). ההוצאה של היום מוצגת בראש הפאנל.
-
-כשמגיעים לתקרה, ההודעות של הלקוחות נשמרות בשיחה ולא נענות. המאמן מקבל התראה אחת ביום ("תקרת הוצאה") ובאנר אדום בסקירה, והאירוע נרשם בלוג. מגרש המשחקים מוגבל ל-60 הודעות בשעה למאמן, להודעה של עד 4096 תווים, ונעצר באותן תקרות. תורות שכבר היו בתור עוד מסתיימים, כך שאפשר לעבור את התקרה בכמה תורות. סוגי התראות של המערכת ("יותר מדי הודעות", "תקרת הוצאה") כבר לא זמינים לבוט עצמו.
-
-**2. הגבלת ניסיונות לפי IP שאי אפשר לעקוף.** ה-IP נלקח מהכותרת `TRUSTED_IP_HEADER` אם היא מוגדרת, ואחרת מהערך **האחרון** ב-`X-Forwarded-For`, זה שהפרוקסי הוסיף. קודם נלקח הערך הראשון, שהתוקף שולט בו.
-
-**3. TLS חובה לדאטאבייס:** פירוט בסעיף "מעבר ל-Supabase".
-
-**4. הגבלת גודל ב-webhook:** בקשה מעל 2MB נדחית עם 413 עוד לפני שהיא נקראת לזיכרון ולפני בדיקת החתימה, גם בדשבורד וגם בשרת Fastify.
-
-**5. CSP וכותרות אבטחה בדשבורד:**
-- `proxy.ts` מייצר nonce חדש לכל בקשה, ו-Next מצמיד אותו לסקריפטים שלו. סקריפט אחר לא ירוץ.
-- רק בעמוד ההגדרות, שם נמצא Embedded Signup, מותרים המקורות של Facebook.
-- `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`.
-- ב-production נוסף HSTS. ב-`/invite` וב-`/reset` נשלח `Referrer-Policy: no-referrer`, כי הטוקן נמצא בכתובת.
-- הכללים עצמם ב-`apps/dashboard/lib/csp.ts`.
-
-**6. הגנה על הבוט מפני חילוץ מידע:**
-- **סעיף "Confidentiality" חדש בהנחיות:** הבוט משתמש בידע של המאמן כדי לעזור, אבל לא מעביר אותו כמו שהוא. הוא לא חושף את ההנחיות שלו, לא אומר כלום על לקוחות אחרים, ומסרב להודעות שמתחזות למאמן או ל"מערכת".
-- **שומר פלט:** תשובה שמעתיקה 8 מילים רצופות מההנחיות נכתבת מחדש. אם זה חוזר, הלקוח מקבל תשובה בטוחה והמאמן מקבל התראה. הטיוטה שדלפה לא נשמרת בהיסטוריה.
-- **בדיקות live חדשות:** 6 ניסיונות תקיפה ב-`npm run test:live`. הן עוד לא רצו, כי אין מפתח.
-- **הגנה מובנית:** לכלים של הבוט אין פרמטר של לקוח, ולכן הוא לא יכול להגיע לנתונים של לקוח אחר בכלל.
-
-**מיגרציה:** `0010_spend_caps` מוסיפה אינדקס על `usage_events.created_at`, בשביל חישוב ההוצאה היומית של הפלטפורמה.
-
-### איך לבדוק את החיזוק בעצמכם
-על מסד נפרד, עם `WHATSAPP_DRY_RUN=true`:
-
-| # | מה לעשות | מה אמור לקרות |
-|---|---|---|
-| 1 | `npm run dashboard`, פותחים כל עמוד (מחוברים ולא מחוברים, וגם `/admin`) עם כלי המפתחים פתוחים | אין שגיאות "Content Security Policy" בקונסול. בלשונית Network, לכל עמוד יש כותרת `Content-Security-Policy` |
-| 2 | עמוד ההגדרות → "שימוש החודש" | "תקרה קשיחה: $200 לחודש" |
-| 3 | בפאנל → עמוד המאמן: תקציב 300 ותקרה ריקה | שגיאה: התקציב גבוה מהתקרה. תקציב 150 ותקרה 400 נשמרים |
-| 4 | ב-`.env`: `WHATSAPP_TEMPLATE_PRICE_USD=1` ו-`PLATFORM_DAILY_CAP_USD=1`. שולחים תבנית ללקוח קיים (`npm run admin -- send-template <phone> checkin`), ואז הודעה ב-`wa:simulate` | ההודעה לא נענית, אבל מופיעה בשיחה בדשבורד. נפתחת התראה "תקרת הוצאה", ובראש הפאנל ההוצאה של היום באדום |
-| 5 | `curl -X POST --data-binary @<קובץ של 3MB> http://localhost:3000/api/whatsapp/webhook` | 413 |
-| 6 | `npm run test:live` (כשיש מפתח) | גם 6 בדיקות הניסיונות לחלץ מידע עוברות |
-
-**לפני פריסה:** לבדוק מה הפרוקסי של ספק האחסון שולח, ולהגדיר `TRUSTED_IP_HEADER` בהתאם. אחר כך לוודא בלוג שה-IP שנספר הוא של המשתמש, ולא של הפרוקסי.
-
-## לקוחות מאושרים בלבד
-
-עד עכשיו הבוט ענה לכל מי שכתב למספר של המאמן. עכשיו, כברירת מחדל, **הבוט עונה רק למספרים שהמאמן אישר**. כך זרים לא משתמשים בבוט על חשבון המאמן, ומידע שלהם לא נכנס למערכת. הקוד נמצא ב-`packages/core/src/access.ts`.
-
-- **הוספת לקוח:** בעמוד הלקוחות, לפי מספר טלפון. כל פורמט נפוץ עובד: `050-1234567`, `‎+972501234567` או `00972…`. כשהלקוח כותב, הבוט שולח את הודעת ההסכמה כרגיל. אפשר גם מהטרמינל: `npm run admin -- client:approve <phone>`.
-- **מספר שלא אושר:**
-  - מקבל הודעה קצרה ("המספר הזה משמש את הלקוחות של…"), לכל היותר פעם ביממה.
-  - שום דבר ממה שהוא כותב לא מגיע ל-AI ולא נשמר.
-  - המאמן מקבל התראה אחת, "בקשת הצטרפות", והמספר מופיע בראש רשימת הלקוחות.
-- **אישור בקשה:** כפתור "אישור הלקוח/ה", בהתראה או בעמוד הלקוח. אם הלקוח כתב ב-24 השעות האחרונות, הוא מקבל מיד את הודעת ההסכמה. אחרת הוא יקבל אותה כשיכתוב שוב.
-- **הסרת גישה:** כפתור "הסרת הגישה לבוט" בעמוד הלקוח (למשל ללקוח שסיים ליווי). הבוט מפסיק לענות ולשלוח תזכורות, הלקוח מקבל את ההודעה הקצרה, והמידע נשמר. "החזרת הגישה" מחזירה הכל כמו שהיה.
-- **מצב פתוח:** בהגדרות, "גישה לבוט" → "כל מי שכותב למספר". מספר חדש מאושר אוטומטית בהודעה הראשונה שלו, כמו קודם. בקשות שכבר ממתינות נשארות לאישור ידני.
-- **לקוחות קיימים:** מיגרציה `0011_client_approval` מאשרת את כל מי שכבר היה לקוח, כך ששום שיחה קיימת לא נעצרת. לקוחות בטרמינל ובמגרש המשחקים תמיד מאושרים.
-- בסקירה, "לקוחות" לא כולל בקשות הצטרפות ולקוחות בלי גישה.
-
-### איך לבדוק בעצמכם
-עם `WHATSAPP_DRY_RUN=true`, מספר דמה מחובר (`wa:connect --pnid dryrun-demo`), ושרת שרץ (`npm run server`):
-
-| # | מה לעשות | מה אמור לקרות |
-|---|---|---|
-| 1 | `npm run wa:simulate -- --from 972509990000 "היי"` | בחלון השרת מודפסת ההודעה הקצרה "המספר הזה משמש את הלקוחות של…". ב-`npm run admin -- alerts` יש "בקשת הצטרפות" |
-| 2 | אותה פקודה שוב | אין תשובה (פעם ביממה), ואין בקשה נוספת |
-| 3 | בדשבורד: לקוחות → המספר (תג "בקשת הצטרפות") → "אישור הלקוח/ה" | בשיחה מופיעה הודעת ההסכמה עם הכפתורים, וההתראה נסגרת |
-| 4 | עמוד הלקוחות → "הוספת לקוח" עם `050-7654321`, ואז `wa:simulate -- --from 972507654321 "היי"` | הודעת ההסכמה, ולא ההודעה הקצרה |
-| 5 | בעמוד של לקוח → "הסרת הגישה לבוט", ואז הודעה ממנו | ההודעה הקצרה, בלי בקשת הצטרפות חדשה. "החזרת הגישה" מחזירה את הבוט |
-| 6 | הגדרות → "גישה לבוט" → "כל מי שכותב למספר", ואז הודעה ממספר חדש | הודעת ההסכמה מיד, כמו קודם |
-
-## בדיקות אוטומטיות
+## Automated tests
 
 ```bash
 npm test
 ```
 
-198 בדיקות שרצות עם Claude מדומה ומסד נתונים בזיכרון. לא עולות כסף.
-- **לקוחות מאושרים בלבד** (`access.test.ts`):
-  - מספר לא מאושר מקבל הודעה אחת ביום, בלי AI ובלי לשמור תוכן, ונפתחת בקשת הצטרפות אחת.
-  - אישור שולח מיד את הודעת ההסכמה, ומשם הבוט עובד.
-  - מספר שנוסף מראש, בכל פורמט נפוץ.
-  - הסרת גישה עוצרת את הבוט ואת התזכורות, בלי בקשה חדשה.
-  - מצב פתוח, ולקוחות טרמינל ומגרש משחקים.
-- **חיזוק אבטחה** (`security.test.ts`, `csp.test.ts` ועוד):
-  - תקרות הוצאה למאמן ולפלטפורמה, כולל תקרה אישית וחודש ויום חדשים.
-  - הגבלה יומית ללקוח.
-  - IP שאי אפשר לזייף.
-  - TLS לפי כתובת.
-  - גודל webhook, כולל stream בלי Content-Length.
-  - כללי ה-CSP.
-  - שומר הדליפה: כתיבה מחדש, ואם זה חוזר תשובה בטוחה והתראה.
-  - הבוט לא יכול לפתוח התראות מערכת.
-- **שלב 5.5:**
-  - הקריאות ל-Graph מול fetch מדומה: כתובות, פרמטרים, טוקן ו-PIN.
-  - מסלול תקין, עם טוקן ו-PIN מוצפנים.
-  - מספר שלא שייך ל-WABA נדחה, ושגיאת Meta הופכת להודעה ברורה.
-  - בדיקת זמינות לפני שמבזבזים את הקוד.
-  - הרצה חוזרת שומרת על ה-PIN.
-  - סימולציה וניתוק.
-- **שלב 5.4:**
-  - תמחור לפי מודל, כולל cache, עם מודל לא מוכר ותבניות.
-  - ספירת הודעות נכנסות ויוצאות ותבניות. השימוש נשמר גם אחרי מחיקת לקוח.
-  - ספי התקציב.
-  - מונה אטומי שמתחיל מחדש בכל חלון.
-  - הגבלת לקוח: לא עונים, שומרים את ההודעה, התראה אחת, ושליחה חוזרת מ-Meta לא נספרת פעמיים.
-  - עדכון הגדרות של מאמן מושהה.
-- **שלב 5.3:**
-  - TOTP מול דוגמאות הבדיקה של RFC 6238, כולל סטייה של צעד אחד וחסימה של קוד שכבר שימש.
-  - אדמין: אימות דו-שלבי חובה, נעילה, ו-`superadmin:reset`.
-  - מאמן: אימות דו-שלבי רשות, וסשן ממתין שלא נותן גישה. הסוד מוצפן במפתח של המאמן.
-  - קישורים: נשמר רק hash, שימוש אחד, תוקף, ואיפוס שמנתק סשנים.
-  - חיבור מספר נחסם למאמן בתבנית התחלתית. אין לטננט גישה לטבלאות הפלטפורמה.
-- **שלב 5.2:**
-  - השעיה חוסמת התחברות, מנתקת סשנים, מבטלת את התור ועוצרת תזכורות. `resume` מחזיר הכל, בלי מטח תזכורות.
-  - לקוח קיים של מאמן מושהה מקבל הודעה קבועה אחת בכל השעיה, בלי AI. מספר זר לא מקבל כלום.
-  - מחיקה מוחקת כל שורה בכל טבלה, ונשארת רשומת פלטפורמה. המאמן השני לא נפגע. טקסט מוצפן שנשמר לא נפתח, והמספר משתחרר.
-- **שלב 5.1:**
-  - RLS פעיל ויש לו policy בכל טבלה.
-  - בכל טבלה, שאילתה בלי סינון מחזירה רק את השורות של המאמן.
-  - כתיבה לשורות של מאמן אחר נחסמת, וכך גם דריסה דרך מזהה לקוח זר.
-  - יומן הפעולות לא ניתן למחיקה.
-  - שני מאמנים עובדים במקביל מקצה לקצה: אותו טלפון כותב לשני המספרים, ה-worker מטפל בשניהם במקביל, ונבדקים הידע שנשלח ל-Claude, ההיסטוריה, החיפוש והתזכורות.
-- **שלב 4:** חישובי זמן לתזכורות (כולל שעון קיץ, שעות שקטות ושבת), שליחה בתוך החלון ומחוצה לו, opt-out, check-in אחרי שקט, עיבוד תמונות והסרת מטא-דאטה, הורדת מדיה, תמונות ותמלולים במנוע וב-worker, ומעבר אפיזודה כשהפלטפורמה משתנה.
-- **שלב 3:** התחברות (סיסמאות, נעילה, סשנים, החלפת סיסמה) ושאילתות הדשבורד, כולל הפרדה בין מאמנים והסתרת לקוחות בדיקה.
-- **שלב 1:** שער ההסכמה, לולאת הכלים, ההיסטוריה שרק מוסיפים לה, הסיכומים, כל כללי הבטיחות, ההצפנה, ההפרדה בין מאמנים, המחיקה והפורמט לוואטסאפ.
-- **שלב 2:**
-  - חתימות webhook (תקינות ומזויפות) ופענוח של כל סוגי ההודעות
-  - debounce, כפילויות, טיפול סדרתי לכל לקוח ומקבילי בין לקוחות
-  - סטטוסי מסירה, חלון 24 השעות, השתלטות, מחיקה דרך וואטסאפ וניסיונות חוזרים
-  - שרת ה-HTTP
-  - נתיב ה-Postgres האמיתי (`DATABASE_URL`) דרך פרוטוקול הרשת
+198 tests that run with a mocked Claude and an in-memory database. They cost nothing. They cover approved-clients access, the security hardening (spend caps, IP, TLS, webhook size, CSP, leak guard), Embedded Signup against a mocked Graph API, metering and limits, TOTP (RFC 6238 vectors) and links, coach suspension and deletion, RLS on every table and two coaches running end to end in parallel, reminders (DST, quiet hours, Shabbat), media, authentication, the consent gate, tool loop, episodes, safety rules, encryption and WhatsApp formatting, webhook signatures, debounce, duplicates, delivery statuses and the real Postgres path.
 
 ```bash
 npm run test:live
 ```
 
-9 תרחישים מול Claude אמיתי עם מאמן הדמו: אונבורדינג, תפריט, פציעה, כאב בחזה, הפרעת אכילה, קטין, שאלה לא מכוסה ושפה. **עולה כסף** (בסביבות עשרות סנטים לריצה מלאה עם Opus), ודורש `ANTHROPIC_API_KEY`.
+15 scenarios against real Claude with the demo coach: onboarding, meal plan, injury, chest pain, eating disorder, minor, uncovered question, language, and 6 attempts to manipulate the bot (reveal instructions, dump knowledge, other clients' data, fake system messages). **Costs money** (about $1 per run on Opus, about half on Sonnet) and requires `ANTHROPIC_API_KEY`. Last run: 15/15 passed.
 
 ```bash
 npm run typecheck
@@ -783,128 +564,125 @@ npm run typecheck
 
 ---
 
-## ייבוא מאמן אמיתי
+## Importing a real coach
 
-יוצרים תיקייה במבנה הזה:
+Create a folder like this:
 
 ```
 my-coach/
-├─ coach.yaml        ← הידע המובנה (העתיקו את seed/demo-coach/coach.yaml וערכו)
-└─ docs/             ← רשות: md, txt, pdf, docx, png, jpg, webp
+├─ coach.yaml        ← the structured knowledge (copy seed/demo-coach/coach.yaml and edit)
+└─ docs/             ← optional: md, txt, pdf, docx, png, jpg, webp
 ```
 
-ומייבאים:
+Import it:
 
 ```bash
 npm run coach:import -- my-coach --slug my-coach
 ```
 
-ואז מדברים עם הבוט של המאמן הזה:
+Then talk to that coach's bot:
 
 ```bash
 npm run chat -- --coach my-coach
 ```
 
-- **מה נכנס ל-`coach.yaml`:** פילוסופיה, גישת תזונה (כולל האם להציג מספרים ללקוחות), עקרונות אימון, תרגילים מועדפים, תרגילים שהמאמן נמנע מהם (עם חלופה ושמות נוספים), הנחיות לפציעות, מדיניות תוספים, טון וביטויים, FAQ, ונושאים שתמיד מעבירים למאמן.
-- **תמונות:** תמונה של תפריט מתומללת ל-Markdown ע"י Claude בזמן הייבוא.
-- **עדכון:** כל ייבוא חוזר יוצר גרסת ידע חדשה. שיחות פעילות מסוכמות ועוברות לידע החדש בהודעה הבאה שלהן.
-- **טיפ:** אם יש בטקסט נקודתיים (`:`), השתמשו ב-`|` ובשורה חדשה, כמו בדוגמה.
+- **What goes into `coach.yaml`:** philosophy, nutrition approach (including whether to show numbers to clients), training principles, preferred exercises, avoided exercises (with an alternative and aliases), injury guidelines, supplement policy, tone and phrases, FAQ, and topics always passed to the coach.
+- **Images:** a photo of a menu is transcribed to Markdown by Claude during import.
+- **Updates:** every re-import creates a new knowledge version. Active conversations are summarized and move to the new knowledge on their next message.
+- **Tip:** if a value contains a colon (`:`), use `|` and a new line, as in the example.
 
 ---
 
-## איך זה עובד
+## How it works
 
 ```
-הודעה נכנסת
-  → שער הסכמה (קוד קבוע, לפני כל AI)
-  → בקשת מחיקה? השהיה של המאמן?
-  → גלאי red-flags (קוד קבוע: כאב בחזה, הפרעת אכילה, קטין…) → התראה למאמן
-  → Claude עם כלים: עדכון פרופיל, רישום, תפריט, תוכנית, חיפוש, התראה
-  → output guards (למשל: אין מספרי קלוריות ללקוח בסיכון)
-  → פורמט וואטסאפ ופיצול להודעות
+Incoming message
+  → access gate (approved numbers only, fixed code)
+  → consent gate (fixed code, before any AI)
+  → deletion request? coach pause?
+  → red-flag detector (fixed code: chest pain, eating disorder, minor…) → coach alert
+  → spend caps and per-client limits
+  → Claude with tools: update profile, log, meal plan, workout plan, search, alert
+  → output guards (no calorie numbers for at-risk clients, no leaked instructions)
+  → WhatsApp formatting and splitting into messages
 ```
 
-- **שכבות הפרומפט.** הפרומפט נבנה משלוש שכבות שנשמרות ב-cache:
-  1. כללי הפלטפורמה, משותפים לכל המאמנים.
-  2. הידע של המאמן, משותף לכל הלקוחות שלו.
-  3. הקשר הלקוח: פרופיל, דגלים, רף קלורי, תוכניות וזיכרון.
+- **Prompt layers.** The prompt is built from three cached layers: platform rules (shared by all coaches), the coach's knowledge (shared by all their clients), and the client context (profile, flags, calorie floor, plans and memory). The time goes into the client's message rather than the prompt, so the cache isn't broken.
+- **Episodes.** Each client's history is split into append-only episodes that are never edited, since Claude ties its reasoning to the exact conversation it was produced in. When an episode grows too large, after a long break, or when the coach's knowledge changes, Claude summarizes it into long-term memory and a new episode starts.
+- **Safety in two layers.** The model's rules, plus code that doesn't depend on the model: a phrase detector in Hebrew and English; a calorie floor enforced by the `save_meal_plan` tool (at least 1200 for women and 1500 for men, at most a 25% deficit, no deficit for minors); blocking exercises the coach avoids; and blocking numbers and meal plans for clients at risk of an eating disorder.
+- **Privacy.** Each coach has their own encryption key, wrapped by the master key. Conversation content, profiles, phone numbers, summaries and alerts are encrypted with AES-256-GCM and bound to the coach. Exports, deletions and retention are recorded in `audit_log`.
 
-  ההודעות עצמן נשמרות ב-cache אוטומטית. השעה נכנסת לתוך הודעת הלקוח ולא לפרומפט, כדי לא לשבור את ה-cache.
-- **אפיזודות.** ההיסטוריה של כל לקוח מחולקת לאפיזודות שרק מוסיפים להן ואף פעם לא עורכים. Claude Opus 5.5 קושר את החשיבה שלו לשיחה המדויקת שבה היא נוצרה, ועריכה של ההיסטוריה מקלקלת אותה. כשאפיזודה גדלה מדי, עוברת הפסקה ארוכה או שהידע של המאמן מתעדכן, Claude מסכם אותה לזיכרון ארוך טווח ונפתחת אפיזודה חדשה.
-- **בטיחות בשתי שכבות.** השכבה הראשונה היא הכללים במודל. השכבה השנייה היא קוד שלא תלוי במודל:
-  - גלאי ביטויים בעברית ובאנגלית
-  - רף קלורי שנאכף בכלי `save_meal_plan`: לפחות 1200 לנשים ו-1500 לגברים, גירעון של עד 25%, ואפס גירעון לקטינים
-  - חסימת תרגילים שהמאמן נמנע מהם
-  - חסימת מספרים ותפריטים ללקוחות בסיכון להפרעת אכילה
-- **פרטיות.** כל מאמן מקבל מפתח הצפנה משלו, שמוצפן במפתח הראשי. תוכן השיחות, הפרופיל, הטלפונים, הסיכומים וההתראות מוצפנים ב-AES-256-GCM וקשורים למאמן. כל שאילתה מסוננת לפי המאמן, ויש בדיקות אוטומטיות שמוודאות שאין זליגה בין מאמנים. ייצוא, מחיקה ומדיניות שמירה נרשמים ב-`audit_log`.
-
-### מבנה הקוד
+### Code layout
 
 ```
-packages/core/       לב המערכת (משמש גם את השרת והדשבורד בשלבים הבאים)
-  src/engine/        מנוע השיחה, הכלים והאפיזודות
-  src/llm/           הקריאה ל-Claude והפרומפטים
-  src/safety/        גלאי red-flags, רף קלורי, output guards
-  src/knowledge/     סכמת הידע, ייבוא, chunking, חיפוש
-  src/repos/         גישה לנתונים (תמיד דרך TenantContext, ותחת RLS של המאמן)
-  src/whatsapp/      Graph API, webhook, תור הודעות, worker, שליחה
-  src/media/         עיבוד תמונות ותמלול הודעות קוליות
-  src/reminders/     תזמון תזכורות (אזורי זמן, שעות שקטות, שבת) ושליחתן
-  src/db/            סכמה, מיגרציות (Drizzle) ו-withTenant (RLS)
-  test/              בדיקות
-apps/dashboard/      דשבורד Next.js: עמודים ב-app/, פעולות שרת ב-lib/actions/, רכיבים ב-components/
-apps/server/         שרת Fastify: webhook, health, worker (חלופה לדשבורד)
-apps/cli/            הצ'אט, פקודות הניהול וסימולטור ה-webhook
-seed/demo-coach/     מאמן הדמו
+packages/core/       the core (used by the server, dashboard and CLI)
+  src/engine/        conversation engine, tools and episodes
+  src/llm/           Claude calls and prompts
+  src/safety/        red-flag detector, calorie floor, output guards
+  src/knowledge/     knowledge schema, import, chunking, search
+  src/repos/         data access (always via TenantContext, under the coach's RLS)
+  src/whatsapp/      Graph API, webhook, message queue, worker, sending
+  src/media/         image processing and voice transcription
+  src/reminders/     reminder scheduling (time zones, quiet hours, Shabbat) and sending
+  src/db/            schema, migrations (Drizzle) and withTenant (RLS)
+  test/              tests
+apps/dashboard/      Next.js dashboard: pages in app/, server actions in lib/actions/, components in components/
+                     instrumentation.ts starts the worker and scheduler with the dashboard
+apps/server/         Fastify server: webhook, health, worker (an alternative to the dashboard)
+apps/cli/            the chat, admin commands and the webhook simulator
+seed/demo-coach/     the demo coach
 ```
 
 ---
 
-## פרטיות ומשפט: חשוב לקרוא
+## Privacy and legal: please read
 
-המערכת מעבדת **מידע בריאותי רגיש**. הקוד מספק את הבקרות הטכניות: הסכמה מפורשת עם גרסה, הצפנה, הפרדה, ייצוא, מחיקה, מדיניות שמירה ותיעוד פעולות.
+The system processes **sensitive health data**. The code provides the technical controls: explicit versioned consent, encryption, isolation, export, deletion, retention and activity logs.
 
-עם זאת, **נוסח ההסכמה ב-`packages/core/src/consent.ts` הוא טיוטה**. לפני עלייה לאוויר צריך שעורך דין יעבור על:
-- חוק הגנת הפרטיות ותיקון 13
-- תקנות אבטחת המידע
-- הסכם עיבוד מידע מול כל מאמן: המאמן הוא בעל המאגר, הפלטפורמה היא המחזיק
-- העברת מידע לחו"ל (Anthropic, OpenAI ו-Meta)
+However, **the consent wording in `packages/core/src/consent.ts` is a draft**. Before launch, a lawyer should review:
+- Israel's Privacy Protection Law and Amendment 13
+- the Information Security Regulations
+- a data processing agreement with each coach (the coach owns the database; the platform is the processor)
+- transfers of data abroad (Anthropic, OpenAI and Meta)
 
-## פתרון בעיות
+## Troubleshooting
 
-| בעיה | פתרון |
+| Problem | Solution |
 |---|---|
-| `ANTHROPIC_API_KEY חסר` | הדביקו את המפתח ב-`.env` |
+| `ANTHROPIC_API_KEY חסר` | Paste the key into `.env` |
 | `MASTER_ENCRYPTION_KEY חסר` | `npm run setup` |
-| `למאמן ... אין עדיין בסיס ידע` | `npm run seed` |
-| העברית בטרמינל הפוכה | נסו `--no-bidi`, או קראו את ה-transcript ב-`.data/transcripts/` |
-| `מסד הנתונים המקומי ... פתוח כבר בתהליך אחר` | צ'אט, שרת או דשבורד רצים ברקע. עצרו אותם (Ctrl+C), או עברו ל-Supabase |
-| "החשבון מושהה" בכניסה לדשבורד | המאמן הושעה. `npm run admin -- coach:resume <slug>` |
-| הבוט הפסיק לענות ללקוח אחד, ויש התראה "יותר מדי הודעות" | הלקוח עבר את `CLIENT_HOURLY_MESSAGE_LIMIT`. ההודעות שמורות בשיחה, ואחרי שעה הכל חוזר לרגיל |
-| איבדתי את הטלפון עם אפליקציית האימות | מאמן: האדמין מבטל מהפאנל, או `user:reset-mfa --email ...`. אדמין: `superadmin:reset --email ...` |
-| אין לי משתמש לדשבורד או ששכחתי סיסמה | `npm run admin -- user:create --email ...` או `user:reset-password --email ...` (כשהדשבורד לא רץ) |
-| הודעה קולית מקבלת "לא יכול להאזין" | חסר `OPENAI_API_KEY` ב-.env |
-| תזכורת לא נשלחה | בודקים: הלקוח בוואטסאפ? בתוך חלון 24 השעות, או שיש תבנית מוגדרת? לא בשעות שקטות או בשבת? הלקוח לא כתב "הסר"? |
-| הפורט 3000 תפוס | הדשבורד ו-`npm run server` משתמשים שניהם ב-3000. בדרך כלל מספיק הדשבורד, כי הוא כולל את ה-webhook |
-| Meta לא מצליחה לאמת את ה-webhook | ודאו שהשרת וה-tunnel רצים, שהכתובת מסתיימת ב-`/webhook`, ושה-Verify token זהה ל-`.env` |
-| הודעות מגיעות לשרת אבל אין תשובה | בדקו `WHATSAPP_ACCESS_TOKEN` ו-`ANTHROPIC_API_KEY`, ושהמספר מחובר עם `wa:connect` |
-| שליחה נכשלת עם קוד 131047 | עברו 24 שעות מההודעה האחרונה של הלקוח. צריך template |
-| רוצים להתחיל מאפס | מחקו את התיקייה `.data/pglite` והריצו `npm run seed` |
-| שגיאה כשמייבאים מאמן | בדקו את `coach.yaml` (ראו את הטיפ על נקודתיים למעלה) |
+| `למאמן ... אין עדיין בסיס ידע` (no knowledge base yet) | `npm run seed` |
+| Hebrew is reversed in the terminal | Try `--no-bidi`, or read the transcript in `.data/transcripts/` |
+| The local database is already open in another process | A chat, server or dashboard is running. Stop it (Ctrl+C), or move to Supabase |
+| Supabase: `password authentication failed` | Remove the square brackets around the password in `DATABASE_URL` and URL-encode special characters (`@` → `%40`) |
+| "Account suspended" when signing in | The coach was suspended. `npm run admin -- coach:resume <slug>` |
+| Admin sign-in fails | Admins sign in at `/admin/login`, not `/login`, with the admin password |
+| The bot stopped answering one client with a "too many messages" alert | The client passed `CLIENT_HOURLY_MESSAGE_LIMIT`. Messages are kept; after an hour things return to normal |
+| The bot doesn't answer a number | It isn't approved. Approve it on the Clients page or with `client:approve` |
+| Lost the phone with the authenticator app | Coach: the admin resets it from the panel, or `user:reset-mfa --email ...`. Admin: `superadmin:reset --email ...` |
+| No dashboard user, or forgot the password | `npm run admin -- user:create --email ...` or `user:reset-password --email ...` |
+| A voice message gets "can't listen" | `OPENAI_API_KEY` is missing in `.env` |
+| A reminder wasn't sent | Check: is the client on WhatsApp? Inside the 24-hour window, or is a template configured? Not in quiet hours or on Shabbat? Didn't the client write "הסר"? |
+| Port 3000 is taken | The dashboard and `npm run server` both use 3000. Usually the dashboard alone is enough |
+| Meta can't verify the webhook | Make sure the server and tunnel are running, the URL ends in `/api/whatsapp/webhook` (or `/webhook` for `npm run server`), and the verify token matches `.env` |
+| Messages reach the server but there's no reply | Check `WHATSAPP_ACCESS_TOKEN`, `ANTHROPIC_API_KEY`, that the number is connected with `wa:connect`, and that the sender is approved |
+| Sending fails with code 131047 | More than 24 hours since the client's last message. A template is needed |
+| A hydration warning on the email field in development | A browser extension (e.g. Temp Mail) adds attributes to the field. Harmless; disable it for `localhost` |
+| Start over (local) | Delete `.data/pglite` and run `npm run seed` |
+| Error importing a coach | Check `coach.yaml` (see the colon tip above) |
 
-## השלבים הבאים
+## Roadmap
 
-1. ~~מנוע שיחה, פרופיל לקוח ומאמן אחד ב-CLI~~ ✅
-2. ~~חיבור ל-WhatsApp Cloud API: webhook מאובטח, תור הודעות, חלון 24 השעות, השתלטות, ומעבר ל-Supabase~~ ✅
-3. ~~דשבורד מאמן (Next.js, עברית): התראות, לקוחות, גרפים, עריכת ידע, מגרש משחקים~~ ✅
-4. ~~תמונות של ארוחות, הודעות קוליות ותזכורות יזומות~~ ✅
-5. ~~Multi-tenant מלא: RLS, השעיה ומחיקה של מאמן, פאנל ניהול, הזמנות ו-MFA, מדידת שימוש ותקציב, Embedded Signup~~ ✅
+1. ~~Conversation engine, client profile and one coach in the CLI~~ ✅
+2. ~~WhatsApp Cloud API: secure webhook, message queue, 24-hour window, takeover, Supabase~~ ✅
+3. ~~Coach dashboard (Next.js, Hebrew): alerts, clients, charts, knowledge editing, playground~~ ✅
+4. ~~Meal photos, voice messages and proactive reminders~~ ✅
+5. ~~Full multi-tenancy: RLS, coach suspension and deletion, admin panel, invitations and MFA, usage metering and budget, Embedded Signup~~ ✅
 
-**מה נשאר פתוח לפני עלייה לאוויר:**
-- בדיקה מול Claude, OpenAI, Meta ו-Supabase אמיתיים.
-- סטטוס Tech Provider ו-App Review ב-Meta.
-- עורך דין לנוסחי הפרטיות ולהסכם העיבוד.
-- KMS למפתחות.
-- הרצת `test:live`, כולל הניסיונות לחלץ מידע מהבוט.
-- ממצאי ה"מומלץ" מבדיקת האבטחה: הסתרה מלאה בלוגים, שגיאות 500 גנריות בשרת Fastify, עריכת שאלה לפני שמירה ל-FAQ, הצפנת דגלי בריאות, `PUBLIC_URL` לקישורים, ו-`npm audit`.
-- coexistence עם אפליקציית WhatsApp Business.
+**Still open before launch:**
+- Real WhatsApp with Meta, and deployment to Railway.
+- Tech Provider status and App Review at Meta (for Embedded Signup).
+- A lawyer for the privacy wording and the data processing agreement.
+- KMS for keys.
+- The "recommended" findings from the security review: full log redaction, generic 500 errors in the Fastify server, editing a question before saving it to the FAQ, encrypting health flags, `PUBLIC_URL` for links, and `npm audit`.
+- Coexistence with the WhatsApp Business app.
