@@ -38,7 +38,7 @@ export const coachKnowledgeSchema = z.object({
     businessName: z.string().default(""),
     bio: z.string().default(""),
     /** Default reply language for clients who haven't written yet. */
-    language: z.string().default("he"),
+    language: z.string().default("en"),
   }),
   tone: z.object({
     styles: z.array(z.enum(TONE_STYLES)).min(1),

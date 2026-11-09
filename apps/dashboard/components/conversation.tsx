@@ -17,10 +17,10 @@ export interface ChatItem {
 }
 
 const SENDER: Record<ChatItem["sender"], { label: string; bubble: string }> = {
-  client: { label: "לקוח/ה", bubble: "bg-white ring-1 ring-slate-200" },
-  bot: { label: "בוט", bubble: "bg-emerald-50 ring-1 ring-emerald-100" },
-  coach: { label: "את/ה (מאמן)", bubble: "bg-violet-50 ring-1 ring-violet-100" },
-  system: { label: "תזכורת אוטומטית", bubble: "bg-sky-50 ring-1 ring-sky-100" },
+  client: { label: "Client", bubble: "bg-white ring-1 ring-slate-200" },
+  bot: { label: "Bot", bubble: "bg-emerald-50 ring-1 ring-emerald-100" },
+  coach: { label: "You (coach)", bubble: "bg-violet-50 ring-1 ring-violet-100" },
+  system: { label: "Automatic reminder", bubble: "bg-sky-50 ring-1 ring-sky-100" },
 };
 
 export function Conversation(props: {
@@ -60,12 +60,12 @@ export function Conversation(props: {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
   }, [messages.length]);
 
-  const time = (d: string) => new Intl.DateTimeFormat("he-IL", { timeZone: props.timeZone, timeStyle: "short", dateStyle: "short" }).format(new Date(d));
+  const time = (d: string) => new Intl.DateTimeFormat("en-US", { timeZone: props.timeZone, timeStyle: "short", dateStyle: "short" }).format(new Date(d));
 
   return (
     <div className="flex flex-col gap-3">
       <div ref={scroller} className="max-h-[32rem] space-y-3 overflow-y-auto rounded-lg bg-slate-50 p-3">
-        {messages.length === 0 && <p className="py-8 text-center text-sm text-slate-500">עוד אין הודעות</p>}
+        {messages.length === 0 && <p className="py-8 text-center text-sm text-slate-500">No messages yet</p>}
         {messages.map((m) => {
           const style = SENDER[m.sender] ?? SENDER.system;
           const outgoing = m.direction === "out";
@@ -80,7 +80,7 @@ export function Conversation(props: {
                   )}
                 </div>
                 <div className="whitespace-chat">
-                  {m.body === null ? <span className="italic text-slate-400">(לא נשמר: נשלח לפני אישור הפרטיות)</span> : <WhatsAppText text={m.body} />}
+                  {m.body === null ? <span className="italic text-slate-400">((not stored: sent before privacy consent)</span> : <WhatsAppText text={m.body} />}
                 </div>
               </div>
             </div>
@@ -92,11 +92,11 @@ export function Conversation(props: {
         <form ref={form} action={action} className="space-y-2">
           <input type="hidden" name="clientId" value={props.clientId} />
           {state.error && <Notice tone="red">{state.error}</Notice>}
-          <Textarea name="text" placeholder="כתבו ללקוח בשמכם…" required className="min-h-16" />
+          <Textarea name="text" placeholder="Write to the client in your own name…" required className="min-h-16" />
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-slate-500">ההודעה נשלחת בשמך. הבוט יקבל אותה כרקע בהודעה הבאה של הלקוח.</span>
+            <span className="text-xs text-slate-500">The message is sent in your name. The bot gets it as background on the client's next message.</span>
             <Button size="sm" disabled={pending}>
-              {pending ? "שולח…" : "שלח"}
+              {pending ? "Sending…" : "Send"}
             </Button>
           </div>
         </form>

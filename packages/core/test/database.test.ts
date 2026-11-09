@@ -41,7 +41,7 @@ describe("Postgres driver path (DATABASE_URL)", () => {
     const cfg = testConfig();
     const { coachId } = await importCoachFromDir(handle.db, SEED_DIR, { cfg, llm: null, embedder: null, slug: "demo" });
     const t = await openTenant(handle.db, coachId);
-    expect((await searchKnowledge(handle.db, t, "דילואד", null))[0]?.content).toContain("דילואד");
+    expect((await searchKnowledge(handle.db, t, "deload", null))[0]?.content).toContain("deload");
 
     await connectWhatsAppNumber(handle.db, t, { phoneNumberId: "pn-pg" });
     const now = new Date();

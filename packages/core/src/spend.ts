@@ -61,6 +61,6 @@ export async function spendBlock(db: Db, t: TenantContext, caps: SpendCaps, now 
 /** What the coach is told when a cap stops the bot (alert, playground, dashboard). */
 export function spendBlockMessage(block: SpendBlock): string {
   return block.scope === "coach"
-    ? `הגעתם לתקרת ההוצאה החודשית ($${block.capUsd}). הבוט לא עונה ללקוחות עד תחילת החודש הבא או עד שמנהל המערכת יעלה את התקרה. ההודעות של הלקוחות נשמרות בשיחה.`
-    : "הבוט מושהה זמנית: הפלטפורמה הגיעה לתקרת ההוצאה היומית. ההודעות של הלקוחות נשמרות בשיחה, והבוט יחזור לענות מחר (לפי שעון UTC) או כשמנהל המערכת יעלה את התקרה.";
+    ? `You've reached the monthly spend cap ($${block.capUsd}). The bot won't answer clients until the start of next month or until the administrator raises the cap. Clients' messages are kept in the conversation.`
+    : "The bot is paused for now: the platform reached its daily spend cap. Clients' messages are kept in the conversation, and the bot will answer again tomorrow (UTC) or when the administrator raises the cap.";
 }

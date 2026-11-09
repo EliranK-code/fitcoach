@@ -8,7 +8,7 @@ import { Button, Field, Input, Notice } from "./ui";
 export function CodeForm({
   action,
   submitLabel,
-  label = "הקוד מאפליקציית האימות",
+  label = "The code from your authenticator app",
   variant = "primary",
 }: {
   action: (prev: FormState, form: FormData) => Promise<FormState>;
@@ -35,7 +35,7 @@ export function CodeForm({
         />
       </Field>
       <Button type="submit" variant={variant} className="w-full" disabled={pending}>
-        {pending ? "בודק…" : submitLabel}
+        {pending ? "Checking…" : submitLabel}
       </Button>
     </form>
   );

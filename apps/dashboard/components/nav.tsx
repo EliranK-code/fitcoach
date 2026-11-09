@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
-  { href: "/", label: "סקירה", icon: "◧" },
-  { href: "/alerts", label: "דורש התערבות", icon: "⚑" },
-  { href: "/clients", label: "לקוחות", icon: "☺" },
-  { href: "/knowledge", label: "בסיס הידע", icon: "✎" },
-  { href: "/playground", label: "מגרש משחקים", icon: "▶" },
-  { href: "/settings", label: "הגדרות", icon: "⚙" },
+  { href: "/", label: "Overview", icon: "◧" },
+  { href: "/alerts", label: "Needs attention", icon: "⚑" },
+  { href: "/clients", label: "Clients", icon: "☺" },
+  { href: "/knowledge", label: "Knowledge base", icon: "✎" },
+  { href: "/playground", label: "Playground", icon: "▶" },
+  { href: "/settings", label: "Settings", icon: "⚙" },
 ];
 
 export function Nav({ openAlerts }: { openAlerts: number }) {

@@ -13,7 +13,7 @@ export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export class OutsideServiceWindowError extends Error {
   constructor() {
-    super("עברו יותר מ-24 שעות מההודעה האחרונה של הלקוח/ה. מחוץ לחלון אפשר לשלוח רק תבנית (template) מאושרת.");
+    super("More than 24 hours have passed since the client's last message. Outside that window you can only send an approved template.");
   }
 }
 
@@ -123,7 +123,7 @@ export async function sendTemplateMessage(
     direction: "out",
     sender: opts.sender ?? "coach",
     kind: "template",
-    body: `[תבנית ${template.name}] ${template.bodyParams.join(" | ")}`.trim(),
+    body: `[template ${template.name}] ${template.bodyParams.join(" | ")}`.trim(),
     externalId: messageId ?? undefined,
     status: "sent",
     botSeen: false,

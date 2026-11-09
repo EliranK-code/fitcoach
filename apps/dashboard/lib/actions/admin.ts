@@ -39,12 +39,12 @@ export interface LinkState extends FormState {
 export async function adminLoginAction(_prev: FormState, form: FormData): Promise<FormState> {
   const email = String(form.get("email") ?? "").trim();
   const password = String(form.get("password") ?? "");
-  if (!email || !password) return { error: "נא למלא אימייל וסיסמה" };
+  if (!email || !password) return { error: "Enter an email and a password" };
   if (await throttled("admin-login")) return { error: THROTTLED };
   const { handle } = await services();
   const result = await authenticateAdmin(handle.db, email, password);
   if (!result.ok) {
-    return { error: result.reason === "locked" ? "החשבון ננעל זמנית. נסו שוב בעוד 15 דקות." : "אימייל או סיסמה שגויים" };
+    return { error: result.reason === "locked" ? "The account is temporarily locked. Try again in 15 minutes." : "Wrong email or password" };
   }
   const { token, expiresAt } = await createAdminSession(handle.db, result.admin);
   await setAdminCookie(token, expiresAt);
@@ -58,7 +58,7 @@ export async function adminVerifyAction(_prev: FormState, form: FormData): Promi
   const result = await verifyAdminCode(handle.db, token, String(form.get("code") ?? ""));
   if (!result.ok) {
     if (result.reason !== "invalid") await clearAdminCookie();
-    const errors = { invalid: "הקוד לא נכון", locked: "החשבון ננעל זמנית. נסו שוב בעוד 15 דקות.", expired: "פג הזמן. התחברו מחדש." };
+    const errors = { invalid: "The code is wrong", locked: "The account is temporarily locked. Try again in 15 minutes.", expired: "Time ran out. Sign in again." };
     return { error: errors[result.reason] };
   }
   await setAdminCookie(token!, result.expiresAt);
@@ -90,7 +90,7 @@ export async function inviteAction(coachId: string, _prev: LinkState, form: Form
   const s = await requireAdmin();
   try {
     const token = await createInviteLink(s.handle.db, { coachId, email: String(form.get("email") ?? ""), createdBy: s.actor });
-    return { ok: "הקישור נוצר. העתיקו ושלחו אותו למאמן: הוא יוצג רק עכשיו, ותקף ל-7 ימים.", link: `${await publicOrigin()}/invite/${token}` };
+    return { ok: "The link was created. Copy it and send it to the coach: it's shown only now, and it's valid for 7 days.", link: `${await publicOrigin()}/invite/${token}` };
   } catch (err) {
     if (err instanceof LinkError) return { error: err.message };
     throw err;
@@ -100,7 +100,7 @@ export async function inviteAction(coachId: string, _prev: LinkState, form: Form
 export async function resetLinkAction(userId: string, _prev: LinkState, _form: FormData): Promise<LinkState> {
   const s = await requireAdmin();
   const token = await createResetLink(s.handle.db, { userId, createdBy: s.actor });
-  return { ok: "קישור לאיפוס הסיסמה, תקף ל-24 שעות. הוא יוצג רק עכשיו.", link: `${await publicOrigin()}/reset/${token}` };
+  return { ok: "Password reset link, valid for 24 hours. It's shown only now.", link: `${await publicOrigin()}/reset/${token}` };
 }
 
 export async function resetUserMfaAction(coachId: string, userId: string, email: string): Promise<void> {
@@ -115,7 +115,7 @@ export async function resetUserMfaAction(coachId: string, userId: string, email:
 export async function assignNumberAction(coachId: string, _prev: FormState, form: FormData): Promise<FormState> {
   const s = await requireAdmin();
   const phoneNumberId = String(form.get("phoneNumberId") ?? "").trim();
-  if (!phoneNumberId) return { error: "חסר Phone number ID" };
+  if (!phoneNumberId) return { error: "Phone number ID is missing" };
   try {
     const t = await openTenant(s.handle.db, coachId, { allowSuspended: true });
     const account = await connectWhatsAppNumber(s.handle.db, t, { phoneNumberId, displayPhone: String(form.get("displayPhone") ?? "").trim() || undefined });
@@ -125,7 +125,7 @@ export async function assignNumberAction(coachId: string, _prev: FormState, form
     throw err;
   }
   revalidatePath("/admin/coaches/[slug]", "page");
-  return { ok: "המספר חובר." };
+  return { ok: "The number is connected." };
 }
 
 export async function disconnectNumberAction(coachId: string, phoneNumberId: string): Promise<void> {
@@ -149,10 +149,10 @@ export async function setBudgetAction(coachId: string, _prev: FormState, form: F
   };
   const budget = amount("budget");
   const cap = amount("cap");
-  if ([budget, cap].some((v) => v !== undefined && (!Number.isFinite(v) || v <= 0))) return { error: "סכומים בדולרים, מספר חיובי (או ריק)" };
+  if ([budget, cap].some((v) => v !== undefined && (!Number.isFinite(v) || v <= 0))) return { error: "Amounts in USD, a positive number (or empty)" };
   const effectiveCap = cap ?? (s.cfg.COACH_MONTHLY_CAP_USD > 0 ? s.cfg.COACH_MONTHLY_CAP_USD : undefined);
   if (budget !== undefined && effectiveCap !== undefined && budget > effectiveCap) {
-    return { error: `התקציב ($${budget}) גבוה מהתקרה הקשיחה ($${effectiveCap}), והבוט ייעצר לפני שיגיע אליו. העלו גם את התקרה.` };
+    return { error: `The budget ($${budget}) is higher than the hard cap ($${effectiveCap}), so the bot would stop before reaching it. Raise the cap too.` };
   }
   const t = await openTenant(s.handle.db, coachId, { allowSuspended: true });
   await updateCoach(s.handle.db, t, { settings: { monthlyBudgetUsd: budget, monthlyCapUsd: cap } });
@@ -163,8 +163,8 @@ export async function setBudgetAction(coachId: string, _prev: FormState, form: F
     meta: { monthlyBudgetUsd: budget ?? null, monthlyCapUsd: cap ?? null },
   });
   revalidatePath("/admin", "layout");
-  const capText = effectiveCap === undefined ? "בלי תקרה" : `תקרה $${effectiveCap}${cap === undefined ? " (ברירת המחדל)" : ""}`;
-  return { ok: `נשמר: ${budget === undefined ? "בלי תקציב" : `תקציב $${budget}`}, ${capText} לחודש.` };
+  const capText = effectiveCap === undefined ? "no cap" : `cap $${effectiveCap}${cap === undefined ? " (the default)" : ""}`;
+  return { ok: `Saved: ${budget === undefined ? "no budget" : `budget $${budget}`}, ${capText} a month.` };
 }
 
 export async function suspendCoachAction(coachId: string): Promise<void> {

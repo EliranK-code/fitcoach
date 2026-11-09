@@ -19,7 +19,7 @@ export type SendResult = { ok: true } | { ok: false; error: string };
  */
 export async function sendAsCoach(s: AppSession, client: ClientRow, text: string): Promise<SendResult> {
   const body = text.trim();
-  if (!body) return { ok: false, error: "ההודעה ריקה" };
+  if (!body) return { ok: false, error: "The message is empty" };
   const { db } = s.handle;
 
   if (client.channel !== "whatsapp") {
@@ -29,14 +29,14 @@ export async function sendAsCoach(s: AppSession, client: ClientRow, text: string
   }
 
   const account = await getCoachAccount(db, s.t);
-  if (!account) return { ok: false, error: "אין מספר וואטסאפ מחובר. חברו מספר בעמוד ההגדרות." };
+  if (!account) return { ok: false, error: "No WhatsApp number is connected. Connect one on the Settings page." };
   try {
     const api = await s.whatsappApi(s.t, account.phoneNumberId);
     await sendCoachMessage(db, s.t, client, api, body, { now: new Date(), actor: s.actor });
     return { ok: true };
   } catch (err) {
     if (err instanceof OutsideServiceWindowError || err instanceof WhatsAppConfigError) return { ok: false, error: err.message };
-    if (err instanceof WhatsAppApiError) return { ok: false, error: `וואטסאפ דחה את ההודעה: ${err.message}` };
+    if (err instanceof WhatsAppApiError) return { ok: false, error: `WhatsApp rejected the message: ${err.message}` };
     throw err;
   }
 }

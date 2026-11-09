@@ -21,9 +21,9 @@ export async function saveReminderSettingsAction(_prev: FormState, form: FormDat
   const s = await requireSession();
   const quietStart = String(form.get("quietStart") ?? "").trim();
   const quietEnd = String(form.get("quietEnd") ?? "").trim();
-  if (!isValidTime(quietStart) || !isValidTime(quietEnd)) return { error: "שעות שקטות בפורמט HH:MM" };
+  if (!isValidTime(quietStart) || !isValidTime(quietEnd)) return { error: "Quiet hours in HH:MM format" };
   const inactivityDays = Number(form.get("inactivityDays") ?? 0);
-  if (!Number.isInteger(inactivityDays) || inactivityDays < 0 || inactivityDays > 30) return { error: "ימים ללא פעילות: מספר שלם בין 0 ל-30" };
+  if (!Number.isInteger(inactivityDays) || inactivityDays < 0 || inactivityDays > 30) return { error: "Days without activity: a whole number from 0 to 30-30" };
 
   const texts: ReminderSettings["texts"] = {};
   const templates: ReminderSettings["templates"] = {};
@@ -33,8 +33,8 @@ export async function saveReminderSettingsAction(_prev: FormState, form: FormDat
     if (text && text !== DEFAULT_REMINDER_TEXTS[kind]) texts[kind] = text.slice(0, 1000);
     const name = String(form.get(`template_${kind}`) ?? "").trim();
     if (name) {
-      if (!/^[a-z0-9_]{1,512}$/.test(name)) return { error: `שם תבנית לא תקין: ${name} (אותיות קטנות באנגלית, ספרות וקו תחתון)` };
-      templates[kind] = { name, language: String(form.get(`lang_${kind}`) ?? "he").trim() || "he" };
+      if (!/^[a-z0-9_]{1,512}$/.test(name)) return { error: `Invalid template name: ${name} (lowercase English letters, digits and underscores)` };
+      templates[kind] = { name, language: String(form.get(`lang_${kind}`) ?? "en").trim() || "en" };
     }
   }
 
@@ -45,7 +45,7 @@ export async function saveReminderSettingsAction(_prev: FormState, form: FormDat
   });
   await audit(s.handle.db, s.t, { actor: s.actor, action: "reminder_settings_updated", targetType: "coach", targetId: s.t.coachId });
   revalidatePath("/settings");
-  return { ok: "נשמר. תזכורות שכבר מתוזמנות יתעדכנו בהפעלה הבאה שלהן." };
+  return { ok: "Saved. Reminders already scheduled will update on their next run." };
 }
 
 /** The coach stops all proactive messages to one client (same effect as the client writing "STOP"). */

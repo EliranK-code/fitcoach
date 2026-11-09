@@ -11,7 +11,7 @@ export default async function KnowledgePage() {
   const db = s.handle.db;
   const knowledge = await getKnowledge(db, s.t);
   if (!knowledge) {
-    return <EmptyState title="עוד אין בסיס ידע">טוענים את מאמן הדמו עם npm run seed, או מייבאים מאמן עם coach:import.</EmptyState>;
+    return <EmptyState title="No knowledge base yet">Load the demo coach with npm run seed, or import a coach with coach:import.</EmptyState>;
   }
   const docs = await listDocuments(db, s.t);
   const versions = await listKnowledgeVersions(db, s.t, 10);
@@ -21,13 +21,13 @@ export default async function KnowledgePage() {
   return (
     <>
       <PageHeader
-        title="בסיס הידע"
-        description={`הבוט עונה רק לפי מה שכאן. גרסה נוכחית: ${knowledge.version}`}
+        title="Knowledge base"
+        description={`The bot answers only from what's here. Current version: ${knowledge.version}`}
       />
       {s.t.settings.starterKnowledge && (
         <div className="mb-6">
           <Notice tone="yellow">
-            זו תבנית התחלתית. מלאו את הפרטים על השיטה שלך ולחצו על "שמור ופרסם גרסה חדשה". אחרי הפרסום הראשון אפשר לחבר מספר וואטסאפ.
+            This is a starter template. Fill in the details of your method and click "Save and publish a new version". After the first publish you can connect a WhatsApp number.
           </Notice>
         </div>
       )}
@@ -36,19 +36,19 @@ export default async function KnowledgePage() {
           <KnowledgeForm initial={knowledge.data} />
         </div>
         <div className="space-y-6">
-          <Card title="מסמכים">
+          <Card title="Documents">
             {docs.length === 0 ? (
-              <p className="mb-4 text-sm text-slate-500">עוד אין מסמכים.</p>
+              <p className="mb-4 text-sm text-slate-500">No documents yet.</p>
             ) : (
               <ul className="mb-4 divide-y divide-slate-100 text-sm">
                 {docs.map((d) => (
                   <li key={d.id} className="flex items-center justify-between gap-2 py-2">
                     <div className="min-w-0">
                       <div className="truncate font-medium">{d.title}</div>
-                      <div className="text-xs text-slate-500">כ-{d.tokenEstimate.toLocaleString("he-IL")} טוקנים</div>
+                      <div className="text-xs text-slate-500">~{d.tokenEstimate.toLocaleString("en-US")} tokens</div>
                     </div>
                     <form action={deleteDocumentAction.bind(null, d.id)}>
-                      <button className="text-xs text-red-600 hover:underline">הסרה</button>
+                      <button className="text-xs text-red-600 hover:underline">Remove</button>
                     </form>
                   </li>
                 ))}
@@ -57,16 +57,16 @@ export default async function KnowledgePage() {
             <DocumentUpload />
             <p className="mt-4 text-xs text-slate-500">
               {prompt.ragMode
-                ? "בסיס הידע גדול: הבוט מחפש במסמכים לפי הצורך (RAG)."
-                : "כל המסמכים נכנסים להנחיות של הבוט בכל שיחה."}
+                ? "The knowledge base is large: the bot searches the documents as needed (RAG)."
+                : "All documents go into the bot's instructions in every conversation."}
             </p>
           </Card>
 
-          <Card title="היסטוריית גרסאות">
+          <Card title="Version history">
             <ul className="space-y-1.5 text-sm">
               {versions.map((v) => (
                 <li key={v.version} className="flex justify-between">
-                  <span className={v.version === knowledge.version ? "font-semibold" : ""}>גרסה {v.version}</span>
+                  <span className={v.version === knowledge.version ? "font-semibold" : ""}>Version {v.version}</span>
                   <span className="text-slate-500">{formatDateTime(v.createdAt, tz)}</span>
                 </li>
               ))}

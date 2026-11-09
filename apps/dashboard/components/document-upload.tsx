@@ -22,10 +22,10 @@ export function DocumentUpload() {
           className="text-sm file:me-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium hover:file:bg-slate-200"
         />
         <Button size="sm" disabled={pending}>
-          {pending ? "מעבד…" : "העלאה"}
+          {pending ? "Processing…" : "Upload"}
         </Button>
       </div>
-      <p className="text-xs text-slate-500">PDF, Word, טקסט או תמונה (למשל צילום של תפריט, שמתומלל אוטומטית). עד 8MB.</p>
+      <p className="text-xs text-slate-500">PDF, Word, PDF, Word, text or an image (for example a photo of a meal plan, transcribed automatically). Up to 8MB. 8MB.</p>
       {state.error && <Notice tone="red">{state.error}</Notice>}
       {state.ok && <Notice tone="green">{state.ok}</Notice>}
     </form>

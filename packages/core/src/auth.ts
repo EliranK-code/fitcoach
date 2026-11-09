@@ -24,7 +24,7 @@ export class PasswordPolicyError extends Error {}
 
 export async function hashPassword(password: string): Promise<string> {
   if (password.length < MIN_PASSWORD_LENGTH) {
-    throw new PasswordPolicyError(`הסיסמה צריכה להיות באורך ${MIN_PASSWORD_LENGTH} תווים לפחות`);
+    throw new PasswordPolicyError(`The password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
   }
   const salt = randomBytes(16);
   const key = await scrypt(password, salt, SCRYPT.keylen, { N: SCRYPT.N, r: SCRYPT.r, p: SCRYPT.p });
@@ -176,7 +176,7 @@ export async function verifyLoginCode(db: Db, token: string | undefined, code: s
 
 /** Starts (or restarts) two-step setup: a new secret, stored encrypted but not active until confirmed. */
 export async function beginTotpSetup(db: Db, t: TenantContext, user: CoachUser): Promise<{ secret: string; uri: string }> {
-  if (mfaEnabled(user)) throw new MfaError("אימות דו-שלבי כבר פעיל");
+  if (mfaEnabled(user)) throw new MfaError("Two-step verification is already on");
   const secret = generateTotpSecret();
   await db.update(coachUsers).set({ totpSecretEnc: encryptText(t, secret), totpEnabledAt: null, totpLastStep: null }).where(eq(coachUsers.id, user.id));
   return { secret, uri: totpUri(secret, user.email) };
@@ -186,16 +186,16 @@ export class MfaError extends Error {}
 
 async function freshUser(db: Db, userId: string): Promise<CoachUser> {
   const [row] = await db.select().from(coachUsers).where(eq(coachUsers.id, userId));
-  if (!row) throw new MfaError("המשתמש לא נמצא");
+  if (!row) throw new MfaError("User not found");
   return row;
 }
 
 /** Activates two-step login once the user proves their app produces the right code. */
 export async function confirmTotpSetup(db: Db, t: TenantContext, userId: string, code: string, now = new Date()): Promise<void> {
   const user = await freshUser(db, userId);
-  if (!user.totpSecretEnc || user.totpEnabledAt) throw new MfaError("אין הגדרה פתוחה. התחילו מחדש");
+  if (!user.totpSecretEnc || user.totpEnabledAt) throw new MfaError("There's no setup in progress. Start again");
   const step = verifyTotp(decryptText(t, user.totpSecretEnc), code, now);
-  if (step === null) throw new MfaError("הקוד לא נכון. בדקו שהשעון בטלפון מדויק ונסו שוב");
+  if (step === null) throw new MfaError("The code is wrong. Check that your phone's clock is accurate and try again");
   await db.update(coachUsers).set({ totpEnabledAt: now, totpLastStep: step }).where(eq(coachUsers.id, userId));
 }
 
@@ -203,7 +203,7 @@ export async function confirmTotpSetup(db: Db, t: TenantContext, userId: string,
 export async function disableTotp(db: Db, t: TenantContext, userId: string, code: string, now = new Date()): Promise<void> {
   const user = await freshUser(db, userId);
   if (!mfaEnabled(user)) return;
-  if (verifyTotp(decryptText(t, user.totpSecretEnc!), code, now, user.totpLastStep) === null) throw new MfaError("הקוד לא נכון");
+  if (verifyTotp(decryptText(t, user.totpSecretEnc!), code, now, user.totpLastStep) === null) throw new MfaError("The code is wrong");
   await clearTotp(db, userId);
 }
 

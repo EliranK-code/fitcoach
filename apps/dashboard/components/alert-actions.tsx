@@ -19,30 +19,30 @@ export function AlertActions({ alertId, hasQuestion, canReply }: { alertId: stri
         <div className="flex flex-wrap gap-2">
           {canReply && (
             <Button size="sm" onClick={() => setMode("reply")}>
-              ענה ללקוח
+              Reply to client
             </Button>
           )}
           <Button size="sm" variant="secondary" onClick={() => setMode("resolve")}>
-            סמן כטופל
+            Mark as handled
           </Button>
         </div>
       )}
       {mode === "reply" && (
         <form action={reply} className="space-y-2">
           <input type="hidden" name="alertId" value={alertId} />
-          <Textarea name="text" placeholder="התשובה שלך ללקוח…" required autoFocus />
+          <Textarea name="text" placeholder="Your reply to the client…" required autoFocus />
           {hasQuestion && (
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input type="checkbox" name="saveFaq" className="h-4 w-4 accent-emerald-600" />
-              לשמור את השאלה והתשובה ב-FAQ, כדי שהבוט יענה בעצמו בפעם הבאה
+              Save the question and answer to the FAQ, so the bot answers it by itself next time
             </label>
           )}
           <div className="flex gap-2">
             <Button size="sm" disabled={replying}>
-              {replying ? "שולח…" : "שלח וסגור"}
+              {replying ? "Sending…" : "Send and close"}
             </Button>
             <Button size="sm" variant="ghost" type="button" onClick={() => setMode("none")}>
-              ביטול
+              Cancel
             </Button>
           </div>
         </form>
@@ -50,12 +50,12 @@ export function AlertActions({ alertId, hasQuestion, canReply }: { alertId: stri
       {mode === "resolve" && (
         <form action={resolve} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="alertId" value={alertId} />
-          <Input name="note" placeholder="הערה (לא חובה)" className="max-w-xs" />
+          <Input name="note" placeholder="Note (optional)" className="max-w-xs" />
           <Button size="sm" variant="secondary" disabled={resolving}>
-            {resolving ? "סוגר…" : "סגור התראה"}
+            {resolving ? "Closing…" : "Close alert"}
           </Button>
           <Button size="sm" variant="ghost" type="button" onClick={() => setMode("none")}>
-            ביטול
+            Cancel
           </Button>
         </form>
       )}

@@ -173,7 +173,7 @@ describe("accounts, links and starter coaches", () => {
     expect((await authenticate(db, "new@coach.com", "new-coach-password", now)).ok).toBe(true);
     await expect(redeemLink(db, token, "new-coach-password", now)).rejects.toThrow(LinkError);
     expect(await inspectLink(db, token, now)).toBeNull();
-    await expect(createInviteLink(db, { coachId: t.coachId, email: "new@coach.com", createdBy: "x", now })).rejects.toThrow(/כבר קיים/);
+    await expect(createInviteLink(db, { coachId: t.coachId, email: "new@coach.com", createdBy: "x", now })).rejects.toThrow(/already exists/);
 
     // Reset: works once, within 24 hours, and ends every session.
     const session = await createSession(db, user, now);
@@ -195,7 +195,7 @@ describe("accounts, links and starter coaches", () => {
   it("creates panel coaches on starter knowledge and blocks a number until they publish their own", async () => {
     const db = handle.db;
     await expect(createCoachFromPanel(db, { slug: "Bad Slug", name: "x" }, "admin:a")).rejects.toThrow(CoachLifecycleError);
-    await expect(createCoachFromPanel(db, { slug: "demo", name: "x" }, "admin:a")).rejects.toThrow(/כבר יש/);
+    await expect(createCoachFromPanel(db, { slug: "demo", name: "x" }, "admin:a")).rejects.toThrow(/already exists/);
     const coachId = await createCoachFromPanel(db, { slug: "dana-fit", name: "דנה", timezone: "Asia/Jerusalem" }, "admin:a");
     let dana = await openTenant(db, coachId);
     expect(dana.settings).toMatchObject({ starterKnowledge: true, timezone: "Asia/Jerusalem" });

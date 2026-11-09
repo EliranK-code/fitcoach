@@ -281,7 +281,7 @@ const handlers: Record<string, (ctx: TurnContext, input: Input) => Promise<ToolO
       await saveProfile(ctx.db, ctx.t, ctx.client.id, profile);
     }
     if (saved.includes("age") && isMinor(profile)) {
-      await raiseAlert(ctx, "minor", "medium", "system", `הלקוח/ה בגיל ${profile.age} (קטין/ה).`);
+      await raiseAlert(ctx, "minor", "medium", "system", `The client is ${profile.age} years old (a minor).`);
     }
     const missing = missingOnboardingFields(profile).map((f) => f.key);
     const floor = floorFor(ctx);
@@ -342,7 +342,7 @@ const handlers: Record<string, (ctx: TurnContext, input: Input) => Promise<ToolO
     const duration = Math.round(num(input.duration_min));
     await addWorkout(ctx.db, ctx.t, ctx.client.id, {
       performedOn: date,
-      title: str(input.title).trim() || "אימון",
+      title: str(input.title).trim() || "Workout",
       durationMin: duration > 0 ? duration : null,
       exercises,
       notes: str(input.notes).trim() || null,

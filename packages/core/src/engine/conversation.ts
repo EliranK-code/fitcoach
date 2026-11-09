@@ -10,7 +10,6 @@ import {
   isConsentDecline,
   isDeletionConfirmation,
   isDeletionRequest,
-  looksHebrew,
 } from "../consent";
 import { formatReply } from "../format/whatsapp";
 import { getKnowledge } from "../knowledge/store";
@@ -36,10 +35,8 @@ import { audit, createAlert, recordUsage } from "../repos/ops";
 import { detectRedFlags, safetyNote } from "../safety/redFlags";
 import {
   containsNutritionNumbers,
-  ED_SAFE_FALLBACK_EN,
-  ED_SAFE_FALLBACK_HE,
-  LEAK_SAFE_REPLY_EN,
-  LEAK_SAFE_REPLY_HE,
+  ED_SAFE_FALLBACK,
+  LEAK_SAFE_REPLY,
   quotesVerbatim,
 } from "../safety/outputGuards";
 import { openTenant, type TenantContext } from "../tenancy";
@@ -69,21 +66,21 @@ export interface InboundMessage {
 export type UnsupportedKind = "image" | "audio" | "video" | "document" | "sticker" | "location" | "contacts" | "other";
 
 const UNSUPPORTED_LABEL: Record<UnsupportedKind, string> = {
-  image: "תמונה",
-  audio: "הודעה קולית",
-  video: "סרטון",
-  document: "קובץ",
-  sticker: "סטיקר",
-  location: "מיקום",
-  contacts: "איש קשר",
-  other: "הודעה",
+  image: "photo",
+  audio: "voice message",
+  video: "video",
+  document: "file",
+  sticker: "sticker",
+  location: "location",
+  contacts: "contact",
+  other: "message",
 };
-const UNSUPPORTED_REPLY_HE = "את סוג ההודעה הזה אני עוד לא יודע לקרוא 🙏 אפשר לכתוב לי את זה במילים, או לשלוח תמונה או הודעה קולית?";
-const UNSUPPORTED_AUDIO_REPLY_HE = "כרגע אני לא יכול להאזין להודעות קוליות 🙏 אפשר לכתוב לי את זה במילים?";
+const UNSUPPORTED_REPLY = "I can't read this kind of message yet 🙏 Could you write it in words, or send a photo or a voice message?";
+const UNSUPPORTED_AUDIO_REPLY = "I can't listen to voice messages right now 🙏 Could you write it in words?";
 
 // Exact replies that stop all proactive messages, without involving the AI (WhatsApp best practice: honor STOP).
-const OPT_OUT_WORDS = new Set(["stop", "הסר", "הסרה", "unsubscribe", "בלי תזכורות", "הפסק תזכורות"]);
-const OPT_OUT_REPLY_HE = "בסדר, לא אשלח לך יותר תזכורות או הודעות יזומות. אני כאן בכל פעם שתכתוב/י לי 🙂 (אם תרצה/י אותן שוב, פשוט תגיד/י)";
+const OPT_OUT_WORDS = new Set(["stop", "unsubscribe", "stop reminders", "no reminders", "הסר", "הסרה", "בלי תזכורות", "הפסק תזכורות"]);
+const OPT_OUT_REPLY = "OK, I won't send you any more reminders or proactive messages. I'm here whenever you write 🙂 (If you want them back, just tell me)";
 
 export function isOptOut(text: string): boolean {
   return OPT_OUT_WORDS.has(text.trim().toLowerCase().replace(/[.!]/g, ""));
@@ -105,12 +102,9 @@ export interface TurnResult {
 const MAX_ROUNDS = 8;
 const DELETION_CONFIRM_WINDOW_MS = 60 * 60 * 1000;
 
-const REFUSAL_REPLY_HE = "שאלה טובה. אני בודק את זה עם המאמן/ת ואחזור אליך 🙏";
-const REFUSAL_REPLY_EN = "Good question. I'm checking this with your coach and will get back to you 🙏";
-const ERROR_REPLY_HE = "אופס, משהו השתבש אצלי לרגע 🙈 אפשר לנסות לשלוח שוב בעוד כמה דקות?";
-const ERROR_REPLY_EN = "Oops, something went wrong on my side 🙈 Could you try again in a few minutes?";
-const EMPTY_REPLY_HE = "קיבלתי 👍";
-const EMPTY_REPLY_EN = "Got it 👍";
+const REFUSAL_REPLY = "Good question. I'm checking this with your coach and will get back to you 🙏";
+const ERROR_REPLY = "Oops, something went wrong on my side 🙈 Could you try again in a few minutes?";
+const EMPTY_REPLY = "Got it 👍";
 
 /** Adds an operator note after the last message, merging with a trailing system note if there is one. */
 function appendSystemNote(pending: BetaMessageParam[], note: string): void {
@@ -151,7 +145,7 @@ export class ConversationEngine {
     });
     let client = await updateClient(db, t, found.id, { lastInboundAt: now });
     const text = msg.text.trim();
-    const label = msg.image ? "תמונה" : msg.voice ? "הודעה קולית" : msg.unsupported ? UNSUPPORTED_LABEL[msg.unsupported] : null;
+    const label = msg.image ? UNSUPPORTED_LABEL.image : msg.voice ? UNSUPPORTED_LABEL.audio : msg.unsupported ? UNSUPPORTED_LABEL[msg.unsupported] : null;
     // The readable log keeps only a label and the caption/transcript, never the image bytes.
     const loggedBody = label ? `[${label}]${text ? ` ${text}` : ""}` : text;
     const kind = msg.image ? "image" : msg.voice ? "audio" : (msg.unsupported ?? (msg.buttonId ? "button" : "text"));
@@ -232,7 +226,7 @@ export class ConversationEngine {
         type: "paused_message",
         severity: "low",
         source: "system",
-        summary: "הלקוח/ה שלח/ה הודעה בזמן שהבוט מושהה. מחכה לתשובה שלך.",
+        summary: "The client wrote while the bot is paused. Waiting for your reply.",
       });
       events.push({ type: "alert", alertType: "paused_message", severity: "low", source: "system", summary: "client wrote while paused", deduped: res.deduped });
       return { clientId: client.id, replies: [], outboundIds: [], events };
@@ -243,13 +237,13 @@ export class ConversationEngine {
       client = await setClientFlags(db, t, client, { remindersOptOut: true });
       await disableClientReminders(db, t, client.id);
       await audit(db, t, { actor: "client", action: "reminders_opt_out", targetType: "client", targetId: client.id });
-      return reply([OPT_OUT_REPLY_HE]);
+      return reply([OPT_OUT_REPLY]);
     }
 
     // 5. Media the bot doesn't handle gets a fixed answer; stickers need none.
     if (msg.unsupported) {
       if (msg.unsupported === "sticker") return reply([]);
-      return reply([msg.unsupported === "audio" ? UNSUPPORTED_AUDIO_REPLY_HE : UNSUPPORTED_REPLY_HE]);
+      return reply([msg.unsupported === "audio" ? UNSUPPORTED_AUDIO_REPLY : UNSUPPORTED_REPLY]);
     }
 
     // 6. Deterministic red-flag detection (on the caption or transcript too), independent of the model.
@@ -272,7 +266,7 @@ export class ConversationEngine {
 
   private async turnContext(t: TenantContext, client: ClientRow, events: TurnEvent[]): Promise<TurnContext> {
     const knowledge = await getKnowledge(this.deps.db, t);
-    if (!knowledge) throw new Error(`למאמן ${t.coachName} אין עדיין בסיס ידע. הריצו npm run seed או coach:import.`);
+    if (!knowledge) throw new Error(`Coach ${t.coachName} has no knowledge base yet. Run npm run seed or coach:import.`);
     const timeZone = t.settings.timezone ?? this.deps.cfg.TIMEZONE;
     return {
       db: this.deps.db,
@@ -305,12 +299,10 @@ export class ConversationEngine {
     const { db, cfg } = this.deps;
     const ctx = await this.turnContext(t, client, events);
     const timeZone = t.settings.timezone ?? cfg.TIMEZONE;
-    // A photo without a caption carries no language signal; default to Hebrew like the rest of the platform.
-    const hebrew = input.kind === "consent_granted" || !input.text || looksHebrew(input.text);
 
     if (input.kind === "message") {
       for (const hit of input.hits) {
-        await raiseAlert(ctx, hit.alertType, hit.severity, "detector", `זוהה בהודעת הלקוח/ה: ${hit.label}`, input.text);
+        await raiseAlert(ctx, hit.alertType, hit.severity, "detector", `Detected in the client's message: ${hit.label}`, input.text);
       }
     }
 
@@ -319,16 +311,16 @@ export class ConversationEngine {
     const stamp = `[${localStamp(this.deps.now(), timeZone)}]`;
     const pending: BetaMessageParam[] = [];
     if (input.kind === "consent_granted") {
-      pending.push({ role: "user", content: [{ type: "text", text: `${stamp}\n(אישרתי את הודעת הפרטיות)` }] });
+      pending.push({ role: "user", content: [{ type: "text", text: `${stamp}\n[The client accepted the privacy notice]` }] });
       pending.push({
         role: "system",
         content: `The client has just accepted the privacy notice. Greet them as ${t.coachName}'s digital assistant (an AI that works by the coach's method), say in one or two sentences what you can help with, and start onboarding with the first question.`,
       });
     } else {
       const body = input.voice
-        ? `${stamp}\n[הודעה קולית, תמלול אוטומטי] ${input.text}`
+        ? `${stamp}\n[Voice message, automatic transcription] ${input.text}`
         : input.image
-          ? `${stamp}\n${input.text ? `[תמונה, עם הכיתוב:] ${input.text}` : "[תמונה, בלי כיתוב]"}`
+          ? `${stamp}\n${input.text ? `[Photo, with the caption:] ${input.text}` : "[Photo, no caption]"}`
           : `${stamp}\n${input.text}`;
       pending.push({
         role: "user",
@@ -346,7 +338,7 @@ export class ConversationEngine {
     }
 
     try {
-      const { finalText, usage } = await this.toolLoop(ctx, epoch, pending, hebrew);
+      const { finalText, usage } = await this.toolLoop(ctx, epoch, pending);
       await appendEpochMessages(db, t, epoch, pending, { contextTokens: usage?.contextTokens ?? epoch.row.lastContextTokens, now: this.deps.now() });
       const replies = formatReply(finalText);
       const outboundIds: string[] = [];
@@ -359,8 +351,8 @@ export class ConversationEngine {
       logger.error({ err, clientId: client.id }, "conversation turn failed");
       // Keep the client's message in the history (alone: a trailing system note must be followed by a reply).
       await appendEpochMessages(db, t, epoch, pending.slice(0, 1), { contextTokens: epoch.row.lastContextTokens, now: this.deps.now() });
-      await raiseAlert(ctx, "bot_error", "medium", "system", "הבוט נתקל בשגיאה ולא ענה ללקוח/ה. כדאי לעבור על השיחה.");
-      const apology = hebrew ? ERROR_REPLY_HE : ERROR_REPLY_EN;
+      await raiseAlert(ctx, "bot_error", "medium", "system", "The bot hit an error and didn't answer the client. Worth reviewing the conversation.");
+      const apology = ERROR_REPLY;
       const apologyId = await logChatMessage(db, t, { clientId: ctx.client.id, direction: "out", sender: "bot", body: apology });
       const detail = err instanceof Anthropic.APIError ? `${err.status ?? ""} ${err.message}` : err instanceof Error ? err.message : String(err);
       return { clientId: ctx.client.id, replies: [apology], outboundIds: [apologyId], events, error: detail };
@@ -400,7 +392,6 @@ export class ConversationEngine {
     ctx: TurnContext,
     epoch: Epoch,
     pending: BetaMessageParam[],
-    hebrew: boolean,
   ): Promise<{ finalText: string; usage: UsageSummary | null }> {
     const { cfg } = this.deps;
     const llm = this.deps.llm();
@@ -428,8 +419,8 @@ export class ConversationEngine {
       if (res.stop_reason === "refusal") {
         const category = res.stop_details?.category ?? null;
         ctx.events.push({ type: "refusal", category });
-        await raiseAlert(ctx, "other", "medium", "system", `הבוט לא הצליח לענות על הודעה (מסנן הבטיחות של מודל ה-AI, קטגוריה: ${category ?? "לא ידוע"}). כדאי לעבור על השיחה ולענות בעצמך.`);
-        const text = hebrew ? REFUSAL_REPLY_HE : REFUSAL_REPLY_EN;
+        await raiseAlert(ctx, "other", "medium", "system", `The bot couldn't answer a message (the AI model's safety filter, category: ${category ?? "unknown"}). Worth reviewing the conversation and answering yourself.`);
+        const text = REFUSAL_REPLY;
         pending.push({ role: "assistant", content: [{ type: "text", text }] });
         return { finalText: text, usage };
       }
@@ -438,7 +429,7 @@ export class ConversationEngine {
 
       if (res.stop_reason === "max_tokens") {
         // A cut-off turn may hold a half-written tool call: keep only its text.
-        const text = textOf(content) || (hebrew ? EMPTY_REPLY_HE : EMPTY_REPLY_EN);
+        const text = textOf(content) || EMPTY_REPLY;
         logger.warn({ clientId: ctx.client.id }, "reply hit max_tokens");
         pending.push({ role: "assistant", content: [{ type: "text", text }] });
         return { finalText: text, usage };
@@ -474,7 +465,7 @@ export class ConversationEngine {
           );
           continue;
         }
-        const safe = hebrew ? ED_SAFE_FALLBACK_HE : ED_SAFE_FALLBACK_EN;
+        const safe = ED_SAFE_FALLBACK;
         pending.push({ role: "assistant", content: [{ type: "text", text: safe }] });
         return { finalText: safe, usage };
       }
@@ -490,19 +481,19 @@ export class ConversationEngine {
           );
           continue;
         }
-        await raiseAlert(ctx, "other", "low", "system", "הלקוח/ה ניסה/תה לגרום לבוט לחשוף את ההנחיות הפנימיות שלו. הבוט לא חשף אותן. כדאי להעיף מבט בשיחה.");
-        const safe = hebrew ? LEAK_SAFE_REPLY_HE : LEAK_SAFE_REPLY_EN;
+        await raiseAlert(ctx, "other", "low", "system", "The client tried to get the bot to reveal its internal instructions. The bot didn't reveal them. Worth a look at the conversation.");
+        const safe = LEAK_SAFE_REPLY;
         pending.push({ role: "assistant", content: [{ type: "text", text: safe }] });
         return { finalText: safe, usage };
       }
 
-      const finalText = text || (hebrew ? EMPTY_REPLY_HE : EMPTY_REPLY_EN);
+      const finalText = text || EMPTY_REPLY;
       pending.push(text ? { role: "assistant", content } : { role: "assistant", content: [{ type: "text", text: finalText }] });
       return { finalText, usage };
     }
 
     // Ran out of rounds while still calling tools: close the turn with a short acknowledgement.
-    const fallback = hebrew ? EMPTY_REPLY_HE : EMPTY_REPLY_EN;
+    const fallback = EMPTY_REPLY;
     pending.push({ role: "assistant", content: [{ type: "text", text: fallback }] });
     return { finalText: fallback, usage };
   }

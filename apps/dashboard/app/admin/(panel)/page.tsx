@@ -22,34 +22,34 @@ export default async function AdminCoachesPage() {
   const dayCapReached = dayCap > 0 && daySpend >= dayCap * 1_000_000;
   return (
     <>
-      <PageHeader title="מאמנים" description="סטטוס, לקוחות ועלות משוערת החודש (אחוז מהתקציב, אם הוגדר). פרטי לקוחות לא מוצגים כאן." />
+      <PageHeader title="Coaches" description="Status, clients and estimated cost this month (percent of budget, if set). Client details aren't shown here." />
       <div className="space-y-6">
         <Notice tone={dayCapReached ? "red" : undefined}>
-          הוצאה היום בכל הפלטפורמה (לפי UTC): <span dir="ltr">{formatUsd(daySpend)}</span>
+          Platform spend today (UTC): <span dir="ltr">{formatUsd(daySpend)}</span>
           {dayCap > 0 ? (
             <>
               {" "}
-              מתוך תקרה יומית של <span dir="ltr">${dayCap}</span>.
-              {dayCapReached && " התקרה הושגה: כל הבוטים מפסיקים לענות עד מחר. אפשר להעלות אותה ב-PLATFORM_DAILY_CAP_USD."}
+              of a daily cap of <span dir="ltr">${dayCap}</span>.
+              {dayCapReached && " The cap was reached: every bot stops answering until tomorrow. You can raise it with PLATFORM_DAILY_CAP_USD."}
             </>
           ) : (
-            ". אין תקרה יומית (PLATFORM_DAILY_CAP_USD=0)."
+            ". No daily cap (PLATFORM_DAILY_CAP_USD=0)."
           )}
         </Notice>
         <Card>
           {coaches.length === 0 ? (
-            <EmptyState title="עוד אין מאמנים">יוצרים מאמן ראשון בטופס למטה.</EmptyState>
+            <EmptyState title="No coaches yet">Create the first coach with the form below.</EmptyState>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-start text-xs text-slate-500">
                   <tr className="border-b border-slate-200">
-                    <th className="py-2 text-start font-medium">מאמן</th>
-                    <th className="py-2 text-start font-medium">סטטוס</th>
-                    <th className="py-2 text-start font-medium">בסיס ידע</th>
-                    <th className="py-2 text-end font-medium">מספרים</th>
-                    <th className="py-2 text-end font-medium">לקוחות</th>
-                    <th className="py-2 text-end font-medium">עלות החודש</th>
+                    <th className="py-2 text-start font-medium">Coach</th>
+                    <th className="py-2 text-start font-medium">Status</th>
+                    <th className="py-2 text-start font-medium">Knowledge base</th>
+                    <th className="py-2 text-end font-medium">Numbers</th>
+                    <th className="py-2 text-end font-medium">Clients</th>
+                    <th className="py-2 text-end font-medium">Cost this month</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -61,15 +61,15 @@ export default async function AdminCoachesPage() {
                         </Link>
                         {c.demo && (
                           <span className="ms-2">
-                            <Badge tone="purple">דמו</Badge>
+                            <Badge tone="purple">Demo</Badge>
                           </span>
                         )}
                         <div className="text-xs text-slate-500" dir="ltr">
                           {c.slug}
                         </div>
                       </td>
-                      <td className="py-2">{c.status === "suspended" ? <Badge tone="yellow">מושהה</Badge> : <Badge tone="green">פעיל</Badge>}</td>
-                      <td className="py-2">{c.starterKnowledge ? <Badge tone="orange">ממתין למילוי</Badge> : <Badge>מוכן</Badge>}</td>
+                      <td className="py-2">{c.status === "suspended" ? <Badge tone="yellow">Suspended</Badge> : <Badge tone="green">Active</Badge>}</td>
+                      <td className="py-2">{c.starterKnowledge ? <Badge tone="orange">Waiting to be filled in</Badge> : <Badge>Ready</Badge>}</td>
                       <td className="py-2 text-end">{c.numbers}</td>
                       <td className="py-2 text-end">{c.clients}</td>
                       <td className="py-2 text-end">
@@ -83,9 +83,9 @@ export default async function AdminCoachesPage() {
             </div>
           )}
         </Card>
-        <Card title="מאמן חדש">
+        <Card title="New coach">
           <p className="mb-4 text-sm text-slate-500">
-            המאמן נוצר עם תבנית ידע ריקה. אחרי היצירה שולחים לו קישור הזמנה, והוא ממלא את בסיס הידע בעצמו. אפשר לחבר מספר וואטסאפ רק אחרי שהוא מפרסם את הידע.
+            The coach is created with an empty knowledge template. After creating it, send them an invite link and they fill in the knowledge base themselves. You can connect a WhatsApp number only after they publish it.
           </p>
           <NewCoachForm />
         </Card>

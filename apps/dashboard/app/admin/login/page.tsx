@@ -12,12 +12,12 @@ export default async function AdminLoginPage() {
   return (
     <AuthShell
       admin
-      subtitle="כניסת מנהלי הפלטפורמה"
+      subtitle="Platform admin sign-in"
       footer={
         <>
-          משתמשי ניהול נוצרים רק בטרמינל: <span dir="ltr">npm run admin -- superadmin:create</span>
+          Admin users are created only in the terminal: <span dir="ltr">npm run admin -- superadmin:create</span>
           <Link href="/login" className="mt-2 block text-slate-600 underline hover:text-slate-900">
-            כניסת מאמנים
+            Coach sign-in
           </Link>
         </>
       }

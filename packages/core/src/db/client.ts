@@ -100,8 +100,8 @@ function acquireDirLock(dataDir: string): () => void {
     const pid = Number(pidText);
     if (pid && pid !== process.pid && processAlive(pid)) {
       throw new DatabaseBusyError(
-        `מסד הנתונים המקומי (${dataDir}) פתוח כבר בתהליך אחר (pid ${pid}: ${rest.join(" ").trim() || "לא ידוע"}). ` +
-          "PGlite תומך רק בתהליך אחד: עצרו את התהליך השני, או עברו ל-Supabase עם DATABASE_URL.",
+        `The local database (${dataDir}) is already open in another process (pid ${pid}: ${rest.join(" ").trim() || "unknown"}). ` +
+          "PGlite supports only one process: stop the other one, or use Postgres through DATABASE_URL.",
       );
     }
   }

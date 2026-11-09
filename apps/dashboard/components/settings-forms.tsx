@@ -19,10 +19,10 @@ export function CoachSettingsForm(props: { name: string; timezone: string; floor
     <form action={action} className="space-y-4">
       <Feedback state={state} />
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label="שם המאמן">
+        <Field label="Coach name">
           <Input name="name" defaultValue={props.name} required />
         </Field>
-        <Field label="אזור זמן">
+        <Field label="Time zone">
           <Select name="timezone" defaultValue={props.timezone}>
             {ZONES.map((z) => (
               <option key={z} value={z}>
@@ -31,14 +31,14 @@ export function CoachSettingsForm(props: { name: string; timezone: string; floor
             ))}
           </Select>
         </Field>
-        <Field label='רף קלורי מינימלי לנשים (קק"ל)' hint={`ריק = ${props.minFemale}. אפשר רק להעלות.`}>
+        <Field label="Minimum calorie floor for women (kcal)" hint={`Empty = ${props.minFemale}. You can only raise it.`}>
           <Input name="calorieFloorFemale" type="number" min={props.minFemale} step={50} defaultValue={props.floorFemale ?? ""} dir="ltr" />
         </Field>
-        <Field label='רף קלורי מינימלי לגברים (קק"ל)' hint={`ריק = ${props.minMale}. אפשר רק להעלות.`}>
+        <Field label="Minimum calorie floor for men (kcal)" hint={`Empty = ${props.minMale}. You can only raise it.`}>
           <Input name="calorieFloorMale" type="number" min={props.minMale} step={50} defaultValue={props.floorMale ?? ""} dir="ltr" />
         </Field>
       </div>
-      <Button disabled={pending}>{pending ? "שומר…" : "שמירה"}</Button>
+      <Button disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
     </form>
   );
 }
@@ -49,16 +49,16 @@ export function ClientAccessForm({ mode }: { mode: "approved_only" | "open" }) {
     <form action={action} className="space-y-3">
       <Feedback state={state} />
       <Field
-        label="מי יכול לדבר עם הבוט בוואטסאפ"
-        hint="במצב מאושרים בלבד, מספר שלא הוספת מקבל הודעה קצרה (פעם ביום לכל היותר), ואת/ה מקבל/ת בקשת הצטרפות. מה שהוא כותב לא מגיע ל-AI ולא נשמר."
+        label="Who can talk to the bot on WhatsApp"
+        hint="In approved-only mode, a number you didn't add gets a short notice (at most once a day), and you get a join request. What it writes doesn't reach the AI and isn't stored."
       >
         <Select name="clientAccess" defaultValue={mode} className="max-w-sm">
-          <option value="approved_only">רק לקוחות שאישרתי (מומלץ)</option>
-          <option value="open">כל מי שכותב למספר</option>
+          <option value="approved_only">Only clients I approved (recommended)</option>
+          <option value="open">Anyone who writes to the number</option>
         </Select>
       </Field>
       <Button size="sm" variant="secondary" disabled={pending}>
-        שמירה
+        Save
       </Button>
     </form>
   );
@@ -70,18 +70,18 @@ export function ConsentForm({ text, version, custom }: { text: string; version: 
     <form action={action} className="space-y-3">
       <Feedback state={state} />
       <Notice tone="yellow">
-        הנוסח הזה הוא מסמך משפטי. כל שינוי צריך לעבור עורך דין, והנוסח חייב להסביר מה נאסף, למה, מי מעבד את המידע (כולל ספקים בחו"ל), ואיך מבקשים עיון או מחיקה.
+        This text is a legal document. Every change should be checked by a lawyer, and the text must explain what is collected, why, who processes the data (including providers abroad), and how to ask to see or delete it.
       </Notice>
       <Textarea name="consentText" rows={12} defaultValue={text} />
       <p className="text-xs text-slate-500">
-        גרסה נוכחית: <span dir="ltr">{version}</span>
-        {custom ? " (נוסח מותאם)" : " (ברירת מחדל)"}. כל לקוח נשמר עם גרסת הנוסח שהוא אישר.
+        Current version: <span dir="ltr">{version}</span>
+        {custom ? " (custom text)" : " (default)"}. Each client is saved with the version they agreed to.
       </p>
       <div className="flex gap-2">
-        <Button disabled={pending}>שמירת נוסח</Button>
+        <Button disabled={pending}>Save text</Button>
         {custom && (
           <Button name="reset" value="1" variant="secondary" disabled={pending}>
-            חזרה לברירת המחדל
+            Back to the default
           </Button>
         )}
       </div>
@@ -95,19 +95,19 @@ export function PasswordForm() {
   return (
     <form action={action} className="space-y-3">
       <Feedback state={state} />
-      <Field label="סיסמה נוכחית">
+      <Field label="Current password">
         <Input name="current" type="password" autoComplete="current-password" required dir="ltr" />
       </Field>
       <div className="grid gap-3 md:grid-cols-2">
-        <Field label="סיסמה חדשה" hint="לפחות 10 תווים">
+        <Field label="New password" hint="At least 10 characters">
           <Input name="next" type="password" autoComplete="new-password" required minLength={10} dir="ltr" />
         </Field>
-        <Field label="שוב, לאימות">
+        <Field label="Again, to confirm">
           <Input name="confirm" type="password" autoComplete="new-password" required minLength={10} dir="ltr" />
         </Field>
       </div>
       <Button size="sm" variant="secondary" disabled={pending}>
-        החלפת סיסמה
+        Change password
       </Button>
     </form>
   );

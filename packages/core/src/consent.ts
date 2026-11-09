@@ -1,33 +1,37 @@
 // Consent runs before any AI processing: until a client explicitly agrees, nothing they write is sent to
 // Claude and only the minimum needed to reply (an encrypted phone number) is stored.
-// DRAFT TEXT: must be reviewed by a lawyer before production (Israeli Privacy Protection Law, Amendment 13).
+// DRAFT TEXT: must be reviewed by a lawyer before production, against the privacy law where you operate.
+// The bot's fixed texts are English; replies from the AI follow the client's language. Hebrew answers to the
+// consent and deletion prompts are still understood.
 
-export const CONSENT_VERSION = "2026-10-v1";
+export const CONSENT_VERSION = "2026-11-en-v1";
 
 export const CONSENT_BUTTONS = {
-  accept: { id: "consent_yes", title: "מאשר/ת ✅" },
-  decline: { id: "consent_no", title: "לא מאשר/ת" },
+  accept: { id: "consent_yes", title: "I agree ✅" },
+  decline: { id: "consent_no", title: "I don't agree" },
 } as const;
 
 export function consentText(coachName: string): string {
   return [
-    `היי! 👋 כאן העוזר הדיגיטלי של ${coachName}. אני בוט מבוסס בינה מלאכותית (AI), שעובד לפי השיטה של ${coachName} ובפיקוח שלו/ה.`,
+    `Hi! 👋 I'm ${coachName}'s digital assistant. I'm an AI bot that works by ${coachName}'s method, under their supervision.`,
     "",
-    "לפני שמתחילים, חשוב שתדע/י:",
-    "• כדי ללוות אותך אאסוף ואשמור מידע אישי, כולל מידע בריאותי (גיל, משקל, פציעות, מחלות רקע, תזונה ואימונים).",
-    `• המידע משמש רק לליווי שלך ונשמר מוצפן. גם ${coachName} יכול/ה לראות אותו.`,
-    "• לצורך הפעלת השירות המידע מעובד גם אצל ספקים בחו\"ל: Anthropic (מודל ה-AI), OpenAI (חיפוש ותמלול) ו-Meta (וואטסאפ).",
-    "• אני לא רופא/ה ולא מחליף/ה ייעוץ רפואי.",
-    "• אינך חייב/ת למסור את המידע. בכל רגע אפשר לבקש לעיין במידע או למחוק אותו: פשוט כתבו \"מחק את המידע שלי\".",
+    "Before we start, please know:",
+    "• To coach you I'll collect and keep personal information, including health information (age, weight, injuries, medical conditions, nutrition and training).",
+    `• It is used only for your coaching and is stored encrypted. ${coachName} can see it too.`,
+    "• To run the service it is also processed by providers abroad: Anthropic (the AI model), OpenAI (search and transcription) and Meta (WhatsApp).",
+    "• I'm not a doctor and I don't replace medical advice.",
+    "• You don't have to share this information. At any time you can ask to see it or delete it: just write \"delete my data\".",
     "",
-    "מאשר/ת? השיבו *מאשר* כדי להתחיל, או *לא מאשר* אם לא.",
+    "Do you agree? Reply *I agree* to start, or *I don't agree* if not.",
   ].join("\n");
 }
 
 export const CONSENT_DECLINED_TEXT =
-  "בסדר גמור, לא נשמור ולא נעבד שום מידע. אם תשנו את דעתכם, פשוט כתבו *מאשר* 🙂";
+  "No problem, we won't keep or process any information. If you change your mind, just write *I agree* 🙂";
 
 const ACCEPT = new Set([
+  "i agree ✅",
+  "yes i agree",
   "מאשר",
   "מאשרת",
   "מאשר/ת",
@@ -46,7 +50,8 @@ const ACCEPT = new Set([
   "accept",
 ]);
 
-const DECLINE = new Set(["לא מאשר", "לא מאשרת", "לא מאשר/ת", "לא", "2", "no", "i don't agree", "decline"]);
+// normalize() drops apostrophes, so "I don't agree" arrives as "i dont agree".
+const DECLINE = new Set(["לא מאשר", "לא מאשרת", "לא מאשר/ת", "לא", "2", "no", "i dont agree", "i do not agree", "decline"]);
 
 const normalize = (s: string) => s.trim().toLowerCase().replace(/[.!*"']/g, "").replace(/\s+/g, " ");
 
@@ -76,9 +81,5 @@ export function isDeletionConfirmation(text: string): boolean {
 }
 
 export const DELETE_CONFIRM_PROMPT =
-  "כדי למחוק לצמיתות את כל המידע שלך (פרופיל, היסטוריה, תוכניות ושיחות), כתבו: *מחק לצמיתות*\nהמחיקה סופית ולא ניתן לשחזר אותה.";
-export const DELETE_DONE_TEXT = "כל המידע שלך נמחק. תודה שהיית איתנו, ואם תרצו לחזור, פשוט כתבו לנו 💪";
-
-export function looksHebrew(text: string): boolean {
-  return /[֐-׿]/.test(text);
-}
+  "To permanently delete all your information (profile, history, plans and chats), write: *delete permanently*\nThis is final and can't be undone.";
+export const DELETE_DONE_TEXT = "All your information has been deleted. Thanks for being with us, and if you want to come back, just write 💪";

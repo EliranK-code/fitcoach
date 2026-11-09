@@ -159,7 +159,7 @@ describe("usage metering and limits", () => {
     expect(await receive(msg("m5"))).toMatchObject({ queued: 0, rateLimited: 1 });
     const [alert] = await listAlerts(db, t, { status: "open" });
     expect(alert).toMatchObject({ type: "rate_limited" });
-    expect(alert!.summary).toContain("ביממה האחרונה");
+    expect(alert!.summary).toContain("in the last 24 hours");
     // A day after the window opened, the bot answers again.
     app.clock.now = new Date(start + CLIENT_DAY_WINDOW_MS + 1000);
     expect(await receive(msg("m6"))).toMatchObject({ queued: 1, rateLimited: 0 });
@@ -204,7 +204,7 @@ describe("usage metering and limits", () => {
       expect(await platformDaySpendMicros(db, app.clock.now)).toBe(5_000_000);
       expect(await spendBlock(db, t, caps, app.clock.now)).toMatchObject({ scope: "platform", capUsd: 5 });
       expect(await enqueueInbound(db, [msg("היי")], { debounceMs: 0, now: app.clock.now, spendCaps: caps })).toMatchObject({ overCap: 1 });
-      expect(spendBlockMessage({ scope: "platform", capUsd: 5, spentMicros: 5_000_000 })).toContain("מחר");
+      expect(spendBlockMessage({ scope: "platform", capUsd: 5, spentMicros: 5_000_000 })).toContain("tomorrow");
 
       app.clock.now = new Date("2026-10-17T00:00:01Z");
       expect(await spendBlock(db, t, caps, app.clock.now)).toBeNull();

@@ -9,14 +9,14 @@ export function LoginForm() {
   return (
     <form action={action} className="space-y-4">
       {state.error && <Notice tone="red">{state.error}</Notice>}
-      <Field label="אימייל">
+      <Field label="Email">
         <Input name="email" type="email" autoComplete="username" required dir="ltr" />
       </Field>
-      <Field label="סיסמה">
+      <Field label="Password">
         <Input name="password" type="password" autoComplete="current-password" required dir="ltr" />
       </Field>
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "מתחבר…" : "כניסה"}
+        {pending ? "Signing in…" : "Sign in"}
       </Button>
     </form>
   );

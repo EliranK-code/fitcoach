@@ -17,14 +17,14 @@ export function AdminLoginForm() {
   return (
     <form action={action} className="space-y-4">
       <Feedback state={state} />
-      <Field label="אימייל">
+      <Field label="Email">
         <Input name="email" type="email" autoComplete="username" required dir="ltr" />
       </Field>
-      <Field label="סיסמה">
+      <Field label="Password">
         <Input name="password" type="password" autoComplete="current-password" required dir="ltr" />
       </Field>
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "מתחבר…" : "המשך"}
+        {pending ? "Signing in…" : "Continue"}
       </Button>
     </form>
   );
@@ -38,13 +38,13 @@ export function NewCoachForm() {
     <form action={action} className="space-y-3">
       <Feedback state={state} />
       <div className="grid gap-3 md:grid-cols-3">
-        <Field label="שם המאמן">
+        <Field label="Coach name">
           <Input name="name" required />
         </Field>
-        <Field label="slug" hint="אנגלית קטנה, ספרות ומקפים. משמש ב-CLI">
+        <Field label="slug" hint="Lowercase English letters, digits and hyphens. Used in the CLI">
           <Input name="slug" required dir="ltr" pattern="[a-z0-9][a-z0-9\-]{1,39}" placeholder="dana-fit" />
         </Field>
-        <Field label="אזור זמן">
+        <Field label="Time zone">
           <Select name="timezone" defaultValue="Asia/Jerusalem">
             {ZONES.map((z) => (
               <option key={z}>{z}</option>
@@ -53,7 +53,7 @@ export function NewCoachForm() {
         </Field>
       </div>
       <Button size="sm" disabled={pending}>
-        יצירת מאמן
+        Create coach
       </Button>
     </form>
   );
@@ -77,7 +77,7 @@ function OneTimeLink({ state }: { state: LinkState }) {
             setCopied(true);
           }}
         >
-          {copied ? "הועתק" : "העתקה"}
+          {copied ? "Copied" : "Copy"}
         </Button>
       </div>
     </div>
@@ -89,11 +89,11 @@ export function InviteForm({ action }: { action: (prev: LinkState, form: FormDat
   return (
     <form action={formAction} className="space-y-3">
       <OneTimeLink state={state} />
-      <Field label="אימייל של המשתמש החדש">
+      <Field label="New user's email">
         <Input name="email" type="email" required dir="ltr" />
       </Field>
       <Button size="sm" disabled={pending}>
-        יצירת קישור הזמנה
+        Create invite link
       </Button>
     </form>
   );
@@ -106,7 +106,7 @@ export function ResetLinkForm({ action }: { action: (prev: LinkState, form: Form
       <OneTimeLink state={state} />
       {!state.link && (
         <Button size="sm" variant="secondary" disabled={pending}>
-          קישור לאיפוס סיסמה
+          Password reset link
         </Button>
       )}
     </form>
@@ -119,15 +119,15 @@ export function AssignNumberForm({ action }: { action: (prev: FormState, form: F
     <form action={formAction} className="space-y-3">
       <Feedback state={state} />
       <div className="grid gap-3 md:grid-cols-2">
-        <Field label="Phone number ID" hint="מ-Meta: WhatsApp → API Setup">
+        <Field label="Phone number ID" hint="From Meta: WhatsApp → API Setup">
           <Input name="phoneNumberId" required dir="ltr" />
         </Field>
-        <Field label="המספר לתצוגה (לא חובה)">
-          <Input name="displayPhone" dir="ltr" placeholder="+972 ..." />
+        <Field label="Display number (optional)">
+          <Input name="displayPhone" dir="ltr" placeholder="+1 ..." />
         </Field>
       </div>
       <Button size="sm" disabled={pending}>
-        חיבור מספר
+        Connect number
       </Button>
     </form>
   );
@@ -151,18 +151,18 @@ export function BudgetForm({
     <form action={formAction} className="space-y-3">
       <Feedback state={state} />
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="תקציב חודשי (דולר)" hint="מכסה רכה: באנר למאמן ב-80% וב-100%, בלי עצירה. ריק = בלי תקציב">
+        <Field label="Monthly budget (USD)" hint="A soft limit: a banner for the coach at 80% and 100%, nothing stops. Empty = no budget">
           <Input name="budget" type="number" min="1" step="1" dir="ltr" defaultValue={budget ?? ""} className="max-w-32" />
         </Field>
         <Field
-          label="תקרה קשיחה (דולר)"
-          hint={`כשמגיעים אליה הבוט מפסיק לענות עד סוף החודש. ריק = ברירת המחדל (${defaultCap > 0 ? `$${defaultCap}` : "בלי תקרה"})`}
+          label="Hard cap (USD))"
+          hint={`When it's reached the bot stops answering until the end of the month. Empty = the default (${defaultCap > 0 ? `$${defaultCap}` : "no cap"})`}
         >
           <Input name="cap" type="number" min="1" step="1" dir="ltr" defaultValue={cap ?? ""} placeholder={defaultCap > 0 ? String(defaultCap) : ""} className="max-w-32" />
         </Field>
       </div>
       <Button size="sm" variant="secondary" disabled={pending}>
-        שמירה
+        Save
       </Button>
     </form>
   );
@@ -174,7 +174,7 @@ export function DeleteCoachForm({ slug, action }: { slug: string; action: (prev:
     <form action={formAction} className="space-y-3">
       <Feedback state={state} />
       <p className="text-sm text-slate-600">
-        מחיקה לצמיתות של המאמן, כל הלקוחות שלו וכל המידע, כולל מפתח ההצפנה. אי אפשר לבטל. נשמר רק סיכום שימוש ביומן הפלטפורמה. להמשך, הקלידו{" "}
+        Permanently deletes the coach, all their clients and all their data, including the encryption key. This can't be undone. Only a usage summary is kept in the platform log. To continue, type{" "}
         <code dir="ltr" className="rounded bg-slate-100 px-1">
           {slug}
         </code>
@@ -183,7 +183,7 @@ export function DeleteCoachForm({ slug, action }: { slug: string; action: (prev:
       <div className="flex gap-2">
         <Input name="confirm" required dir="ltr" autoComplete="off" className="max-w-56" />
         <Button variant="danger" size="sm" disabled={pending}>
-          מחיקה לצמיתות
+          Delete permanently
         </Button>
       </div>
     </form>

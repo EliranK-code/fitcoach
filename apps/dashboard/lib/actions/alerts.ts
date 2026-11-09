@@ -10,7 +10,7 @@ async function findAlert(alertId: string) {
   const s = await requireSession();
   // listAlerts is scoped to this coach, so an id from another tenant is simply not found.
   const alert = (await listAlerts(s.handle.db, s.t)).find((a) => a.id === alertId);
-  if (!alert) throw new Error("ההתראה לא נמצאה");
+  if (!alert) throw new Error("Alert not found");
   return { s, alert };
 }
 
@@ -20,16 +20,16 @@ export async function resolveAlertAction(_prev: FormState, form: FormData): Prom
   await resolveAlert(s.handle.db, s.t, alert.id, note);
   await audit(s.handle.db, s.t, { actor: s.actor, action: "alert_resolved", targetType: "alert", targetId: alert.id });
   revalidatePath("/", "layout");
-  return { ok: "סומן כטופל" };
+  return { ok: "Marked as handled" };
 }
 
 /** Answers the client (WhatsApp or recorded), closes the alert, and optionally teaches the bot the answer. */
 export async function replyToAlertAction(_prev: FormState, form: FormData): Promise<FormState> {
   const { s, alert } = await findAlert(String(form.get("alertId")));
   const text = String(form.get("text") ?? "").trim();
-  if (!text) return { error: "כתבו תשובה" };
+  if (!text) return { error: "Write a reply" };
   const client = await getClient(s.handle.db, s.t, alert.clientId);
-  if (!client) return { error: "הלקוח לא נמצא (אולי נמחק)" };
+  if (!client) return { error: "Client not found (maybe deleted)" };
 
   const sent = await sendAsCoach(s, client, text);
   if (!sent.ok) return { error: sent.error };
@@ -42,9 +42,9 @@ export async function replyToAlertAction(_prev: FormState, form: FormData): Prom
       const data = { ...knowledge.data, faq: [...knowledge.data.faq, { q: alert.question, a: text }] };
       await publishKnowledge(s.handle.db, s.t, { data }, s.embedder);
       await audit(s.handle.db, s.t, { actor: s.actor, action: "faq_added_from_alert", targetType: "alert", targetId: alert.id });
-      faqNote = " והתשובה נשמרה ב-FAQ: מעכשיו הבוט יענה עליה בעצמו";
+      faqNote = "  and the answer was saved to the FAQ: from now on the bot answers it by itself";
     }
   }
   revalidatePath("/", "layout");
-  return { ok: `נשלח${faqNote}` };
+  return { ok: `Sent${faqNote}` };
 }

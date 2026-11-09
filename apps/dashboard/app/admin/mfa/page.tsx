@@ -16,28 +16,28 @@ export default async function AdminMfaPage() {
 
   if (s.admin.totpEnabledAt) {
     return (
-      <AuthShell admin subtitle="אימות דו-שלבי">
-        <CodeForm action={adminVerifyAction} submitLabel="כניסה" />
+      <AuthShell admin subtitle="Two-step verification">
+        <CodeForm action={adminVerifyAction} submitLabel="Sign in" />
       </AuthShell>
     );
   }
   const { secret, uri } = await adminTotpSetup(s.handle.db, s.admin);
   return (
-    <AuthShell admin subtitle="הגדרת אימות דו-שלבי (חובה למנהלים)">
+    <AuthShell admin subtitle="Set up two-step verification (required for admins)">
       <div className="space-y-4">
         <ol className="list-decimal space-y-1 ps-5 text-sm text-slate-600">
-          <li>סרקו את הקוד באפליקציית אימות (Google Authenticator, Microsoft Authenticator וכו').</li>
-          <li>הזינו את הקוד בן 6 הספרות שמופיע בה.</li>
+          <li>Scan the code with an authenticator app (Google Authenticator, Microsoft Authenticator, etc.).</li>
+          <li>Enter the 6-digit code it shows.</li>
         </ol>
         {/* eslint-disable-next-line @next/next/no-img-element -- a local data URL */}
-        <img src={await qrDataUrl(uri)} alt="קוד QR להגדרת אפליקציית האימות" width={180} height={180} className="mx-auto rounded-lg border border-slate-200" />
+        <img src={await qrDataUrl(uri)} alt="QR code for setting up the authenticator app" width={180} height={180} className="mx-auto rounded-lg border border-slate-200" />
         <p className="text-xs text-slate-500">
-          אי אפשר לסרוק? מקלידים באפליקציה את המפתח:{" "}
+          Can't scan? Type this key into the app:{" "}
           <code dir="ltr" className="break-all rounded bg-slate-100 px-1 py-0.5">
             {secret}
           </code>
         </p>
-        <CodeForm action={adminVerifyAction} submitLabel="אישור והמשך" />
+        <CodeForm action={adminVerifyAction} submitLabel="Confirm and continue" />
       </div>
     </AuthShell>
   );

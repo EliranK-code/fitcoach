@@ -46,7 +46,7 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
     <>
       <div className="mb-2 text-sm">
         <Link href="/admin" className="text-slate-500 hover:underline">
-          → לכל המאמנים
+          ← All coaches
         </Link>
       </div>
       <PageHeader
@@ -59,12 +59,12 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
         actions={
           suspended ? (
             <form action={resumeCoachAction.bind(null, coach.id)}>
-              <Button size="sm">ביטול ההשעיה</Button>
+              <Button size="sm">Resume</Button>
             </form>
           ) : (
             <form action={suspendCoachAction.bind(null, coach.id)}>
               <Button size="sm" variant="secondary">
-                השעיה
+                Suspend
               </Button>
             </form>
           )
@@ -73,19 +73,19 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
       {suspended && (
         <div className="mb-6">
           <Notice tone="yellow">
-            מושהה מ-{formatDateTime(coach.suspendedAt!, tz)}: אין כניסה לדשבורד, הבוט לא עונה (לקוח קיים מקבל הודעה קבועה אחת), והתזכורות עצורות.
+            Suspended since {formatDateTime(coach.suspendedAt!, tz)}: no dashboard sign-in, the bot doesn't answer (an existing client gets one fixed notice), and reminders are stopped.
           </Notice>
         </div>
       )}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Stat label="לקוחות" value={summary.clients} />
-        <Stat label="עלות משוערת החודש" value={formatUsd(summary.monthCostMicros)} tone={budget.level === "over" ? "red" : undefined} />
-        <Stat label="גרסת בסיס הידע" value={summary.starterKnowledge ? "תבנית התחלתית" : coach.knowledgeVersion} />
+        <Stat label="Clients" value={summary.clients} />
+        <Stat label="Estimated cost this month" value={formatUsd(summary.monthCostMicros)} tone={budget.level === "over" ? "red" : undefined} />
+        <Stat label="Knowledge base version" value={summary.starterKnowledge ? "Starter template" : coach.knowledgeVersion} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="שימוש החודש">
+        <Card title="Usage this month">
           <UsageSummary usage={usage} budgetUsd={summary.budgetUsd} capUsd={summary.capUsd ?? (s.cfg.COACH_MONTHLY_CAP_USD || null)} />
           <div className="mt-4 border-t border-slate-100 pt-4">
             <BudgetForm
@@ -97,9 +97,9 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
           </div>
         </Card>
 
-        <Card title="משתמשי הדשבורד">
+        <Card title="Dashboard users">
           {users.length === 0 ? (
-            <p className="text-sm text-slate-500">עוד אין משתמשים. שלחו קישור הזמנה.</p>
+            <p className="text-sm text-slate-500">No users yet. Send an invite link.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {users.map((u) => (
@@ -108,16 +108,16 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
                     <span dir="ltr" className="font-medium">
                       {u.email}
                     </span>
-                    {u.mfa ? <Badge tone="green">אימות דו-שלבי</Badge> : <Badge>סיסמה בלבד</Badge>}
-                    {u.lockedUntil && u.lockedUntil > new Date() && <Badge tone="red">נעול</Badge>}
-                    <span className="text-xs text-slate-500">כניסה אחרונה: {u.lastLoginAt ? formatDateTime(u.lastLoginAt, tz) : "עוד לא"}</span>
+                    {u.mfa ? <Badge tone="green">Two-step verification</Badge> : <Badge>Password only</Badge>}
+                    {u.lockedUntil && u.lockedUntil > new Date() && <Badge tone="red">Locked</Badge>}
+                    <span className="text-xs text-slate-500">Last sign-in: {u.lastLoginAt ? formatDateTime(u.lastLoginAt, tz) : "never"}</span>
                   </div>
                   <div className="flex flex-wrap items-start gap-2">
                     <ResetLinkForm action={resetLinkAction.bind(null, u.id)} />
                     {u.mfa && (
                       <form action={resetUserMfaAction.bind(null, coach.id, u.id, u.email)}>
                         <Button size="sm" variant="ghost">
-                          ביטול האימות הדו-שלבי
+                          Turn off two-step verification
                         </Button>
                       </form>
                     )}
@@ -131,9 +131,9 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
           </div>
         </Card>
 
-        <Card title="וואטסאפ">
+        <Card title="WhatsApp">
           {numbers.length === 0 ? (
-            <p className="mb-4 text-sm text-slate-500">לא מחובר מספר.</p>
+            <p className="mb-4 text-sm text-slate-500">No number connected.</p>
           ) : (
             <ul className="mb-4 space-y-2 text-sm">
               {numbers.map((n) => (
@@ -141,11 +141,11 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
                   <span dir="ltr" className="font-medium">
                     {n.displayPhone ?? n.phoneNumberId}
                   </span>
-                  <Badge tone={n.status === "active" ? "green" : "gray"}>{n.status === "active" ? "פעיל" : n.status}</Badge>
-                  <Badge>{n.mode === "managed" ? "מנוהל בפלטפורמה" : "מחובר ע\"י המאמן"}</Badge>
+                  <Badge tone={n.status === "active" ? "green" : "gray"}>{n.status === "active" ? "Active" : n.status}</Badge>
+                  <Badge>{n.mode === "managed" ? "Managed by the platform" : "Connected by the coach"}</Badge>
                   <form action={disconnectNumberAction.bind(null, coach.id, n.phoneNumberId)} className="ms-auto">
                     <Button size="sm" variant="ghost">
-                      ניתוק
+                      Disconnect
                     </Button>
                   </form>
                 </li>
@@ -153,14 +153,14 @@ export default async function AdminCoachPage({ params }: { params: Promise<{ slu
             </ul>
           )}
           {summary.starterKnowledge ? (
-            <Notice tone="yellow">אפשר לחבר מספר אחרי שהמאמן ממלא ומפרסם את בסיס הידע שלו.</Notice>
+            <Notice tone="yellow">You can connect a number once the coach fills in and publishes their knowledge base.</Notice>
           ) : (
             <AssignNumberForm action={assignNumberAction.bind(null, coach.id)} />
           )}
         </Card>
 
         {suspended && (
-          <Card title="מחיקת המאמן" className="border-red-200 lg:col-span-2">
+          <Card title="Delete coach" className="border-red-200 lg:col-span-2">
             <DeleteCoachForm slug={coach.slug} action={deleteCoachAction.bind(null, coach.id)} />
           </Card>
         )}

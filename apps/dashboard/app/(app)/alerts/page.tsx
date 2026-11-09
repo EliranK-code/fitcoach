@@ -21,8 +21,8 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
   return (
     <>
       <PageHeader
-        title="דורש התערבות"
-        description="שאלות שהבוט לא ידע לענות עליהן, ואירועי בטיחות שזוהו בשיחות"
+        title="Needs attention"
+        description="Questions the bot couldn't answer, and safety events detected in conversations"
         actions={
           <div className="flex rounded-lg bg-slate-100 p-1 text-sm">
             {(["open", "resolved"] as const).map((st) => (
@@ -31,14 +31,14 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
                 href={st === "open" ? "/alerts" : "/alerts?status=resolved"}
                 className={`rounded-md px-3 py-1.5 ${status === st ? "bg-white font-medium shadow-sm" : "text-slate-600"}`}
               >
-                {st === "open" ? "פתוחות" : "טופלו"}
+                {st === "open" ? "Open" : "Handled"}
               </Link>
             ))}
           </div>
         }
       />
       {alerts.length === 0 ? (
-        <EmptyState title={status === "open" ? "אין התראות פתוחות" : "עוד אין התראות שטופלו"} />
+        <EmptyState title={status === "open" ? "No open alerts" : "No handled alerts yet"} />
       ) : (
         <div className="space-y-4">
           {alerts.map((a) => {
@@ -52,9 +52,9 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
                   <span className="ms-auto text-xs text-slate-500">{formatDateTime(a.createdAt, tz)}</span>
                 </div>
                 <div className="mt-2 text-sm">
-                  לקוח:{" "}
+                  Client:{" "}
                   <Link href={`/clients/${a.clientId}`} className="font-medium text-emerald-700 hover:underline">
-                    {client?.name ?? "לקוח שנמחק"}
+                    {client?.name ?? "Deleted client"}
                   </Link>
                 </div>
                 <p className="mt-2 text-sm text-slate-700">{a.summary}</p>
@@ -64,12 +64,12 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
                   </blockquote>
                 )}
                 {a.status === "resolved" ? (
-                  a.resolution && <p className="mt-3 text-sm text-slate-500">טופל: {a.resolution}</p>
+                  a.resolution && <p className="mt-3 text-sm text-slate-500">Handled: {a.resolution}</p>
                 ) : (
                   <>
                     {a.type === "join_request" && client?.access !== "approved" && (
                       <form action={approveClientAction.bind(null, a.clientId)} className="mt-3">
-                        <Button size="sm">אישור הלקוח/ה</Button>
+                        <Button size="sm">Approve client</Button>
                       </form>
                     )}
                     <AlertActions alertId={a.id} hasQuestion={Boolean(a.question)} canReply={Boolean(client) && client?.consentStatus === "granted"} />

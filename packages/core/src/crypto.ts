@@ -20,12 +20,12 @@ export function getMasterKey(): Buffer {
   const raw = loadConfig().MASTER_ENCRYPTION_KEY;
   if (!raw) {
     throw new EncryptionConfigError(
-      "MASTER_ENCRYPTION_KEY חסר. הריצו npm run setup כדי ליצור אותו בקובץ .env",
+      "MASTER_ENCRYPTION_KEY is missing. Run npm run setup to create it in .env",
     );
   }
   const key = Buffer.from(raw, "base64");
   if (key.length !== KEY_BYTES) {
-    throw new EncryptionConfigError("MASTER_ENCRYPTION_KEY חייב להיות 32 בייטים בקידוד base64");
+    throw new EncryptionConfigError("MASTER_ENCRYPTION_KEY must be 32 bytes, base64-encoded");
   }
   masterKeyCache = key;
   return key;

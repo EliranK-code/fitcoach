@@ -39,15 +39,15 @@ function describe(e: TurnEvent): PlaygroundEvent {
     case "tool":
       return { kind: "tool", text: `${e.ok ? "✓" : "✗"} ${e.name} ${JSON.stringify(e.input).slice(0, 160)} → ${e.result.slice(0, 160)}` };
     case "alert":
-      return { kind: "alert", text: `התראה למאמן: ${e.alertType} (${e.severity})${e.deduped ? " · כבר קיימת" : ""}` };
+      return { kind: "alert", text: `Alert to the coach: ${e.alertType} (${e.severity})${e.deduped ? " · already open" : ""}` };
     case "epoch":
-      return { kind: "epoch", text: `אפיזודת שיחה ${e.action === "created" ? "חדשה" : "חדשה אחרי סיכום"} (${e.reason})` };
+      return { kind: "epoch", text: `${e.action === "created" ? "New conversation episode" : "New episode after a summary"} (${e.reason})` };
     case "guard":
       return { kind: "guard", text: e.detail };
     case "refusal":
-      return { kind: "refusal", text: `סירוב של מודל ה-AI (${e.category ?? "לא ידוע"})` };
+      return { kind: "refusal", text: `The AI model refused (${e.category ?? "unknown"})` };
     case "usage":
-      return { kind: "usage", text: `${e.model}: קלט ${e.input}, מה-cache ${e.cacheRead}, נכתב ל-cache ${e.cacheWrite}, פלט ${e.output}` };
+      return { kind: "usage", text: `${e.model}: input ${e.input}, cache read ${e.cacheRead}, cache write ${e.cacheWrite}, output ${e.output}` };
   }
 }
 
@@ -55,9 +55,9 @@ export async function playgroundSend(text: string, buttonId?: string): Promise<P
   const s = await requireSession();
   // Every message here is a real model call, so it has the same guards as WhatsApp: a length like WhatsApp's,
   // an hourly limit per coach, and the spending caps.
-  if (typeof text !== "string" || text.length > PLAYGROUND_MAX_CHARS) return { replies: [], events: [], error: `הודעה עד ${PLAYGROUND_MAX_CHARS} תווים, כמו בוואטסאפ` };
+  if (typeof text !== "string" || text.length > PLAYGROUND_MAX_CHARS) return { replies: [], events: [], error: `Messages up to ${PLAYGROUND_MAX_CHARS} characters, like on WhatsApp` };
   if ((await hitRateLimit(s.handle.db, `playground:${s.t.coachId}`, PLAYGROUND_WINDOW_MS)) > PLAYGROUND_HOURLY_LIMIT) {
-    return { replies: [], events: [], error: `אפשר לשלוח עד ${PLAYGROUND_HOURLY_LIMIT} הודעות בשעה במגרש המשחקים. נסו שוב בעוד כמה דקות.` };
+    return { replies: [], events: [], error: `You can send up to ${PLAYGROUND_HOURLY_LIMIT} messages an hour in the Playground. Try again in a few minutes.` };
   }
   const block = await spendBlock(s.handle.db, s.t, spendCaps(s.cfg));
   if (block) return { replies: [], events: [], error: spendBlockMessage(block) };

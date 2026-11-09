@@ -17,39 +17,39 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader
-        title="לקוחות"
-        description={approvedOnly ? "הבוט עונה רק למספרים שהוספת או אישרת" : "כל מי שכתב לבוט שלך"}
+        title="Clients"
+        description={approvedOnly ? "The bot answers only numbers you added or approved" : "Everyone who wrote to your bot"}
         actions={
           <form className="w-64">
             <input
               name="q"
               defaultValue={q}
-              placeholder="חיפוש לפי שם או טלפון"
+              placeholder="Search by name or phone"
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
             />
           </form>
         }
       />
       <div className="mb-6">
-        <Card title="הוספת לקוח לפי מספר וואטסאפ">
+        <Card title="Add a client by WhatsApp number">
           <AddClientForm />
-          <p className="mt-2 text-xs text-slate-500">כשהלקוח/ה יכתוב/תכתוב למספר של הבוט, הוא ישלח את הודעת ההסכמה ויתחיל לעבוד.</p>
+          <p className="mt-2 text-xs text-slate-500">When the client writes to the bot's number, the bot sends the consent notice and gets started.</p>
         </Card>
       </div>
       {rows.length === 0 ? (
-        <EmptyState title={q ? "לא נמצאו לקוחות" : "עוד אין לקוחות"}>
-          {!q && "מוסיפים לקוח לפי מספר טלפון בטופס למעלה. אפשר לנסות את הבוט במגרש המשחקים."}
+        <EmptyState title={q ? "No clients found" : "No clients yet"}>
+          {!q && "Add a client by phone number in the form above. You can try the bot in the Playground."}
         </EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-start text-xs text-slate-500">
               <tr>
-                <th className="px-4 py-3 text-start font-medium">לקוח</th>
-                <th className="px-4 py-3 text-start font-medium">מטרה</th>
-                <th className="px-4 py-3 text-start font-medium">ערוץ</th>
-                <th className="px-4 py-3 text-start font-medium">מצב</th>
-                <th className="px-4 py-3 text-start font-medium">הודעה אחרונה</th>
+                <th className="px-4 py-3 text-start font-medium">Client</th>
+                <th className="px-4 py-3 text-start font-medium">Goal</th>
+                <th className="px-4 py-3 text-start font-medium">Channel</th>
+                <th className="px-4 py-3 text-start font-medium">Status</th>
+                <th className="px-4 py-3 text-start font-medium">Last message</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -60,7 +60,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                       {r.name}
                     </Link>
                     {r.name !== r.phone && (
-                      <div className="text-xs text-slate-500" dir="ltr" style={{ textAlign: "right" }}>
+                      <div className="text-xs text-slate-500" dir="ltr">
                         {r.phone}
                       </div>
                     )}
@@ -69,22 +69,22 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                   <td className="px-4 py-3 text-slate-600">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {r.access === "pending" && <Badge tone="orange">בקשת הצטרפות</Badge>}
-                      {r.access === "revoked" && <Badge tone="gray">ללא גישה לבוט</Badge>}
+                      {r.access === "pending" && <Badge tone="orange">Join request</Badge>}
+                      {r.access === "revoked" && <Badge tone="gray">No bot access</Badge>}
                       {r.access === "approved" && r.consentStatus !== "granted" && <Badge tone="yellow">{CONSENT_LABEL[r.consentStatus]}</Badge>}
-                      {r.botPaused && <Badge tone="purple">הבוט מושהה</Badge>}
-                      {r.flags.minor && <Badge tone="orange">קטין/ה</Badge>}
-                      {r.flags.eatingDisorderRisk && <Badge tone="red">סיכון הפרעת אכילה</Badge>}
-                      {r.openAlerts > 0 && <Badge tone="red">{r.openAlerts} התראות</Badge>}
+                      {r.botPaused && <Badge tone="purple">Bot paused</Badge>}
+                      {r.flags.minor && <Badge tone="orange">Minor</Badge>}
+                      {r.flags.eatingDisorderRisk && <Badge tone="red">Eating-disorder risk</Badge>}
+                      {r.openAlerts > 0 && <Badge tone="red">{r.openAlerts} {r.openAlerts === 1 ? "alert" : "alerts"}</Badge>}
                       {r.access === "approved" &&
                         r.consentStatus === "granted" &&
                         !r.botPaused &&
                         !r.openAlerts &&
                         !r.flags.minor &&
-                        !r.flags.eatingDisorderRisk && <Badge tone="green">תקין</Badge>}
+                        !r.flags.eatingDisorderRisk && <Badge tone="green">OK</Badge>}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{r.lastInboundAt ? formatRelative(r.lastInboundAt) : "עוד לא כתב/ה"}</td>
+                  <td className="px-4 py-3 text-slate-500">{r.lastInboundAt ? formatRelative(r.lastInboundAt) : "hasn't written yet"}</td>
                 </tr>
               ))}
             </tbody>

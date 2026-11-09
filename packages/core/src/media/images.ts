@@ -19,7 +19,7 @@ export interface PreparedImage {
 }
 
 export async function prepareImage(input: Buffer): Promise<PreparedImage> {
-  if (input.length > MAX_IMAGE_BYTES) throw new ImageError("התמונה גדולה מדי");
+  if (input.length > MAX_IMAGE_BYTES) throw new ImageError("The image is too large");
   try {
     const { data, info } = await sharp(input, { failOn: "error" })
       .rotate()
@@ -28,6 +28,6 @@ export async function prepareImage(input: Buffer): Promise<PreparedImage> {
       .toBuffer({ resolveWithObject: true });
     return { data: data.toString("base64"), mediaType: "image/jpeg", width: info.width, height: info.height };
   } catch (err) {
-    throw new ImageError(`לא הצלחתי לקרוא את התמונה: ${err instanceof Error ? err.message : String(err)}`);
+    throw new ImageError(`Couldn't read the image: ${err instanceof Error ? err.message : String(err)}`);
   }
 }

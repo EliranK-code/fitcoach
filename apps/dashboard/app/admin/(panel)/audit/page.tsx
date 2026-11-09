@@ -4,21 +4,21 @@ import { requireAdmin } from "@/lib/admin-session";
 import { formatDateTime } from "@/lib/labels";
 
 const ACTIONS: Record<string, string> = {
-  admin_created: "אדמין נוצר",
-  admin_reset: "איפוס אדמין",
-  admin_deleted: "אדמין נמחק",
-  admin_login: "כניסת אדמין",
-  coach_created: "מאמן נוצר",
-  coach_suspended: "מאמן הושעה",
-  coach_resumed: "השעיה בוטלה",
-  coach_deleted: "מאמן נמחק",
-  invite_created: "קישור הזמנה",
-  reset_link_created: "קישור איפוס סיסמה",
-  user_mfa_reset: "ביטול אימות דו-שלבי",
-  number_assigned: "חיבור מספר",
-  budget_set: "תקציב חודשי",
-  number_disconnected: "ניתוק מספר",
-  number_connected_by_coach: "המאמן חיבר מספר",
+  admin_created: "Admin created",
+  admin_reset: "Admin reset",
+  admin_deleted: "Admin deleted",
+  admin_login: "Admin sign-in",
+  coach_created: "Coach created",
+  coach_suspended: "Coach suspended",
+  coach_resumed: "Suspension lifted",
+  coach_deleted: "Coach deleted",
+  invite_created: "Invite link",
+  reset_link_created: "Password reset link",
+  user_mfa_reset: "Two-step verification turned off",
+  number_assigned: "Number connected",
+  budget_set: "Monthly budget",
+  number_disconnected: "Number disconnected",
+  number_connected_by_coach: "Coach connected a number",
 };
 
 export default async function AdminAuditPage() {
@@ -26,7 +26,7 @@ export default async function AdminAuditPage() {
   const rows = await listPlatformAudit(s.handle.db, { limit: 200 });
   return (
     <>
-      <PageHeader title="יומן פעולות" description="כל פעולה של אדמין או של ה-CLI על מאמנים. הרשומות נשמרות גם אחרי מחיקת מאמן." />
+      <PageHeader title="Audit log" description="Every admin or CLI action on coaches. Entries are kept even after a coach is deleted." />
       <Card>
         <ul className="divide-y divide-slate-100 text-sm">
           {rows.map((r) => (

@@ -26,9 +26,9 @@ export interface FormState {
 }
 
 const CODE_ERRORS = {
-  invalid: "הקוד לא נכון. נסו את הקוד הנוכחי מהאפליקציה.",
-  locked: "החשבון ננעל זמנית אחרי כמה ניסיונות כושלים. נסו שוב בעוד 15 דקות.",
-  expired: "פג הזמן להזנת הקוד. התחברו מחדש.",
+  invalid: "The code is wrong. Try the current code from the app.",
+  locked: "The account is temporarily locked after several failed attempts. Try again in 15 minutes.",
+  expired: "Time ran out for entering the code. Sign in again.",
 };
 
 /** Opens a session for a user who just proved their password; with two-step login, the code page comes next. */
@@ -45,16 +45,16 @@ async function startSession(user: CoachUser): Promise<never> {
 export async function loginAction(_prev: FormState, form: FormData): Promise<FormState> {
   const email = String(form.get("email") ?? "").trim();
   const password = String(form.get("password") ?? "");
-  if (!email || !password) return { error: "נא למלא אימייל וסיסמה" };
+  if (!email || !password) return { error: "Enter an email and a password" };
   if (await throttled("login")) return { error: THROTTLED };
 
   const { handle } = await services();
   const result = await authenticate(handle.db, email, password);
   if (!result.ok) {
     const errors = {
-      locked: "החשבון ננעל זמנית אחרי כמה ניסיונות כושלים. נסו שוב בעוד 15 דקות.",
-      suspended: "החשבון מושהה, והבוט לא עונה ללקוחות כרגע. לפרטים פנו לתמיכה.",
-      invalid: "אימייל או סיסמה שגויים",
+      locked: "The account is temporarily locked after several failed attempts. Try again in 15 minutes.",
+      suspended: "The account is suspended, and the bot isn't answering clients right now. Contact support for details.",
+      invalid: "Wrong email or password",
     };
     return { error: errors[result.reason] };
   }
@@ -91,8 +91,8 @@ export async function changePasswordAction(_prev: FormState, form: FormData): Pr
   const s = await requireSession();
   const current = String(form.get("current") ?? "");
   const next = String(form.get("next") ?? "");
-  if (next !== String(form.get("confirm") ?? "")) return { error: "הסיסמאות החדשות לא תואמות" };
-  if (!(await verifyPassword(current, s.user.passwordHash))) return { error: "הסיסמה הנוכחית שגויה" };
+  if (next !== String(form.get("confirm") ?? "")) return { error: "The new passwords don't match" };
+  if (!(await verifyPassword(current, s.user.passwordHash))) return { error: "The current password is wrong" };
   try {
     await setPassword(s.handle.db, s.user.id, next);
   } catch (err) {
@@ -103,14 +103,14 @@ export async function changePasswordAction(_prev: FormState, form: FormData): Pr
   const { token, expiresAt } = await createSession(s.handle.db, { ...s.user }, new Date(), { mfaVerified: true });
   await setSessionCookie(token, expiresAt);
   await audit(s.handle.db, s.t, { actor: s.actor, action: "password_changed", targetType: "user", targetId: s.user.id });
-  return { ok: "הסיסמה עודכנה. שאר החיבורים נותקו." };
+  return { ok: "The password was updated. Your other sessions were signed out." };
 }
 
 /** Invitation and reset links: set a password, then continue as a normal login (two-step code if enabled). */
 export async function redeemLinkAction(token: string, _prev: FormState, form: FormData): Promise<FormState> {
   if (await throttled("link")) return { error: THROTTLED };
   const password = String(form.get("password") ?? "");
-  if (password !== String(form.get("confirm") ?? "")) return { error: "הסיסמאות לא תואמות" };
+  if (password !== String(form.get("confirm") ?? "")) return { error: "The passwords don't match" };
   const { handle } = await services();
   let user: CoachUser;
   try {

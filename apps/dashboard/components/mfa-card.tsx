@@ -15,9 +15,9 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-slate-600">
-          <Badge tone="green">פעיל</Badge> כל כניסה מבקשת קוד מאפליקציית האימות. כדי לבטל, הזינו קוד נוכחי.
+          <Badge tone="green">On</Badge> Every sign-in asks for a code from your authenticator app. To turn it off, enter a current code.
         </p>
-        <CodeForm action={disableMfaAction} submitLabel="ביטול האימות הדו-שלבי" variant="secondary" />
+        <CodeForm action={disableMfaAction} submitLabel="Turn off two-step verification" variant="secondary" />
       </div>
     );
   }
@@ -25,7 +25,7 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-slate-600">
-          שכבת הגנה נוספת: מלבד הסיסמה, כל כניסה תבקש קוד מאפליקציה כמו Google Authenticator או Microsoft Authenticator. מומלץ, כי בדשבורד יש מידע בריאותי של לקוחות.
+          An extra layer of protection: besides the password, every sign-in asks for a code from an app such as Google Authenticator or Microsoft Authenticator. Recommended, because the dashboard holds clients' health information.
         </p>
         {error && <Notice tone="red">{error}</Notice>}
         <Button
@@ -39,7 +39,7 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
             })
           }
         >
-          הפעלה
+          Turn on
         </Button>
       </div>
     );
@@ -47,18 +47,18 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
   return (
     <div className="space-y-4">
       <ol className="list-decimal space-y-1 ps-5 text-sm text-slate-600">
-        <li>סרקו את הקוד באפליקציית האימות.</li>
-        <li>הזינו את הקוד בן 6 הספרות שמופיע בה.</li>
+        <li>Scan the code with your authenticator app.</li>
+        <li>Enter the 6-digit code it shows.</li>
       </ol>
       {/* eslint-disable-next-line @next/next/no-img-element -- a local data URL */}
-      <img src={setup.qr} alt="קוד QR להגדרת אפליקציית האימות" width={180} height={180} className="rounded-lg border border-slate-200" />
+      <img src={setup.qr} alt="QR code for setting up the authenticator app" width={180} height={180} className="rounded-lg border border-slate-200" />
       <p className="text-xs text-slate-500">
-        אי אפשר לסרוק? הקלידו באפליקציה את המפתח:{" "}
+        Can't scan? Type this key into the app:{" "}
         <code dir="ltr" className="break-all rounded bg-slate-100 px-1 py-0.5">
           {setup.secret}
         </code>
       </p>
-      <CodeForm action={confirmMfaAction} submitLabel="אישור והפעלה" />
+      <CodeForm action={confirmMfaAction} submitLabel="Confirm and turn on" />
     </div>
   );
 }

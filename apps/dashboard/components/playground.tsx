@@ -66,16 +66,16 @@ export function Playground({ history }: { history: { sender: string; body: strin
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} className="h-4 w-4 accent-emerald-600" />
-          להציג מה קורה מאחורי הקלעים (כלים, התראות, טוקנים)
+          Show what happens behind the scenes (tools, alerts, tokens)
         </label>
         <Button size="sm" variant="secondary" onClick={reset} disabled={pending}>
-          התחל מחדש
+          Start over
         </Button>
       </div>
 
       <div className="h-[28rem] space-y-2 overflow-y-auto rounded-xl bg-[#efeae2] p-4">
         {lines.length === 0 && (
-          <p className="py-16 text-center text-sm text-slate-500">כתבו הודעה כאילו אתם לקוח חדש. השיחה עוברת דרך אותו מנוע ואותם כללים כמו בוואטסאפ.</p>
+          <p className="py-16 text-center text-sm text-slate-500">Write a message as if you were a new client. The conversation goes through the same engine and the same rules as on WhatsApp.</p>
         )}
         {lines.map((l, i) =>
           l.from === "event" ? (
@@ -92,7 +92,7 @@ export function Playground({ history }: { history: { sender: string; body: strin
             </div>
           ),
         )}
-        {pending && <div className="text-end text-xs text-slate-500">הבוט מקליד…</div>}
+        {pending && <div className="text-end text-xs text-slate-500">The bot is typing…</div>}
         <div ref={end} />
       </div>
 
@@ -123,11 +123,11 @@ export function Playground({ history }: { history: { sender: string; body: strin
               send(text);
             }
           }}
-          placeholder="הודעה…"
+          placeholder="Message…"
           className="min-h-11"
           rows={1}
         />
-        <Button disabled={pending || !text.trim()}>שליחה</Button>
+        <Button disabled={pending || !text.trim()}>Send</Button>
       </form>
     </div>
   );

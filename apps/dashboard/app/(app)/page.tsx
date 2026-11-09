@@ -20,7 +20,7 @@ export default async function OverviewPage() {
 
   return (
     <>
-      <PageHeader title={`שלום, ${s.t.coachName}`} description="מה קורה עם הלקוחות שלך" />
+      <PageHeader title={`Hi, ${s.t.coachName}`} description="What's happening with your clients" />
       {block ? (
         <div className="mb-6">
           <Notice tone="red">{spendBlockMessage(block)}</Notice>
@@ -29,16 +29,16 @@ export default async function OverviewPage() {
         usage && <BudgetNotice usage={usage} budgetUsd={s.t.settings.monthlyBudgetUsd} />
       )}
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="דורש התערבות" value={stats.openAlerts} tone={stats.urgentAlerts > 0 ? "red" : undefined} />
-        <Stat label="לקוחות" value={stats.clients} />
-        <Stat label="פעילים השבוע" value={stats.activeClients} tone="green" />
-        <Stat label="הודעות ב-24 שעות" value={stats.messages24h} />
+        <Stat label="Needs attention" value={stats.openAlerts} tone={stats.urgentAlerts > 0 ? "red" : undefined} />
+        <Stat label="Clients" value={stats.clients} />
+        <Stat label="Active this week" value={stats.activeClients} tone="green" />
+        <Stat label="Messages in 24 hours" value={stats.messages24h} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="התראות פתוחות" actions={<ButtonLink href="/alerts" size="sm">לכל ההתראות</ButtonLink>}>
+        <Card title="Open alerts" actions={<ButtonLink href="/alerts" size="sm">All alerts</ButtonLink>}>
           {alerts.length === 0 ? (
-            <EmptyState title="אין התראות פתוחות">הבוט מטפל בהכול כרגע.</EmptyState>
+            <EmptyState title="No open alerts">The bot is handling everything right now.</EmptyState>
           ) : (
             <ul className="divide-y divide-slate-100">
               {alerts.map((a) => (
@@ -47,7 +47,7 @@ export default async function OverviewPage() {
                     <Badge tone={SEVERITY_TONE[a.severity]}>{SEVERITY_LABEL[a.severity]}</Badge>
                     <span className="text-sm font-medium">{ALERT_TYPE_LABEL[a.type] ?? a.type}</span>
                     <Link href={`/clients/${a.clientId}`} className="text-sm text-emerald-700 hover:underline">
-                      {names.get(a.clientId) ?? "לקוח"}
+                      {names.get(a.clientId) ?? "Client"}
                     </Link>
                     <span className="ms-auto text-xs text-slate-500">{formatRelative(a.createdAt)}</span>
                   </div>
@@ -58,9 +58,9 @@ export default async function OverviewPage() {
           )}
         </Card>
 
-        <Card title="פעילות אחרונה" actions={<ButtonLink href="/clients" size="sm">לכל הלקוחות</ButtonLink>}>
+        <Card title="Recent activity" actions={<ButtonLink href="/clients" size="sm">All clients</ButtonLink>}>
           {rows.length === 0 ? (
-            <EmptyState title="עוד אין לקוחות">לקוחות מופיעים כאן אחרי ההודעה הראשונה שלהם בוואטסאפ.</EmptyState>
+            <EmptyState title="No clients yet">Clients show up here after their first WhatsApp message.</EmptyState>
           ) : (
             <ul className="divide-y divide-slate-100">
               {rows.slice(0, 6).map((r) => (
@@ -68,8 +68,8 @@ export default async function OverviewPage() {
                   <Link href={`/clients/${r.id}`} className="text-sm font-medium hover:text-emerald-700">
                     {r.name}
                   </Link>
-                  {r.botPaused && <Badge tone="purple">מושהה</Badge>}
-                  {r.openAlerts > 0 && <Badge tone="red">{r.openAlerts} התראות</Badge>}
+                  {r.botPaused && <Badge tone="purple">Paused</Badge>}
+                  {r.openAlerts > 0 && <Badge tone="red">{r.openAlerts} {r.openAlerts === 1 ? "alert" : "alerts"}</Badge>}
                   <span className="ms-auto text-xs text-slate-500">{formatRelative(r.lastInboundAt)}</span>
                 </li>
               ))}

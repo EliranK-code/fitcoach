@@ -56,12 +56,12 @@ export async function connectWhatsAppNumber(
  */
 export async function assertNumberAvailable(db: Db, t: TenantContext, phoneNumberId: string): Promise<WhatsAppAccount | undefined> {
   if (t.settings.starterKnowledge) {
-    throw new WhatsAppConfigError("אי אפשר לחבר מספר לפני שהמאמן ממלא ומפרסם את בסיס הידע שלו");
+    throw new WhatsAppConfigError("You can't connect a number before the coach fills in and publishes their knowledge base");
   }
   // Unscoped on purpose: the number may belong to another coach, including an inactive one.
   const [existing] = await db.select().from(whatsappAccounts).where(eq(whatsappAccounts.phoneNumberId, phoneNumberId));
   if (existing && existing.coachId !== t.coachId) {
-    throw new WhatsAppConfigError("המספר הזה כבר מחובר למאמן אחר");
+    throw new WhatsAppConfigError("This number is already connected to another coach");
   }
   return existing;
 }
@@ -105,7 +105,7 @@ export function createApiForAccount(
   if (cfg.WHATSAPP_DRY_RUN) return createDryRunApi(account.phoneNumberId, dryRunSink);
   const token = decryptOptional(t, account.accessTokenEnc) ?? cfg.WHATSAPP_ACCESS_TOKEN;
   if (!token) {
-    throw new WhatsAppConfigError("WHATSAPP_ACCESS_TOKEN חסר ב-.env (או הגדירו WHATSAPP_DRY_RUN=true לבדיקה מקומית)");
+    throw new WhatsAppConfigError("WHATSAPP_ACCESS_TOKEN is missing in .env (or set WHATSAPP_DRY_RUN=true to test locally)");
   }
   return createGraphApi({ token, phoneNumberId: account.phoneNumberId, version: cfg.WHATSAPP_GRAPH_VERSION });
 }

@@ -80,7 +80,7 @@ describe("knowledge", () => {
   it("inlines small document sets and switches to search mode for large ones", async () => {
     const inline = await buildKnowledgePrompt(handle.db, a, 30_000);
     expect(inline.ragMode).toBe(false);
-    expect(inline.text).toContain("שיטת כף היד");
+    expect(inline.text).toContain("hand method");
     expect(inline.text).toContain("<document title=");
     const rag = await buildKnowledgePrompt(handle.db, a, 500);
     expect(rag.ragMode).toBe(true);
@@ -88,8 +88,8 @@ describe("knowledge", () => {
   });
 
   it("finds relevant passages by keyword without embeddings", async () => {
-    const hits = await searchKnowledge(handle.db, a, "דילואד אחרי כמה שבועות", null);
-    expect(hits[0]?.content).toContain("דילואד");
+    const hits = await searchKnowledge(handle.db, a, "deload after how many weeks", null);
+    expect(hits[0]?.content).toContain("deload");
   });
 
   it("bumps the knowledge version on every publish", async () => {

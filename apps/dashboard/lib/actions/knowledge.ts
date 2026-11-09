@@ -14,26 +14,26 @@ export async function saveKnowledgeAction(_prev: FormState, form: FormData): Pro
   try {
     raw = JSON.parse(String(form.get("data") ?? ""));
   } catch {
-    return { error: "הנתונים לא תקינים" };
+    return { error: "The data isn't valid" };
   }
   const parsed = coachKnowledgeSchema.safeParse(raw);
   if (!parsed.success) {
     const issues = parsed.error.issues.slice(0, 5).map((i) => `${i.path.join(".")}: ${i.message}`);
-    return { error: `יש שדות לא תקינים: ${issues.join(" · ")}` };
+    return { error: `Some fields aren't valid: ${issues.join(" · ")}` };
   }
   const version = await publishKnowledge(s.handle.db, s.t, { data: parsed.data }, s.embedder);
   await audit(s.handle.db, s.t, { actor: s.actor, action: "knowledge_published", targetType: "knowledge", targetId: String(version) });
   revalidatePath("/knowledge");
-  return { ok: `נשמר כגרסה ${version}. שיחות פעילות יעברו לידע החדש בהודעה הבאה שלהן.` };
+  return { ok: `Saved as version ${version}. Active conversations switch to the new knowledge on their next message.` };
 }
 
 export async function uploadDocumentAction(_prev: FormState, form: FormData): Promise<FormState> {
   const s = await requireSession();
   const file = form.get("file");
-  if (!(file instanceof File) || file.size === 0) return { error: "בחרו קובץ" };
-  if (file.size > MAX_UPLOAD_BYTES) return { error: "הקובץ גדול מ-8MB" };
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a file" };
+  if (file.size > MAX_UPLOAD_BYTES) return { error: "The file is larger than 8MB" };
   const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-  if (!ALLOWED.includes(ext)) return { error: `סוג קובץ לא נתמך. אפשר: ${ALLOWED.join(", ")}` };
+  if (!ALLOWED.includes(ext)) return { error: `Unsupported file type. Allowed: ${ALLOWED.join(", ")}` };
 
   let llm: LlmClient | null = null;
   try {
@@ -43,12 +43,12 @@ export async function uploadDocumentAction(_prev: FormState, form: FormData): Pr
   }
   const doc = await extractDocument(file.name, Buffer.from(await file.arrayBuffer()), { llm, cfg: s.cfg, db: s.handle.db, tenant: s.t });
   if (!doc || !doc.text) {
-    return { error: [".png", ".jpg", ".jpeg", ".webp"].includes(ext) && !llm ? "תמונות דורשות ANTHROPIC_API_KEY" : "לא הצלחתי לחלץ טקסט מהקובץ" };
+    return { error: [".png", ".jpg", ".jpeg", ".webp"].includes(ext) && !llm ? "Images need ANTHROPIC_API_KEY" : "Couldn't extract text from the file" };
   }
   const version = await publishKnowledge(s.handle.db, s.t, { addDocuments: [doc] }, s.embedder);
   await audit(s.handle.db, s.t, { actor: s.actor, action: "document_added", targetType: "knowledge", targetId: file.name });
   revalidatePath("/knowledge");
-  return { ok: `"${doc.title}" נוסף (גרסה ${version})` };
+  return { ok: `"${doc.title}" added (version ${version})` };
 }
 
 export async function deleteDocumentAction(documentId: string): Promise<void> {

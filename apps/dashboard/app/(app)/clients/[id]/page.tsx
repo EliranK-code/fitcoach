@@ -13,14 +13,14 @@ import { requireSession } from "@/lib/session";
 
 const ENUM_LABELS: Record<string, Record<string, string>> = {
   goal: GOAL_LABEL,
-  sex: { male: "זכר", female: "נקבה", other: "אחר" },
-  experience: { beginner: "מתחיל/ה", intermediate: "בינוני/ת", advanced: "מתקדם/ת" },
-  equipment: { gym: "חדר כושר", home: "בית", both: "גם וגם", none: "בלי ציוד" },
-  activityLevel: { sedentary: "יושבני", light: "קלה", moderate: "בינונית", active: "פעיל", very_active: "פעיל מאוד" },
+  sex: { male: "Male", female: "Female", other: "Other" },
+  experience: { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" },
+  equipment: { gym: "Gym", home: "Home", both: "Both", none: "No equipment" },
+  activityLevel: { sedentary: "Sedentary", light: "Light", moderate: "Moderate", active: "Active", very_active: "Very active" },
 };
 
 function profileValue(key: keyof ClientProfile, value: unknown): string {
-  if (Array.isArray(value)) return value.length ? value.join(" · ") : "אין";
+  if (Array.isArray(value)) return value.length ? value.join(" · ") : "none";
   return ENUM_LABELS[key]?.[String(value)] ?? String(value);
 }
 
@@ -42,31 +42,31 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
   const sendDisabledReason =
     d.client.consentStatus !== "granted"
-      ? "הלקוח/ה עוד לא אישר/ה את הודעת הפרטיות."
+      ? "The client hasn't accepted the privacy notice yet."
       : d.client.channel === "whatsapp" && !d.canSendWhatsApp
-        ? "אין מספר וואטסאפ מחובר למאמן."
+        ? "The coach has no WhatsApp number connected."
         : d.client.channel === "whatsapp" && !d.windowOpen
-          ? "עברו יותר מ-24 שעות מההודעה האחרונה של הלקוח/ה. בוואטסאפ אפשר לשלוח עכשיו רק תבנית (template) מאושרת."
+          ? "More than 24 hours have passed since the client's last message. On WhatsApp you can only send an approved template now."
           : undefined;
 
   return (
     <>
       <div className="mb-6">
         <Link href="/clients" className="text-sm text-slate-500 hover:text-slate-800">
-          → לכל הלקוחות
+          ← All clients
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold">{name}</h1>
           <Badge tone="gray">{CHANNEL_LABEL[d.client.channel] ?? d.client.channel}</Badge>
-          {access === "pending" && <Badge tone="orange">בקשת הצטרפות</Badge>}
-          {access === "revoked" && <Badge tone="gray">ללא גישה לבוט</Badge>}
+          {access === "pending" && <Badge tone="orange">Join request</Badge>}
+          {access === "revoked" && <Badge tone="gray">No bot access</Badge>}
           {d.client.consentStatus !== "granted" && <Badge tone="yellow">{CONSENT_LABEL[d.client.consentStatus]}</Badge>}
-          {d.client.botPaused && <Badge tone="purple">הבוט מושהה: את/ה מנהל/ת את השיחה</Badge>}
-          {d.client.flags.minor && <Badge tone="orange">קטין/ה</Badge>}
-          {d.client.flags.eatingDisorderRisk && <Badge tone="red">סיכון הפרעת אכילה</Badge>}
+          {d.client.botPaused && <Badge tone="purple">Bot paused: you're handling the conversation</Badge>}
+          {d.client.flags.minor && <Badge tone="orange">Minor</Badge>}
+          {d.client.flags.eatingDisorderRisk && <Badge tone="red">Eating-disorder risk</Badge>}
         </div>
         {name !== d.phone && (
-          <div className="mt-1 text-sm text-slate-500" dir="ltr" style={{ textAlign: "right" }}>
+          <div className="mt-1 text-sm text-slate-500" dir="ltr">
             {d.phone}
           </div>
         )}
@@ -76,11 +76,11 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
               <div className="flex flex-wrap items-center gap-3">
                 <span className="flex-1">
                   {access === "pending"
-                    ? "המספר הזה עוד לא אושר. הבוט לא עונה לו ולא שומר את מה שהוא כותב. אם זה לקוח/ה שלך, אשרו, והבוט ישלח מיד את הודעת ההסכמה (אם הלקוח/ה כתב/ה ב-24 השעות האחרונות)."
-                    : "הגישה של הלקוח/ה לבוט הוסרה: הבוט לא עונה ולא שולח תזכורות. המידע נשמר."}
+                    ? "This number isn't approved yet. The bot doesn't answer it or keep what it writes. If this is your client, approve them and the bot will send the consent notice right away (if they wrote in the last 24 hours).)."
+                    : "The client's access to the bot was removed: the bot doesn't answer or send reminders. Their data is kept."}
                 </span>
                 <form action={approveClientAction.bind(null, id)}>
-                  <Button size="sm">{access === "pending" ? "אישור הלקוח/ה" : "החזרת הגישה"}</Button>
+                  <Button size="sm">{access === "pending" ? "Approve client" : "Restore access"}</Button>
                 </form>
               </div>
             </Notice>
@@ -89,13 +89,13 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <form action={setPausedAction.bind(null, id, !d.client.botPaused)}>
             <Button size="sm" variant={d.client.botPaused ? "primary" : "secondary"}>
-              {d.client.botPaused ? "החזר את הבוט לשיחה" : "השתלט על השיחה (השהה את הבוט)"}
+              {d.client.botPaused ? "Hand the conversation back to the bot" : "Take over the conversation (pause the bot)"}
             </Button>
           </form>
           {(d.client.flags.minor || d.client.flags.eatingDisorderRisk) && (
             <form action={clearFlagsAction.bind(null, id)}>
               <Button size="sm" variant="secondary">
-                נקה דגלי בטיחות
+                Clear safety flags
               </Button>
             </form>
           )}
@@ -103,12 +103,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
             href={`/api/clients/${id}/export`}
             className="inline-flex items-center rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-300 hover:bg-slate-50"
           >
-            ייצוא המידע (JSON)
+            Export data (JSON)
           </a>
           {access === "approved" && d.client.channel === "whatsapp" && (
             <form action={revokeAccessAction.bind(null, id)}>
               <Button size="sm" variant="secondary">
-                הסרת הגישה לבוט
+                Remove bot access
               </Button>
             </form>
           )}
@@ -118,7 +118,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-6 lg:col-span-3">
-          <Card title="השיחה">
+          <Card title="Conversation">
             <Conversation
               clientId={id}
               initial={d.messages.map((m) => ({ ...m, createdAt: m.createdAt.toISOString() }) as ChatItem)}
@@ -129,7 +129,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           </Card>
 
           {openAlerts.length > 0 && (
-            <Card title="התראות פתוחות" actions={<Link href="/alerts" className="text-sm text-emerald-700">לטיפול</Link>}>
+            <Card title="Open alerts" actions={<Link href="/alerts" className="text-sm text-emerald-700">Handle</Link>}>
               <ul className="space-y-2 text-sm">
                 {openAlerts.map((a) => (
                   <li key={a.id} className="flex items-start gap-2">
@@ -143,31 +143,31 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
             </Card>
           )}
 
-          <Card title="תוכניות">
+          <Card title="Plans">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <h3 className="mb-2 text-sm font-semibold text-slate-700">
-                  תפריט {d.mealPlan && <span className="font-normal text-slate-500">גרסה {d.mealPlan.version}, הערכה פנימית {d.mealPlan.dailyCalories} קק"ל</span>}
+                  Meal plan {d.mealPlan && <span className="font-normal text-slate-500">version {d.mealPlan.version}, internal estimate {d.mealPlan.dailyCalories} kcal</span>}
                 </h3>
                 {d.mealPlan ? (
                   <div className="whitespace-chat rounded-lg bg-slate-50 p-3 text-sm">
                     <WhatsAppText text={d.mealPlan.planText} />
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">עוד אין תפריט.</p>
+                  <p className="text-sm text-slate-500">No meal plan yet.</p>
                 )}
               </div>
               <div>
                 <h3 className="mb-2 text-sm font-semibold text-slate-700">
-                  תוכנית אימונים {d.workoutPlan && <span className="font-normal text-slate-500">גרסה {d.workoutPlan.version}</span>}
+                  Workout plan {d.workoutPlan && <span className="font-normal text-slate-500">version {d.workoutPlan.version}</span>}
                 </h3>
                 {d.workoutPlan ? (
                   <div className="whitespace-chat rounded-lg bg-slate-50 p-3 text-sm">
                     <WhatsAppText text={d.workoutPlan.planText} />
-                    <p className="mt-2 text-xs text-slate-500">התקדמות: {d.workoutPlan.progressionRule}</p>
+                    <p className="mt-2 text-xs text-slate-500">Progression: {d.workoutPlan.progressionRule}</p>
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">עוד אין תוכנית אימונים.</p>
+                  <p className="text-sm text-slate-500">No workout plan yet.</p>
                 )}
               </div>
             </div>
@@ -176,56 +176,56 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
         <div className="space-y-6 lg:col-span-2">
           <Card
-            title="תזכורות"
+            title="Reminders"
             actions={
               !d.client.flags.remindersOptOut && d.reminders.some((r) => r.enabled) ? (
                 <form action={stopClientRemindersAction.bind(null, id)}>
                   <Button size="sm" variant="ghost">
-                    עצירת תזכורות
+                    Stop reminders
                   </Button>
                 </form>
               ) : undefined
             }
           >
             {d.client.flags.remindersOptOut ? (
-              <p className="text-sm text-slate-500">הלקוח/ה ביקש/ה לא לקבל הודעות יזומות.</p>
+              <p className="text-sm text-slate-500">The client asked not to get proactive messages.</p>
             ) : d.reminders.length === 0 ? (
-              <p className="text-sm text-slate-500">אין תזכורות. הבוט מציע אותן אחרי האונבורדינג.</p>
+              <p className="text-sm text-slate-500">No reminders. The bot offers them after onboarding.</p>
             ) : (
               <ul className="space-y-1.5 text-sm">
                 {d.reminders.map((r) => (
                   <li key={r.id} className={r.enabled ? "" : "text-slate-400"}>
-                    <strong>{REMINDER_KIND_LABEL[r.kind] ?? r.kind}</strong> · ימים {r.days.map((day) => DAY_NAMES[day]).join(" ")} ·{" "}
+                    <strong>{REMINDER_KIND_LABEL[r.kind] ?? r.kind}</strong> · days {r.days.map((day) => DAY_NAMES[day]).join(" ")} ·{" "}
                     <span dir="ltr">{r.time}</span>
-                    {r.nextRunAt && <span className="text-slate-500"> · הבאה: {formatDateTime(r.nextRunAt, tz)}</span>}
+                    {r.nextRunAt && <span className="text-slate-500"> · next: {formatDateTime(r.nextRunAt, tz)}</span>}
                   </li>
                 ))}
               </ul>
             )}
-            {d.client.channel !== "whatsapp" && <p className="mt-2 text-xs text-slate-500">תזכורות נשלחות רק ללקוחות בוואטסאפ.</p>}
+            {d.client.channel !== "whatsapp" && <p className="mt-2 text-xs text-slate-500">Reminders are sent only to WhatsApp clients.</p>}
           </Card>
 
-          <Card title="פרופיל">
+          <Card title="Profile">
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
               {PROFILE_FIELDS.filter((f) => f.spec.kind !== "note").map((f) => {
                 const value = d.profile[f.key];
                 return (
                   <div key={f.key} className="contents">
                     <dt className="text-slate-500">{f.label}</dt>
-                    <dd className={value === undefined ? "text-slate-400" : ""}>{value === undefined ? (f.onboarding ? "עוד לא נאסף" : "—") : profileValue(f.key, value)}</dd>
+                    <dd className={value === undefined ? "text-slate-400" : ""}>{value === undefined ? (f.onboarding ? "not collected yet" : "—") : profileValue(f.key, value)}</dd>
                   </div>
                 );
               })}
             </dl>
-            <p className="mt-3 text-xs text-slate-500">רף קלורי בטוח לתפריטים: {floor.floor} קק"ל ליום</p>
+            <p className="mt-3 text-xs text-slate-500">Safe calorie floor for meal plans: {floor.floor} kcal a day</p>
           </Card>
 
-          <Card title="משקל (90 יום)">
+          <Card title="Weight (90 days)">
             <WeightChart data={d.weights.map((w) => ({ date: w.measuredOn, kg: w.weightKg }))} />
           </Card>
 
           {notes.length > 0 && (
-            <Card title="מה למדנו על הלקוח/ה">
+            <Card title="What we've learned about the client">
               <ul className="space-y-1.5 text-sm">
                 {notes.map((n, i) => (
                   <li key={i}>
@@ -236,29 +236,29 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
             </Card>
           )}
 
-          <Card title="זיכרון ארוך טווח">
+          <Card title="Long-term memory">
             {d.memory?.summary ? (
               <div className="whitespace-chat text-sm text-slate-700">{d.memory.summary}</div>
             ) : (
-              <p className="text-sm text-slate-500">הסיכום נוצר אוטומטית כשהשיחה מתארכת.</p>
+              <p className="text-sm text-slate-500">The summary is created automatically as the conversation grows.</p>
             )}
           </Card>
 
-          <Card title="יומן">
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">אימונים אחרונים</h3>
+          <Card title="Log">
+            <h3 className="mb-1 text-sm font-semibold text-slate-700">Recent workouts</h3>
             {d.workouts.length ? (
               <ul className="mb-4 space-y-1 text-sm">
                 {d.workouts.map((w, i) => (
                   <li key={i}>
                     <span className="text-slate-500">{w.performedOn.split("-").reverse().join("/")}</span> {w.title}:{" "}
-                    {w.exercises.map((e) => `${e.name} ${e.sets}×${e.reps}${e.weightKg ? ` ${e.weightKg}ק"ג` : ""}`).join(", ")}
+                    {w.exercises.map((e) => `${e.name} ${e.sets}×${e.reps}${e.weightKg ? ` ${e.weightKg}kg` : ""}`).join(", ")}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="mb-4 text-sm text-slate-500">אין.</p>
+              <p className="mb-4 text-sm text-slate-500">None.</p>
             )}
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">ארוחות אחרונות</h3>
+            <h3 className="mb-1 text-sm font-semibold text-slate-700">Recent meals</h3>
             {d.meals.length ? (
               <ul className="space-y-1 text-sm">
                 {d.meals.map((m, i) => (
@@ -268,13 +268,13 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-500">אין.</p>
+              <p className="text-sm text-slate-500">None.</p>
             )}
           </Card>
 
           <p className="text-xs text-slate-500">
-            הצטרפות: {formatDateTime(d.client.createdAt, tz)}
-            {d.client.consentAt && ` · אישור פרטיות: ${formatDateTime(d.client.consentAt, tz)} (גרסה ${d.client.consentVersion})`}
+            Joined: {formatDateTime(d.client.createdAt, tz)}
+            {d.client.consentAt && ` · Privacy consent: ${formatDateTime(d.client.consentAt, tz)} (version ${d.client.consentVersion})`}
           </p>
         </div>
       </div>

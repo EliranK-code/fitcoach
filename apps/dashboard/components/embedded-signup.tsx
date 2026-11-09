@@ -62,7 +62,7 @@ export function EmbeddedSignup(props: { mode: "live" | "mock"; appId?: string; c
         return;
       }
       if (data.type !== "WA_EMBEDDED_SIGNUP") return;
-      if (data.event === "CANCEL") setState({ error: "החיבור בוטל לפני הסוף." });
+      if (data.event === "CANCEL") setState({ error: "The connection was cancelled before it finished." });
       if (data.event === "FINISH" && data.data?.phone_number_id && data.data.waba_id) {
         session.current = { ...session.current, phoneNumberId: data.data.phone_number_id, wabaId: data.data.waba_id };
         submitWhenReady();
@@ -79,11 +79,11 @@ export function EmbeddedSignup(props: { mode: "live" | "mock"; appId?: string; c
     try {
       fb = await loadSdk(props.appId!, props.graphVersion);
     } catch {
-      return setState({ error: "לא הצלחנו לטעון את Facebook. בדקו שחוסם פרסומות לא חוסם את connect.facebook.net." });
+      return setState({ error: "Couldn't load Facebook. Check that an ad blocker isn't blocking connect.facebook.net." });
     }
     fb.login(
       (res) => {
-        if (!res.authResponse?.code) return setState({ error: "החיבור ל-Facebook לא הושלם." });
+        if (!res.authResponse?.code) return setState({ error: "The Facebook connection wasn't completed." });
         session.current = { ...session.current, code: res.authResponse.code };
         submitWhenReady();
       },
@@ -103,18 +103,18 @@ export function EmbeddedSignup(props: { mode: "live" | "mock"; appId?: string; c
       {props.mode === "live" ? (
         <>
           <p className="text-sm text-slate-600">
-            החיבור נעשה בחלון של Facebook: בוחרים או יוצרים חשבון WhatsApp Business ומספר, ומאשרים. המספר צריך להיות פנוי (לא פעיל באפליקציית WhatsApp
-            Business בטלפון).
+            The connection happens in a Facebook window: you pick or create a WhatsApp Business account and a number, and approve. The number must be free (not active in the WhatsApp
+            Business app on a phone).
           </p>
           <Button size="sm" onClick={startLive} disabled={pending}>
-            {pending ? "מחבר…" : "חיבור מספר וואטסאפ"}
+            {pending ? "Connecting…" : "Connect a WhatsApp number"}
           </Button>
         </>
       ) : !simulating ? (
         <>
-          <Notice tone="yellow">מצב סימולציה (WHATSAPP_DRY_RUN): במקום החלון של Facebook נפתח טופס מדומה, וההודעות למספר רק נרשמות בלוג.</Notice>
+          <Notice tone="yellow">Simulation mode (WHATSAPP_DRY_RUN): a mock form opens instead of the Facebook window, and messages to the number are only logged.</Notice>
           <Button size="sm" onClick={() => setSimulating(true)}>
-            חיבור מספר וואטסאפ (סימולציה)
+            Connect a WhatsApp number (simulation)
           </Button>
         </>
       ) : (
@@ -130,17 +130,17 @@ export function EmbeddedSignup(props: { mode: "live" | "mock"; appId?: string; c
             });
           }}
         >
-          <div className="text-xs font-medium text-slate-500">החלון המדומה של Meta</div>
+          <div className="text-xs font-medium text-slate-500">Mock Meta window Meta</div>
           <div className="grid gap-3 md:grid-cols-2">
-            <Field label="מזהה המספר (phone_number_id)">
+            <Field label="Number id (phone_number_id)">
               <Input name="phoneNumberId" required dir="ltr" defaultValue={`sim-${Math.floor(Math.random() * 1e9)}`} />
             </Field>
-            <Field label="המספר לתצוגה">
-              <Input name="displayPhone" dir="ltr" defaultValue="+972 50-000-0000" />
+            <Field label="Display number">
+              <Input name="displayPhone" dir="ltr" defaultValue="+1 555-000-0000" />
             </Field>
           </div>
           <Button size="sm" disabled={pending}>
-            {pending ? "מחבר…" : "אישור"}
+            {pending ? "Connecting…" : "Confirm"}
           </Button>
         </form>
       )}

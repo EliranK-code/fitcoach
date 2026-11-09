@@ -11,7 +11,7 @@ export function DeleteClient({ clientId }: { clientId: string }) {
   if (!open) {
     return (
       <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => setOpen(true)}>
-        מחיקת לקוח
+        Delete client
       </Button>
     );
   }
@@ -19,16 +19,16 @@ export function DeleteClient({ clientId }: { clientId: string }) {
     <form action={action} className="w-full space-y-2 rounded-lg border border-red-200 bg-red-50 p-3">
       <input type="hidden" name="clientId" value={clientId} />
       <p className="text-sm text-red-800">
-        מחיקה סופית של הלקוח וכל המידע שלו: פרופיל, שיחות, יומנים, תוכניות והתראות. אי אפשר לשחזר. הקלידו <strong>מחק</strong> לאישור.
+        Permanently deletes the client and all their data: profile, chats, logs, plans and alerts. This can't be undone. Type <strong>delete</strong> to confirm.
       </p>
       {state.error && <Notice tone="red">{state.error}</Notice>}
       <div className="flex flex-wrap gap-2">
         <Input name="confirm" className="max-w-32" autoFocus />
         <Button size="sm" variant="danger" disabled={pending}>
-          {pending ? "מוחק…" : "מחק לצמיתות"}
+          {pending ? "Deleting…" : "Delete permanently"}
         </Button>
         <Button size="sm" variant="ghost" type="button" onClick={() => setOpen(false)}>
-          ביטול
+          Cancel
         </Button>
       </div>
     </form>

@@ -55,65 +55,65 @@ import { runChat } from "./chat";
 import { createSampleData, removeSampleData } from "./sample-data";
 import { simulateWebhook } from "./simulate";
 
-const USAGE = `שימוש: npm run <פקודה> -- [אפשרויות]
+const USAGE = `Usage: npm run <command> -- [options]
 
-  setup                          יוצר .env ומפתח הצפנה, ומוסיף הגדרות חדשות שחסרות
-  seed                           טוען את מאמן הדמו
-  coach:import <dir> [--slug x]  מייבא מאמן מתיקייה (coach.yaml + docs/)
+  setup                          Creates .env and an encryption key, and adds new settings that are missing
+  seed                           Loads the demo coach
+  coach:import <dir> [--slug x]  Imports a coach from a folder (coach.yaml + docs/)
   chat [--coach demo] [--phone id] [--debug] [--no-bidi] [--new]
-  server                         שרת הוואטסאפ (webhook + worker)
-  wa:simulate -- [--from 972...] [--pnid id] [--button id] [--file photo.jpg|voice.ogg] "טקסט"
-                                 שולח לשרת webhook חתום כאילו מוואטסאפ (בלי Meta)
+  server                         The WhatsApp server (webhook + worker)
+  wa:simulate -- [--from 1415...] [--pnid id] [--button id] [--file photo.jpg|voice.ogg] "text"
+                                 Sends the server a signed webhook as if from WhatsApp (no Meta)
 
-פקודות ניהול (npm run admin -- <פקודה> [--coach demo]):
-  clients                        רשימת לקוחות
-  client:approve <phone>         אישור מספר וואטסאפ, כדי שהבוט יענה לו (גם מספר שעוד לא כתב)
-  client:revoke <phone>          הסרת הגישה של לקוח לבוט (המידע נשמר)
-  history <phone>                השיחה עם לקוח, כולל סטטוס מסירה
-  alerts [--all]                 התראות פתוחות (או כולן)
-  alert:resolve <id> [--note x]  סגירת התראה
-  pause <phone> / resume <phone> השהיית הבוט ללקוח (השתלטות של המאמן) והחזרתו
-  send <phone> "טקסט"            הודעה מהמאמן ללקוח בוואטסאפ (בתוך חלון 24 השעות)
-  send-template <phone> <name> [--lang he] [--params "א|ב"]
-                                 תבנית מאושרת (גם מחוץ לחלון 24 השעות)
-  wa:connect --pnid <id> [--display +972...] [--waba <id>]
-                                 חיבור מספר וואטסאפ (phone_number_id) למאמן
-  user:create --email <email>    משתמש לדשבורד של המאמן (הסיסמה מודפסת פעם אחת)
+Coach commands (npm run admin -- <command> [--coach demo]):
+  clients                        List clients
+  client:approve <phone>         Approve a WhatsApp number so the bot answers it (also a number that hasn't written yet)
+  client:revoke <phone>          Remove a client's access to the bot (their data is kept)
+  history <phone>                The conversation with a client, with delivery status
+  alerts [--all]                 Open alerts (or all)
+  alert:resolve <id> [--note x]  Close an alert
+  pause <phone> / resume <phone> Pause the bot for a client (coach takeover) and resume it
+  send <phone> "text"            A message from the coach to the client on WhatsApp (inside the 24-hour window)
+  send-template <phone> <name> [--lang en] [--params "a|b"]
+                                 An approved template (also outside the 24-hour window)
+  wa:connect --pnid <id> [--display +1...] [--waba <id>]
+                                 Connect a WhatsApp number (phone_number_id) to the coach
+  user:create --email <email>    A user for the coach's dashboard (the password is printed once)
   user:reset-password --email <email>
-                                 סיסמה חדשה למשתמש (מנתק את כל הסשנים שלו)
-  user:delete --email <email>    מחיקת משתמש דשבורד
-  flags:clear <phone>            ניקוי דגלי בטיחות (קטין / הפרעת אכילה) אחרי בדיקה של המאמן
-  export <phone>                 ייצוא כל המידע של לקוח
-  delete <phone>                 מחיקה מלאה של לקוח
-  purge                          מחיקת לקוחות לא פעילים לפי RETENTION_MONTHS
-  sample-data [--remove]         לקוחות לדוגמה לדשבורד (בלי AI), או הסרתם
+                                 A new password for a user (signs out all their sessions)
+  user:delete --email <email>    Delete a dashboard user
+  flags:clear <phone>            Clear safety flags (minor / eating disorder) after the coach checked
+  export <phone>                 Export all of a client's data
+  delete <phone>                 Delete a client completely
+  purge                          Delete inactive clients by RETENTION_MONTHS
+  sample-data [--remove]         Sample clients for the dashboard (no AI), or remove them
 
-ניהול מאמנים (פלטפורמה):
-  coach:list                     כל המאמנים: סטטוס, לקוחות ושימוש החודש
-  coach:suspend <slug>           השעיה: הבוט לא עונה (הודעה קבועה אחת ללקוח), אין התחברות, התזכורות נעצרות
-  coach:resume <slug>            ביטול ההשעיה
+Coach management (platform):
+  coach:list                     All coaches: status, clients and usage this month
+  coach:suspend <slug>           Suspend: the bot doesn't answer (one fixed notice per client), no sign-in, reminders stop
+  coach:resume <slug>            Lift the suspension
   coach:delete <slug> --confirm <slug>
-                                 מחיקה לצמיתות של מאמן מושהה וכל המידע שלו
-  demo:remove [--confirm demo]   מחיקת מאמן הדמו (וכל מאמן שמסומן כדמו) עם כל המידע שלו. בלי --confirm רק מציג מה יימחק
+                                 Permanently delete a suspended coach and all their data
+  demo:remove [--confirm demo]   Delete the demo coach (and any coach marked as demo) with all their data. Without --confirm it only shows what would be deleted
   superadmin:create --email <email>
-                                 אדמין לפאנל /admin (הסיסמה מודפסת פעם אחת, אימות דו-שלבי בכניסה הראשונה)
+                                 An admin for the /admin panel (the password is printed once, two-step verification on first sign-in)
   superadmin:reset --email <email>
-                                 סיסמה חדשה לאדמין, איפוס האימות הדו-שלבי וניתוק הסשנים
+                                 A new admin password, resets two-step verification and signs out sessions
   superadmin:delete --email <email> / superadmin:list
   user:reset-mfa --email <email> [--coach demo]
-                                 ביטול האימות הדו-שלבי של משתמש מאמן (למשל אחרי שאיבד את הטלפון)`;
+                                 Turn off two-step verification for a coach user (for example after they lost their phone))`;
 
 function setup() {
   if (!existsSync(".env")) {
     copyFileSync(".env.example", ".env");
-    console.log("נוצר קובץ .env מתוך .env.example");
+    console.log("Created .env from .env.example");
   }
   let env = readFileSync(".env", "utf8");
   if (/^MASTER_ENCRYPTION_KEY=\s*$/m.test(env)) {
     env = env.replace(/^MASTER_ENCRYPTION_KEY=\s*$/m, `MASTER_ENCRYPTION_KEY=${generateKeyBase64()}`);
-    console.log("נוצר MASTER_ENCRYPTION_KEY חדש. שמרו גיבוי שלו במקום בטוח: בלעדיו אי אפשר לפענח את המידע.");
+    console.log("Created a new MASTER_ENCRYPTION_KEY. Keep a backup of it somewhere safe: without it the data can't be decrypted.");
   } else {
-    console.log("MASTER_ENCRYPTION_KEY כבר מוגדר, לא שיניתי אותו.");
+    console.log("MASTER_ENCRYPTION_KEY is already set; left it unchanged.");
   }
   // Settings added in later stages: append them (with their comments) without touching existing values.
   const present = new Set([...env.matchAll(/^([A-Z0-9_]+)=/gm)].map((m) => m[1]));
@@ -134,9 +134,9 @@ function setup() {
   }
   if (block.length) env = `${env.trimEnd()}\n\n${block.join("\n")}\n`;
   writeFileSync(".env", env);
-  if (added.length) console.log(`נוספו ל-.env הגדרות חדשות: ${added.join(", ")}`);
+  if (added.length) console.log(`Added new settings to .env: ${added.join(", ")}`);
   if (/^ANTHROPIC_API_KEY=\s*$/m.test(env)) {
-    console.log(styleText("yellow", "נשאר לעשות: להדביק את ANTHROPIC_API_KEY בקובץ .env"));
+    console.log(styleText("yellow", "Left to do: paste your ANTHROPIC_API_KEY into .env"));
   }
 }
 
@@ -165,17 +165,17 @@ async function importCoach(app: App, dir: string, slug?: string, opts: { demo?: 
     // Marked so `npm run demo:remove` can delete it before real coaches join.
     await updateCoach(app.handle.db, await openTenant(app.handle.db, res.coachId, { allowSuspended: true }), { settings: { demo: true } });
   }
-  console.log(`${res.created ? "נוצר מאמן חדש" : "עודכן מאמן קיים"}: ${res.slug} (גרסת ידע ${res.version})${opts.demo ? ", מסומן כמאמן דמו" : ""}`);
-  console.log(`מסמכים שנטענו: ${res.documents.length ? res.documents.join(", ") : "אין"}`);
+  console.log(`${res.created ? "Created a new coach" : "Updated an existing coach"}: ${res.slug} (knowledge version ${res.version})${opts.demo ? ", marked as a demo coach" : ""}`);
+  console.log(`Documents loaded: ${res.documents.length ? res.documents.join(", ") : "none"}`);
   if (res.skipped.length) {
-    console.log(styleText("yellow", `דולגו: ${res.skipped.join(", ")} (תמונות דורשות ANTHROPIC_API_KEY; פורמטים נתמכים: md, txt, pdf, docx, png, jpg, webp)`));
+    console.log(styleText("yellow", `Skipped: ${res.skipped.join(", ")} (images need ANTHROPIC_API_KEY; supported formats: md, txt, pdf, docx, png, jpg, webp)`));
   }
-  console.log(createEmbedder() ? "חיפוש וקטורי פעיל (OpenAI)." : "OPENAI_API_KEY לא מוגדר: החיפוש במסמכים יעבוד לפי מילות מפתח.");
+  console.log(createEmbedder() ? "Vector search is on (OpenAI)." : "OPENAI_API_KEY isn't set: document search will use keywords.");
 }
 
 async function coachApi(app: App, t: TenantContext) {
   const account = await getCoachAccount(app.handle.db, t);
-  if (!account) throw new Error(`למאמן ${t.coachName} אין מספר וואטסאפ מחובר. הריצו קודם: npm run admin -- wa:connect --pnid <phone_number_id>`);
+  if (!account) throw new Error(`Coach ${t.coachName} has no WhatsApp number connected. First run: npm run admin -- wa:connect --pnid <phone_number_id>`);
   return createApiForAccount(t, account, app.cfg, printDryRun);
 }
 
@@ -230,7 +230,7 @@ async function main() {
         return await importCoach(app, "seed/demo-coach", "demo", { demo: true });
       case "coach:import": {
         const dir = positionals[0];
-        if (!dir) throw new Error("חסרה תיקייה: npm run coach:import -- <dir>");
+        if (!dir) throw new Error("Missing folder: npm run coach:import -- <dir>");
         return await importCoach(app, dir, values.slug);
       }
       case "chat": {
@@ -239,53 +239,53 @@ async function main() {
       }
       case "superadmin:create":
       case "superadmin:reset": {
-        if (!values.email) throw new Error("חסר --email");
+        if (!values.email) throw new Error("Missing --email");
         const password = generatePassword();
         if (command === "superadmin:create") {
           await createPlatformAdmin(db, values.email, password);
         } else {
           const admin = await findPlatformAdmin(db, values.email);
-          if (!admin) throw new Error(`לא נמצא אדמין ${values.email}`);
+          if (!admin) throw new Error(`No admin ${values.email}`);
           await resetPlatformAdmin(db, admin.id, password);
         }
         const email = values.email.toLowerCase();
         await recordPlatformAction(db, { actor: "cli", action: command === "superadmin:create" ? "admin_created" : "admin_reset", meta: { email } });
-        console.log(`אדמין: ${email}`);
-        console.log(`סיסמה: ${styleText("bold", password)}`);
-        return console.log(styleText("yellow", "הסיסמה מוצגת פעם אחת בלבד. בכניסה ל-/admin תתבקשו לסרוק קוד QR באפליקציית אימות."));
+        console.log(`Admin: ${email}`);
+        console.log(`Password: ${styleText("bold", password)}`);
+        return console.log(styleText("yellow", "The password is shown only once. When you sign in to /admin you'll be asked to scan a QR code with an authenticator app."));
       }
       case "superadmin:delete": {
-        if (!values.email) throw new Error("חסר --email");
+        if (!values.email) throw new Error("Missing --email");
         const admin = await findPlatformAdmin(db, values.email);
-        if (!admin) throw new Error(`לא נמצא אדמין ${values.email}`);
+        if (!admin) throw new Error(`No admin ${values.email}`);
         await deletePlatformAdmin(db, admin.id);
         await recordPlatformAction(db, { actor: "cli", action: "admin_deleted", meta: { email: admin.email } });
-        return console.log(`האדמין ${admin.email} נמחק.`);
+        return console.log(`Admin ${admin.email} deleted.`);
       }
       case "superadmin:list": {
         const admins = await listPlatformAdmins(db);
-        if (!admins.length) return console.log("אין אדמינים. יוצרים עם superadmin:create --email ...");
+        if (!admins.length) return console.log("No admins. Create one with superadmin:create --email ...");
         for (const a of admins) {
-          console.log(`${a.email}  ${a.totpEnabledAt ? "אימות דו-שלבי פעיל" : "עוד לא הגדיר אימות"}  כניסה אחרונה:${a.lastLoginAt?.toISOString().slice(0, 16) ?? "-"}`);
+          console.log(`${a.email}  ${a.totpEnabledAt ? "two-step verification on" : "two-step verification not set up yet"}  last sign-in:${a.lastLoginAt?.toISOString().slice(0, 16) ?? "-"}`);
         }
         return;
       }
       case "coach:list": {
         for (const c of await listCoaches(db)) {
-          const status = c.status === "suspended" ? styleText("yellow", `מושהה מ-${c.suspendedAt?.toISOString().slice(0, 10)}`) : "פעיל";
-          console.log(`${c.slug}  ${c.name}  ${status}  לקוחות:${c.clients}  טוקנים החודש:${c.monthTokens.toLocaleString("he-IL")}`);
+          const status = c.status === "suspended" ? styleText("yellow", `suspended since ${c.suspendedAt?.toISOString().slice(0, 10)}`) : "active";
+          console.log(`${c.slug}  ${c.name}  ${status}  clients:${c.clients}  tokens this month:${c.monthTokens.toLocaleString("en-US")}`);
         }
         return;
       }
       case "demo:remove": {
         const demos = await listDemoCoaches(db);
-        if (!demos.length) return console.log("אין מאמני דמו.");
+        if (!demos.length) return console.log("No demo coaches.");
         if (values.confirm !== "demo") {
           for (const c of demos) console.log(`${c.slug}  ${c.name}`);
-          return console.log(styleText("yellow", "אלה המאמנים שיימחקו לצמיתות, עם כל הלקוחות והמידע. למחיקה: npm run demo:remove -- --confirm demo"));
+          return console.log(styleText("yellow", "These coaches would be deleted permanently, with all their clients and data. To delete: npm run demo:remove -- --confirm demo"));
         }
         for (const summary of await removeDemoCoaches(db, "cli")) {
-          console.log(`${summary.name} (${summary.slug}) נמחק, עם ${summary.clients} לקוחות. סיכום השימוש נשמר ב-platform_audit.`);
+          console.log(`${summary.name} (${summary.slug}) deleted, with ${summary.clients} clients. The usage summary is kept in platform_audit.`);
         }
         return;
       }
@@ -294,20 +294,20 @@ async function main() {
       case "coach:delete": {
         // The slug is positional on purpose: these never fall back to the default --coach.
         const slug = positionals[0];
-        if (!slug) throw new Error(`חסר slug: npm run admin -- ${command} <slug>`);
+        if (!slug) throw new Error(`Missing slug: npm run admin -- ${command} <slug>`);
         const coach = await findCoachBySlug(db, slug);
         if (command === "coach:suspend") {
           const done = await suspendCoach(db, coach.id, "cli");
-          return console.log(done ? `${coach.name} (${slug}) הושעה. הסשנים נותקו, והתור והתזכורות נעצרו.` : `${slug} כבר מושהה.`);
+          return console.log(done ? `${coach.name} (${slug}) suspended. Sessions were signed out, and the queue and reminders stopped.` : `${slug} is already suspended.`);
         }
         if (command === "coach:resume") {
           const done = await resumeCoach(db, coach.id, "cli", app.cfg);
-          return console.log(done ? `${coach.name} (${slug}) פעיל שוב.` : `${slug} לא היה מושהה.`);
+          return console.log(done ? `${coach.name} (${slug}) is active again.` : `${slug} wasn't suspended.`);
         }
         const summary = await deleteCoach(db, coach.id, { actor: "cli", confirmSlug: values.confirm ?? "" });
         const tokens = summary.usage.reduce((sum, u) => sum + u.inputTokens + u.outputTokens, 0);
         return console.log(
-          `${summary.name} (${slug}) נמחק לצמיתות, עם ${summary.clients} לקוחות. סיכום השימוש (${tokens.toLocaleString("he-IL")} טוקנים) נשמר ב-platform_audit.`,
+          `${summary.name} (${slug}) permanently deleted, with ${summary.clients} clients. The usage summary (${tokens.toLocaleString("en-US")} tokens) is kept in platform_audit.`,
         );
       }
     }
@@ -315,20 +315,20 @@ async function main() {
     const t = await app.tenant(values.coach!);
     const requireClient = async () => {
       const phone = positionals[0] ?? values.phone;
-      if (!phone) throw new Error("חסר מזהה לקוח (טלפון)");
+      if (!phone) throw new Error("Missing client id (phone)");
       const client = await findClientByPhone(db, t, phone);
-      if (!client) throw new Error(`לא נמצא לקוח ${phone} אצל ${t.coachName}`);
+      if (!client) throw new Error(`No client ${phone} for ${t.coachName}`);
       return client;
     };
 
     switch (command) {
       case "clients": {
         const rows = await listClients(db, t);
-        if (!rows.length) return console.log("אין לקוחות.");
+        if (!rows.length) return console.log("No clients.");
         for (const c of rows) {
           console.log(
-            `${clientPhone(t, c)}  ${c.channel}  ${c.approvedAt ? "" : "לא מאושר  "}הסכמה:${c.consentStatus}  ${c.botPaused ? "מושהה  " : ""}${
-              Object.keys(c.flags).length ? `דגלים:${JSON.stringify(c.flags)}` : ""
+            `${clientPhone(t, c)}  ${c.channel}  ${c.approvedAt ? "" : "not approved  "}consent:${c.consentStatus}  ${c.botPaused ? "paused  " : ""}${
+              Object.keys(c.flags).length ? `flags:${JSON.stringify(c.flags)}` : ""
             }`,
           );
         }
@@ -336,36 +336,36 @@ async function main() {
       }
       case "client:approve": {
         const phone = positionals[0] ?? values.phone;
-        if (!phone) throw new Error("חסר מספר טלפון");
+        if (!phone) throw new Error("Missing phone number");
         const { client, created } = await addApprovedClient(db, t, phone, "cli");
-        return console.log(`${clientPhone(t, client)} ${created ? "נוסף ואושר" : "מאושר"} אצל ${t.coachName}.`);
+        return console.log(`${clientPhone(t, client)} ${created ? "added and approved" : "approved"} for ${t.coachName}.`);
       }
       case "client:revoke": {
         const client = await requireClient();
         await revokeClientAccess(db, t, client.id, "cli");
-        return console.log(`הגישה של ${clientPhone(t, client)} לבוט הוסרה.`);
+        return console.log(`Removed ${clientPhone(t, client)}'s access to the bot.`);
       }
       case "history": {
         const client = await requireClient();
         for (const m of await listChatMessages(db, t, client.id)) {
-          const who = { client: "לקוח", bot: "בוט", coach: "מאמן", system: "מערכת" }[m.sender];
-          console.log(`${m.createdAt.toISOString().slice(0, 19)}  ${who}${m.status ? ` (${m.status})` : ""}: ${m.body ?? "[לא נשמר: לפני הסכמה]"}`);
+          const who = { client: "client", bot: "bot", coach: "coach", system: "system" }[m.sender];
+          console.log(`${m.createdAt.toISOString().slice(0, 19)}  ${who}${m.status ? ` (${m.status})` : ""}: ${m.body ?? "[not stored: before consent]"}`);
         }
         return;
       }
       case "alerts": {
         const alerts = await listAlerts(db, t, values.all ? {} : { status: "open" });
-        if (!alerts.length) return console.log("אין התראות.");
+        if (!alerts.length) return console.log("No alerts.");
         for (const a of alerts) {
-          console.log(`${a.id}  [${a.status}] ${a.type}/${a.severity}  ${a.summary}${a.question ? `  | שאלה: ${a.question}` : ""}`);
+          console.log(`${a.id}  [${a.status}] ${a.type}/${a.severity}  ${a.summary}${a.question ? `  | question: ${a.question}` : ""}`);
         }
         return;
       }
       case "alert:resolve": {
         const id = positionals[0];
-        if (!id) throw new Error("חסר מזהה התראה");
+        if (!id) throw new Error("Missing alert id");
         await resolveAlert(db, t, id, values.note ?? null);
-        return console.log("ההתראה נסגרה.");
+        return console.log("Alert closed.");
       }
       case "pause":
       case "resume": {
@@ -375,21 +375,21 @@ async function main() {
         await audit(db, t, { actor: "cli", action: paused ? "bot_paused" : "bot_resumed", targetType: "client", targetId: client.id });
         return console.log(
           paused
-            ? "הבוט מושהה ללקוח הזה. ההודעות שלו יגיעו כהתראות, ואפשר לענות עם send."
-            : "הבוט חזר לענות. בהודעה הבאה הוא יקבל את מה שנאמר בזמן ההשהיה.",
+            ? "The bot is paused for this client. Their messages arrive as alerts, and you can reply with send."
+            : "The bot answers again. On the next message it gets what was said during the pause.",
         );
       }
       case "send": {
         const client = await requireClient();
         const text = positionals.slice(1).join(" ").trim();
-        if (!text) throw new Error('חסר טקסט: npm run admin -- send <phone> "הודעה"');
+        if (!text) throw new Error('Missing text: npm run admin -- send <phone> "message"');
         const parts = await sendCoachMessage(db, t, client, await coachApi(app, t), text, { now: new Date(), actor: "cli" });
-        return console.log(`נשלח (${parts} הודעות).`);
+        return console.log(`Sent (${parts} messages).`);
       }
       case "send-template": {
         const client = await requireClient();
         const name = positionals[1];
-        if (!name) throw new Error("חסר שם תבנית");
+        if (!name) throw new Error("Missing template name");
         await sendTemplateMessage(
           db,
           t,
@@ -398,58 +398,58 @@ async function main() {
           { name, languageCode: values.lang!, bodyParams: values.params ? values.params.split("|").map((p) => p.trim()) : [] },
           { actor: "cli" },
         );
-        return console.log("התבנית נשלחה.");
+        return console.log("Template sent.");
       }
       case "wa:connect": {
-        if (!values.pnid) throw new Error("חסר --pnid (ה-phone_number_id מ-Meta)");
+        if (!values.pnid) throw new Error("Missing --pnid (the phone_number_id from Meta)");
         const account = await connectWhatsAppNumber(db, t, { phoneNumberId: values.pnid, displayPhone: values.display, wabaId: values.waba });
-        return console.log(`המספר ${account.phoneNumberId} מחובר למאמן ${t.coachName} (${account.mode}).`);
+        return console.log(`Number ${account.phoneNumberId} is connected to coach ${t.coachName} (${account.mode}).`);
       }
       case "user:create":
       case "user:reset-password": {
-        if (!values.email) throw new Error("חסר --email");
+        if (!values.email) throw new Error("Missing --email");
         const password = generatePassword();
         if (command === "user:create") {
           await createCoachUser(db, { coachId: t.coachId, email: values.email, password });
         } else {
           const user = await findUserByEmail(db, values.email);
-          if (!user || user.coachId !== t.coachId) throw new Error(`לא נמצא משתמש ${values.email} אצל ${t.coachName}`);
+          if (!user || user.coachId !== t.coachId) throw new Error(`No user ${values.email} for ${t.coachName}`);
           await setPassword(db, user.id, password);
         }
         await audit(db, t, { actor: "cli", action: command === "user:create" ? "user_created" : "password_reset", targetType: "user", targetId: values.email });
-        console.log(`משתמש: ${values.email.toLowerCase()}`);
-        console.log(`סיסמה: ${styleText("bold", password)}`);
-        return console.log(styleText("yellow", "הסיסמה מוצגת פעם אחת בלבד. אפשר להחליף אותה בדשבורד, בעמוד ההגדרות."));
+        console.log(`User: ${values.email.toLowerCase()}`);
+        console.log(`Password: ${styleText("bold", password)}`);
+        return console.log(styleText("yellow", "The password is shown only once. It can be changed in the dashboard, on the Settings page."));
       }
       case "user:reset-mfa": {
-        if (!values.email) throw new Error("חסר --email");
+        if (!values.email) throw new Error("Missing --email");
         const user = await findUserByEmail(db, values.email);
-        if (!user || user.coachId !== t.coachId) throw new Error(`לא נמצא משתמש ${values.email} אצל ${t.coachName}`);
+        if (!user || user.coachId !== t.coachId) throw new Error(`No user ${values.email} for ${t.coachName}`);
         await clearTotp(db, user.id);
         await audit(db, t, { actor: "cli", action: "mfa_reset", targetType: "user", targetId: values.email });
-        return console.log(`האימות הדו-שלבי של ${values.email} בוטל. אפשר להפעיל אותו מחדש בדשבורד, בעמוד ההגדרות.`);
+        return console.log(`Two-step verification for ${values.email} is off. It can be turned on again in the dashboard, on the Settings page.`);
       }
       case "user:delete": {
-        if (!values.email) throw new Error("חסר --email");
+        if (!values.email) throw new Error("Missing --email");
         const user = await findUserByEmail(db, values.email);
-        if (!user || user.coachId !== t.coachId) throw new Error(`לא נמצא משתמש ${values.email} אצל ${t.coachName}`);
+        if (!user || user.coachId !== t.coachId) throw new Error(`No user ${values.email} for ${t.coachName}`);
         // The user's playground test client goes too.
         const playground = await findClientByPhone(db, t, `playground:${user.id}`);
         if (playground) await deleteClientData(db, t, playground.id, "cli");
         await deleteCoachUser(db, user.id);
         await audit(db, t, { actor: "cli", action: "user_deleted", targetType: "user", targetId: values.email });
-        return console.log(`המשתמש ${values.email} נמחק.`);
+        return console.log(`User ${values.email} deleted.`);
       }
       case "sample-data": {
-        if (values.remove) return console.log(`נמחקו ${await removeSampleData(db, t)} לקוחות לדוגמה.`);
+        if (values.remove) return console.log(`Removed ${await removeSampleData(db, t)} sample clients.`);
         await removeSampleData(db, t);
-        return console.log(`נוצרו ${await createSampleData(db, t)} לקוחות לדוגמה. להסרה: npm run admin -- sample-data --remove`);
+        return console.log(`Created ${await createSampleData(db, t)} sample clients. To remove: npm run admin -- sample-data --remove`);
       }
       case "flags:clear": {
         const client = await requireClient();
         await setClientFlags(db, t, client, { minor: undefined, eatingDisorderRisk: undefined });
         await audit(db, t, { actor: "cli", action: "flags_cleared", targetType: "client", targetId: client.id });
-        return console.log("דגלי הבטיחות נוקו. השינוי ייכנס לתוקף בשיחה הבאה.");
+        return console.log("Safety flags cleared. The change takes effect on the next conversation.");
       }
       case "export": {
         const client = await requireClient();
@@ -458,11 +458,11 @@ async function main() {
       case "delete": {
         const client = await requireClient();
         await deleteClientData(db, t, client.id, "cli");
-        return console.log("הלקוח וכל המידע שלו נמחקו.");
+        return console.log("The client and all their data were deleted.");
       }
       case "purge": {
         const n = await purgeInactiveClients(db, t, app.cfg.RETENTION_MONTHS);
-        return console.log(`נמחקו ${n} לקוחות לא פעילים.`);
+        return console.log(`Deleted ${n} inactive clients.`);
       }
       default:
         console.log(USAGE);

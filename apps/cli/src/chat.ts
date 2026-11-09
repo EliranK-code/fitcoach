@@ -30,28 +30,28 @@ import type { App } from "./bootstrap";
 
 type Color = Parameters<typeof styleText>[0];
 
-const HELP = `פקודות:
-/profile   הפרופיל שהבוט אסף
-/logs      שקילות, ארוחות ואימונים (30 ימים)
-/plans     התפריט ותוכנית האימונים הנוכחיים
-/alerts    ההתראות שנפתחו למאמן על הלקוח הזה
-/summary   הזיכרון ארוך הטווח (סיכום השיחות)
-/compact   לסכם עכשיו ולפתוח אפיזודה חדשה
-/export    לייצא את כל המידע של הלקוח לקובץ JSON
-/image <קובץ> [כיתוב]  לשלוח תמונה (למשל של ארוחה)
-/voice <קובץ>  לשלוח הודעה קולית (דורש OPENAI_API_KEY)
-/delete-me לבקש מחיקת מידע (כמו לקוח אמיתי)
-/debug     להציג או להסתיר קריאות לכלים ושימוש בטוקנים
-/new       להתחיל כלקוח חדש
-/help      העזרה הזאת
-/quit      יציאה
+const HELP = `Commands:
+/profile   The profile the bot collected
+/logs      Weigh-ins, meals and workouts (30 days)
+/plans     The current meal plan and workout plan
+/alerts    Alerts opened for the coach about this client
+/summary   Long-term memory (conversation summary)
+/compact   Summarize now and start a new episode
+/export    Export all of the client's data to a JSON file
+/image <file> [caption]  Send a photo (for example of a meal)
+/voice <file>  Send a voice message (needs OPENAI_API_KEY)
+/delete-me Ask to delete your data (like a real client)
+/debug     Show or hide tool calls and token usage
+/new       Start over as a new client
+/help      This help
+/quit      Exit
 
-בתפקיד המאמן (השתלטות על השיחה):
-/pause         להשהות את הבוט ללקוח הזה
-/coach <טקסט>  לכתוב ללקוח הודעה בשם המאמן
-/resume        להחזיר את הבוט (הוא יקבל את מה שנאמר בזמן ההשהיה)`;
+As the coach (taking over the conversation):
+/pause         Pause the bot for this client
+/coach <text>  Write to the client as the coach
+/resume        Bring the bot back (it gets what was said during the pause)`;
 
-const SEVERITY_HE: Record<string, string> = { low: "נמוכה", medium: "בינונית", high: "גבוהה", urgent: "דחופה" };
+const SEVERITY_LABEL: Record<string, string> = { low: "low", medium: "medium", high: "high", urgent: "urgent" };
 
 export interface ChatOptions {
   coach: string;
@@ -77,7 +77,7 @@ export async function runChat(app: App, opts: ChatOptions): Promise<void> {
   let transcriptPath = "";
   const startTranscript = () => {
     transcriptPath = join(transcriptDir, `${opts.coach}-${phone}-${new Date().toISOString().replace(/[:.]/g, "-")}.md`);
-    writeFileSync(transcriptPath, `# שיחה עם הבוט של ${t.coachName} (לקוח: ${phone})\n\n`);
+    writeFileSync(transcriptPath, `# Conversation with ${t.coachName}'s bot (client: ${phone})\n\n`);
   };
   const toTranscript = (who: string, text: string) =>
     appendFileSync(transcriptPath, `**${who}** (${localStamp(new Date(), app.cfg.TIMEZONE)}):\n\n${text}\n\n---\n\n`);
@@ -88,8 +88,8 @@ export async function runChat(app: App, opts: ChatOptions): Promise<void> {
   };
 
   startTranscript();
-  print(`צ'אט עם הבוט של ${t.coachName}. את/ה בתפקיד לקוח/ה (מזהה: ${phone}).`, "bold");
-  print("כתבו /help לרשימת הפקודות. ה-transcript נשמר ב:", "gray");
+  print(`Chat with ${t.coachName}'s bot. You're playing the client (id: ${phone}).`, "bold");
+  print("Type /help for the list of commands. The transcript is saved at:", "gray");
   console.log(styleText("gray", transcriptPath));
   console.log();
 
@@ -116,16 +116,16 @@ export async function runChat(app: App, opts: ChatOptions): Promise<void> {
         const result = await runCommand(app, t, phone, cmd, line.slice(cmd.length + 1).trim(), { print, debug });
         if (result === "toggle-debug") {
           debug = !debug;
-          print(debug ? "מצב debug פעיל" : "מצב debug כבוי", "gray");
+          print(debug ? "Debug mode on" : "Debug mode off", "gray");
         } else if (result === "new-client") {
           phone = `cli-${Math.random().toString(36).slice(2, 8)}`;
           startTranscript();
-          print(`לקוח/ה חדש/ה: ${phone}`, "bold");
+          print(`New client: ${phone}`, "bold");
         } else if (result === "delete-me") {
-          await send("מחק את המידע שלי");
+          await send("delete my data");
         }
       } catch (err) {
-        print(`שגיאה: ${err instanceof Error ? err.message : String(err)}`, "red");
+        print(`Error: ${err instanceof Error ? err.message : String(err)}`, "red");
       }
       rl.prompt();
       continue;
@@ -142,7 +142,7 @@ export async function runChat(app: App, opts: ChatOptions): Promise<void> {
     const [rawPath = "", ...captionParts] = arg.match(/"[^"]+"|\S+/g) ?? [];
     const path = resolve(rawPath.replace(/^"|"$/g, ""));
     if (!rawPath || !existsSync(path)) {
-      print(`הקובץ לא נמצא: ${rawPath || "(לא צוין)"}`, "red");
+      print(`File not found: ${rawPath || "(none given)"}`, "red");
       return;
     }
     const data = readFileSync(path);
@@ -150,59 +150,59 @@ export async function runChat(app: App, opts: ChatOptions): Promise<void> {
       try {
         const image = await prepareImage(data);
         const caption = captionParts.join(" ");
-        print(`📷 תמונה ${image.width}×${image.height}${caption ? ` עם הכיתוב: ${caption}` : ""}`, "cyan");
+        print(`📷 Photo ${image.width}×${image.height}${caption ? ` with the caption: ${caption}` : ""}`, "cyan");
         await send(caption, { image });
       } catch (err) {
-        print(`שגיאה בתמונה: ${err instanceof Error ? err.message : String(err)}`, "red");
+        print(`Image error: ${err instanceof Error ? err.message : String(err)}`, "red");
       }
       return;
     }
     const transcriber = createTranscriber(app.cfg);
     if (!transcriber) {
-      print("תמלול הודעות קוליות דורש OPENAI_API_KEY בקובץ .env", "red");
+      print("Transcribing voice messages needs OPENAI_API_KEY in .env", "red");
       return;
     }
     const mime = { ".ogg": "audio/ogg", ".opus": "audio/ogg", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav" }[extname(path).toLowerCase()] ?? "audio/ogg";
-    print("🎙️ מתמלל…", "gray");
+    print("🎙️ Transcribing…", "gray");
     try {
       const { text } = await transcriber.transcribe(data, mime);
-      print(`תמלול: ${text}`, "gray");
+      print(`Transcript: ${text}`, "gray");
       await send(text, { voice: true });
     } catch (err) {
-      print(`שגיאה בתמלול: ${err instanceof Error ? err.message : String(err)}`, "red");
+      print(`Transcription error: ${err instanceof Error ? err.message : String(err)}`, "red");
     }
   }
 
   async function send(text: string, media: Pick<InboundMessage, "image" | "voice"> = {}) {
-    if (!media.image && !media.voice) print(`את/ה: ${text}`, "cyan");
-    toTranscript("לקוח/ה", media.image ? `[תמונה] ${text}` : media.voice ? `[הודעה קולית] ${text}` : text);
+    if (!media.image && !media.voice) print(`You: ${text}`, "cyan");
+    toTranscript("Client", media.image ? `[photo] ${text}` : media.voice ? `[voice message] ${text}` : text);
     if (tty) process.stdout.write(styleText("gray", "…\n"));
     let res: TurnResult;
     try {
       res = await app.engine.handleInbound({ coachId: t.coachId, phone, text, channel: "cli", isTest: true, ...media });
     } catch (err) {
       eraseLine();
-      print(`שגיאה: ${err instanceof Error ? err.message : String(err)}`, "red");
+      print(`Error: ${err instanceof Error ? err.message : String(err)}`, "red");
       return;
     }
     eraseLine();
     printEvents(res.events, debug, print);
-    if (res.replies.length === 0) print("(הבוט לא ענה: השיחה מושהית למאמן)", "gray");
+    if (res.replies.length === 0) print("(The bot didn't answer: the conversation is paused for the coach)", "gray");
     for (const reply of res.replies) {
-      console.log(styleText("green", renderForTerminal(`🤖 ${t.coachName} (בוט):`, { bidi: opts.bidi })));
+      console.log(styleText("green", renderForTerminal(`🤖 ${t.coachName} (bot):`, { bidi: opts.bidi })));
       print(reply);
-      toTranscript("בוט", reply);
+      toTranscript("Bot", reply);
       console.log();
     }
-    if (res.buttons?.length) print(`כפתורים: ${res.buttons.map((b) => `[${b.title}]`).join("  ")}`, "gray");
-    if (res.error) print(`פרטי השגיאה (רק למפתחים): ${res.error}`, "red");
+    if (res.buttons?.length) print(`Buttons: ${res.buttons.map((b) => `[${b.title}]`).join("  ")}`, "gray");
+    if (res.error) print(`Error details (for developers only): ${res.error}`, "red");
   }
 }
 
 function printEvents(events: TurnEvent[], debug: boolean, print: (text: string, color?: Color) => void) {
   for (const e of events) {
     if (e.type === "alert" && !e.deduped) {
-      print(`⚠️  התראה למאמן: ${e.alertType} (חומרה ${SEVERITY_HE[e.severity] ?? e.severity}, מקור: ${e.source}) ${e.summary}`, "yellow");
+      print(`⚠️  Alert to the coach: ${e.alertType} (severity ${SEVERITY_LABEL[e.severity] ?? e.severity}, source: ${e.source}) ${e.summary}`, "yellow");
     }
     if (!debug) continue;
     if (e.type === "tool") {
@@ -210,13 +210,13 @@ function printEvents(events: TurnEvent[], debug: boolean, print: (text: string, 
       print(`🔧 ${e.name}${e.ok ? "" : " ✗"}: ${input.length > 300 ? `${input.slice(0, 300)}…` : input}`, "gray");
       print(`   ↳ ${e.result.length > 300 ? `${e.result.slice(0, 300)}…` : e.result}`, "gray");
     } else if (e.type === "epoch") {
-      print(`🧠 אפיזודה ${e.action === "created" ? "חדשה" : "חדשה אחרי סיכום"} (${e.reason})`, "gray");
+      print(`🧠 ${e.action === "created" ? "New episode" : "New episode after a summary"} (${e.reason})`, "gray");
     } else if (e.type === "usage") {
       print(`📊 ${e.model}: input ${e.input}, cache read ${e.cacheRead}, cache write ${e.cacheWrite}, output ${e.output}`, "gray");
     } else if (e.type === "guard") {
       print(`🛡️  ${e.detail}`, "gray");
     } else if (e.type === "refusal") {
-      print(`🚫 סירוב של מודל ה-AI (קטגוריה: ${e.category ?? "לא ידוע"})`, "gray");
+      print(`🚫 The AI model refused (category: ${e.category ?? "unknown"})`, "gray");
     }
   }
 }
@@ -237,11 +237,11 @@ async function runCommand(
   if (cmd === "delete-me") return "delete-me";
 
   const client = await findClientByPhone(db, t, phone);
-  if (!client) return print("עוד אין לקוח עם המזהה הזה. שלחו הודעה קודם.", "gray");
+  if (!client) return print("No client with this id yet. Send a message first.", "gray");
 
   switch (cmd) {
     case "profile": {
-      print(`הסכמה: ${client.consentStatus} | דגלים: ${JSON.stringify(client.flags)} | מושהה: ${client.botPaused ? "כן" : "לא"}`, "gray");
+      print(`Consent: ${client.consentStatus} | flags: ${JSON.stringify(client.flags)} | paused: ${client.botPaused ? "yes" : "no"}`, "gray");
       return print(describeProfile(await getProfile(db, t, client.id)));
     }
     case "logs": {
@@ -249,11 +249,11 @@ async function runCommand(
       const meals = await listMeals(db, t, client.id);
       const workouts = await listWorkouts(db, t, client.id);
       const lines = [
-        `שקילות (${weights.length}):`,
-        ...weights.slice(-10).map((w) => `  ${w.measuredOn}: ${w.weightKg} ק"ג`),
-        `ארוחות (${meals.length}):`,
+        `Weigh-ins (${weights.length}):`,
+        ...weights.slice(-10).map((w) => `  ${w.measuredOn}: ${w.weightKg} kg`),
+        `Meals (${meals.length}):`,
         ...meals.slice(-10).map((m) => `  ${m.eatenOn} ${m.mealType}: ${m.description}${m.estCalories ? ` (~${m.estCalories})` : ""}`),
-        `אימונים (${workouts.length}):`,
+        `Workouts (${workouts.length}):`,
         ...workouts.slice(-5).map((w) => `  ${w.performedOn} ${w.title}: ${w.exercises.map((e) => `${e.name} ${e.sets}x${e.reps}@${e.weightKg}`).join(", ")}`),
       ];
       return print(lines.join("\n"));
@@ -261,33 +261,33 @@ async function runCommand(
     case "plans": {
       const meal = await getActiveMealPlan(db, t, client.id);
       const workout = await getActiveWorkoutPlan(db, t, client.id);
-      print(meal ? `תפריט v${meal.version} (הערכה פנימית: ${meal.dailyCalories} קק"ל):\n${meal.planText}` : "אין עדיין תפריט.");
+      print(meal ? `Meal plan v${meal.version} (internal estimate: ${meal.dailyCalories} kcal):\n${meal.planText}` : "No meal plan yet.");
       console.log();
-      return print(workout ? `תוכנית אימונים v${workout.version} (התקדמות: ${workout.progressionRule}):\n${workout.planText}` : "אין עדיין תוכנית אימונים.");
+      return print(workout ? `Workout plan v${workout.version} (progression: ${workout.progressionRule}):\n${workout.planText}` : "No workout plan yet.");
     }
     case "alerts": {
       const alerts = await listAlerts(db, t, { clientId: client.id });
-      if (!alerts.length) return print("אין התראות.", "gray");
+      if (!alerts.length) return print("No alerts.", "gray");
       return print(
         alerts
-          .map((a) => `[${a.status}] ${a.createdAt.toISOString().slice(0, 16)} ${a.type}/${a.severity} (${a.source}): ${a.summary}${a.question ? `\n    שאלה: ${a.question}` : ""}`)
+          .map((a) => `[${a.status}] ${a.createdAt.toISOString().slice(0, 16)} ${a.type}/${a.severity} (${a.source}): ${a.summary}${a.question ? `\n    question: ${a.question}` : ""}`)
           .join("\n"),
       );
     }
     case "summary": {
       const memory = await getMemory(db, t, client.id);
-      if (!memory) return print("עוד אין סיכום. הוא נוצר כשהאפיזודה מתמלאת, או עם /compact.", "gray");
-      print(memory.summary || "(ריק)");
+      if (!memory) return print("No summary yet. It's created when the episode fills up, or with /compact.", "gray");
+      print(memory.summary || "(empty)");
       if (memory.recent) {
         console.log();
-        print(`הודעות אחרונות שהועברו לאפיזודה הבאה:\n${memory.recent}`, "gray");
+        print(`Recent messages carried into the next episode:\n${memory.recent}`, "gray");
       }
       return;
     }
     case "compact": {
-      print("מסכם ופותח אפיזודה חדשה…", "gray");
+      print("Summarizing and starting a new episode…", "gray");
       const events = await app.engine.compact(t.coachId, client.id);
-      return print(events.length ? "בוצע. השתמשו ב-/summary כדי לראות את הסיכום." : "אין מה לסכם.", "gray");
+      return print(events.length ? "Done. Use /summary to see the summary." : "Nothing to summarize.", "gray");
     }
     case "pause":
     case "resume": {
@@ -296,25 +296,25 @@ async function runCommand(
       await audit(db, t, { actor: "cli-coach", action: paused ? "bot_paused" : "bot_resumed", targetType: "client", targetId: client.id });
       return print(
         paused
-          ? "(מאמן) הבוט מושהה. הודעות הלקוח יגיעו כהתראות; ענו עם /coach <טקסט>."
-          : "(מאמן) הבוט חזר. בהודעה הבאה הוא יקבל את מה שנאמר בזמן ההשהיה.",
+          ? "(coach) The bot is paused. The client's messages arrive as alerts; reply with /coach <text>."
+          : "(coach) The bot is back. On the next message it gets what was said during the pause.",
         "magenta",
       );
     }
     case "coach": {
-      if (!arg) return print("כתבו: /coach <ההודעה של המאמן>", "gray");
+      if (!arg) return print("Write: /coach <the coach's message>", "gray");
       // In the CLI there's no WhatsApp to send through: log it the way a real coach message is logged.
       await logChatMessage(db, t, { clientId: client.id, direction: "out", sender: "coach", body: arg, botSeen: false });
-      return print(`👤 ${t.coachName} (מאמן): ${arg}`, "magenta");
+      return print(`👤 ${t.coachName} (coach): ${arg}`, "magenta");
     }
     case "export": {
       const data = await exportClientData(db, t, client.id, "cli");
       mkdirSync(join(".data", "exports"), { recursive: true });
       const path = join(".data", "exports", `${phone}-${Date.now()}.json`);
       writeFileSync(path, JSON.stringify(data, null, 2));
-      return print(`נשמר: ${path}`, "gray");
+      return print(`Saved: ${path}`, "gray");
     }
     default:
-      return print(`פקודה לא מוכרת: /${cmd}. כתבו /help`, "gray");
+      return print(`Unknown command: /${cmd}. Type /help`, "gray");
   }
 }

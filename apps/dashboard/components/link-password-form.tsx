@@ -10,17 +10,17 @@ export function LinkPasswordForm({ action, email, submitLabel }: { action: (prev
   return (
     <form action={formAction} className="space-y-4">
       {state.error && <Notice tone="red">{state.error}</Notice>}
-      <Field label="אימייל">
+      <Field label="Email">
         <Input value={email} readOnly dir="ltr" autoComplete="username" className="bg-slate-50 text-slate-600" />
       </Field>
-      <Field label="סיסמה" hint="לפחות 10 תווים">
+      <Field label="Password" hint="At least 10 characters">
         <Input name="password" type="password" autoComplete="new-password" required minLength={10} dir="ltr" />
       </Field>
-      <Field label="שוב, לאימות">
+      <Field label="Again, to confirm">
         <Input name="confirm" type="password" autoComplete="new-password" required minLength={10} dir="ltr" />
       </Field>
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "שומר…" : submitLabel}
+        {pending ? "Saving…" : submitLabel}
       </Button>
     </form>
   );

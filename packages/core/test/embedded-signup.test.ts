@@ -97,7 +97,7 @@ describe("Embedded Signup", () => {
   it("refuses a number the token's WABA doesn't own, and turns Meta errors into a retryable message", async () => {
     const db = app.handle.db;
     const foreign = fakeGraph({ numbers: [{ id: "999", display_phone_number: "+1 555" }] });
-    await expect(completeEmbeddedSignup(db, t, input, foreign.api, "x")).rejects.toThrow(/לא שייך/);
+    await expect(completeEmbeddedSignup(db, t, input, foreign.api, "x")).rejects.toThrow(/doesn't belong/);
     expect(foreign.calls.map((c) => c.url)).not.toContainEqual(expect.stringContaining("subscribed_apps"));
 
     const failing = fakeGraph({ failRegister: true });
@@ -116,7 +116,7 @@ describe("Embedded Signup", () => {
 
     const starter = await openTenant(db, await createCoach(db, { slug: "new", name: "חדשה", settings: { starterKnowledge: true } }));
     const early = fakeGraph();
-    await expect(completeEmbeddedSignup(db, starter, { ...input, phoneNumberId: "333" }, early.api, "x")).rejects.toThrow(/בסיס הידע/);
+    await expect(completeEmbeddedSignup(db, starter, { ...input, phoneNumberId: "333" }, early.api, "x")).rejects.toThrow(/knowledge base/);
     expect(early.calls).toEqual([]);
     await expect(completeEmbeddedSignup(db, t, { ...input, wabaId: "bad id!" }, fakeGraph().api, "x")).rejects.toThrow(EmbeddedSignupError);
   });

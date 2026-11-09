@@ -228,7 +228,7 @@ export class InboundWorker {
             type: "bot_error",
             severity: "high",
             source: "system",
-            summary: `הודעות של הלקוח/ה לא טופלו אחרי כמה ניסיונות (${message.slice(0, 120)}). כדאי לענות ידנית.`,
+            summary: `The client's messages weren't handled after several attempts (${message.slice(0, 120)}). Worth answering by hand.`,
           });
         }
       }

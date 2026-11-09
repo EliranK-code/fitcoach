@@ -65,7 +65,7 @@ interface OpenOptions {
 
 function checkOpen(row: typeof coaches.$inferSelect | undefined, label: string, opts: OpenOptions): typeof coaches.$inferSelect {
   if (!row) throw new TenantNotFoundError(`Coach ${label} not found`);
-  if (row.status === "suspended" && !opts.allowSuspended) throw new CoachSuspendedError(`המאמן ${row.slug} מושהה`);
+  if (row.status === "suspended" && !opts.allowSuspended) throw new CoachSuspendedError(`Coach ${row.slug} is suspended`);
   if (row.status !== "active" && row.status !== "suspended") throw new TenantNotFoundError(`Coach ${label} not found`);
   return row;
 }

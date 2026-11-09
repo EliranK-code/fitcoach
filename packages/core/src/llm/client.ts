@@ -18,7 +18,7 @@ export interface LlmClient {
 
 export class MissingApiKeyError extends Error {
   constructor() {
-    super("ANTHROPIC_API_KEY חסר בקובץ .env. הוסיפו מפתח מ-console.anthropic.com והריצו שוב.");
+    super("ANTHROPIC_API_KEY is missing in .env. Add a key from console.anthropic.com and run again.");
   }
 }
 

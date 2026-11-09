@@ -2,7 +2,7 @@
   "name": "fitcoach",
   "private": true,
   "type": "module",
-  "description": "בוט AI בוואטסאפ שמשמש מאמן כושר דיגיטלי עבור מאמני כושר אמיתיים",
+  "description": "A WhatsApp AI bot that acts as a digital fitness coach for real fitness coaches",
   "workspaces": [
     "packages/*",
     "apps/*"

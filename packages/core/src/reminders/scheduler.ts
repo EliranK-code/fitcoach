@@ -60,7 +60,7 @@ export async function sendReminder(
     t,
     client,
     api,
-    { name: template.name, languageCode: template.language || "he", bodyParams: [firstName ?? ""] },
+    { name: template.name, languageCode: template.language || "en", bodyParams: [firstName ?? ""] },
     { actor: "scheduler", sender: "system" },
   );
   return "template";

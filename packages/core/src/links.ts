@@ -15,14 +15,14 @@ export const INVITE_TTL_MS = 7 * 24 * 3600_000;
 export const RESET_TTL_MS = 24 * 3600_000;
 
 export class LinkError extends Error {}
-const INVALID = "הקישור לא תקף: אולי כבר השתמשו בו או שפג תוקפו. בקשו קישור חדש.";
+const INVALID = "This link isn't valid: it may have been used already or expired. Ask for a new link.";
 
 const newToken = () => randomBytes(32).toString("base64url");
 
 export async function createInviteLink(db: Db, input: { coachId: string; email: string; createdBy: string; now?: Date }): Promise<string> {
   const email = input.email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new LinkError("כתובת אימייל לא תקינה");
-  if (await findUserByEmail(db, email)) throw new LinkError("כבר קיים משתמש עם האימייל הזה");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new LinkError("Invalid email address");
+  if (await findUserByEmail(db, email)) throw new LinkError("A user with this email already exists");
   const now = input.now ?? new Date();
   const token = newToken();
   await db.insert(userTokens).values({
@@ -39,7 +39,7 @@ export async function createInviteLink(db: Db, input: { coachId: string; email: 
 
 export async function createResetLink(db: Db, input: { userId: string; createdBy: string; now?: Date }): Promise<string> {
   const [user] = await db.select().from(coachUsers).where(eq(coachUsers.id, input.userId));
-  if (!user) throw new LinkError("המשתמש לא נמצא");
+  if (!user) throw new LinkError("User not found");
   const now = input.now ?? new Date();
   const token = newToken();
   await db.insert(userTokens).values({
@@ -92,7 +92,7 @@ export async function redeemLink(db: Db, token: string, password: string, now = 
 
   let user: CoachUser;
   if (link.purpose === "invite") {
-    if (await findUserByEmail(db, link.email)) throw new LinkError("כבר קיים משתמש עם האימייל הזה. אפשר להיכנס עם הסיסמה שלו.");
+    if (await findUserByEmail(db, link.email)) throw new LinkError("A user with this email already exists. You can sign in with their password.");
     const [created] = await db.insert(coachUsers).values({ coachId: link.coachId, email: link.email, passwordHash, role: "owner" }).returning();
     if (!created) throw new Error("User insert failed");
     user = created;

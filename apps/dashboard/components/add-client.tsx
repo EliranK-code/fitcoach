@@ -11,9 +11,9 @@ export function AddClientForm() {
   return (
     <form action={action} className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Input name="phone" type="tel" dir="ltr" required maxLength={40} placeholder="050-1234567" className="max-w-48" aria-label="מספר הטלפון של הלקוח" />
+        <Input name="phone" type="tel" dir="ltr" required maxLength={40} placeholder="+14155550123" className="max-w-48" aria-label="Client's phone number" />
         <Button size="sm" disabled={pending}>
-          הוספת לקוח
+          Add client
         </Button>
       </div>
       {state.error && <Notice tone="red">{state.error}</Notice>}

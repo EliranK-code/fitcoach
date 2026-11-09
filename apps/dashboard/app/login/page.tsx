@@ -10,13 +10,13 @@ export default async function LoginPage() {
   if (await getSession()) redirect("/");
   return (
     <AuthShell
-      subtitle="כניסה לדשבורד המאמן"
+      subtitle="Coach dashboard sign-in"
       footer={
         <>
-          אין לכם משתמש? בקשו קישור הזמנה ממנהל המערכת.
+          No user yet? Ask the administrator for an invite link.
           {/* Admins have their own account and sign-in page, even with the same email. */}
           <Link href="/admin/login" className="mt-2 block text-slate-600 underline hover:text-slate-900">
-            כניסת מנהלי מערכת
+            Platform admin sign-in
           </Link>
         </>
       }

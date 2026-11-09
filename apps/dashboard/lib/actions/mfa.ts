@@ -31,7 +31,7 @@ export async function confirmMfaAction(_prev: FormState, form: FormData): Promis
   }
   await audit(s.handle.db, s.t, { actor: s.actor, action: "mfa_enabled", targetType: "user", targetId: s.user.id });
   revalidatePath("/settings");
-  return { ok: "האימות הדו-שלבי הופעל. מעכשיו כל כניסה תבקש קוד מהאפליקציה." };
+  return { ok: "Two-step verification is on. From now on every sign-in asks for a code from the app." };
 }
 
 export async function disableMfaAction(_prev: FormState, form: FormData): Promise<FormState> {
@@ -45,5 +45,5 @@ export async function disableMfaAction(_prev: FormState, form: FormData): Promis
   }
   await audit(s.handle.db, s.t, { actor: s.actor, action: "mfa_disabled", targetType: "user", targetId: s.user.id });
   revalidatePath("/settings");
-  return { ok: "האימות הדו-שלבי בוטל." };
+  return { ok: "Two-step verification is off." };
 }

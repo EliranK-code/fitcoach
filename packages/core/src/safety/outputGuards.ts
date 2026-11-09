@@ -37,10 +37,7 @@ export function quotesVerbatim(text: string, source: string, minWords = 8): bool
   return false;
 }
 
-export const LEAK_SAFE_REPLY_HE = "אני כאן בשביל האימונים, התזונה וההרגלים שלך 🙂 במה אפשר לעזור?";
-export const LEAK_SAFE_REPLY_EN = "I'm here to help with your training, nutrition and habits 🙂 What can I help you with?";
+export const LEAK_SAFE_REPLY = "I'm here to help with your training, nutrition and habits 🙂 What can I help you with?";
 
-export const ED_SAFE_FALLBACK_HE =
-  "אני כאן בשבילך 💙 בוא/י נתמקד בהרגשה שלך ובהרגלים שעושים לך טוב, בלי מספרים. העברתי את השיחה גם למאמן/ת כדי שנוכל ללוות אותך כמו שצריך.";
-export const ED_SAFE_FALLBACK_EN =
+export const ED_SAFE_FALLBACK =
   "I'm here for you 💙 Let's focus on how you feel and on habits that support you, without numbers. I've also let your coach know so we can support you properly.";

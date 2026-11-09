@@ -39,7 +39,7 @@ function Section({ title, hint, children, open }: { title: string; hint?: string
 
 function LinesField({ label, hint, value, onChange, rows = 4 }: { label: string; hint?: string; value: string[]; onChange: (v: string[]) => void; rows?: number }) {
   return (
-    <Field label={label} hint={hint ?? "פריט אחד בכל שורה"}>
+    <Field label={label} hint={hint ?? "One item per line"}>
       <Textarea rows={rows} value={value.join("\n")} onChange={(e) => onChange(lines(e.target.value))} />
     </Field>
   );
@@ -66,7 +66,7 @@ function RecordList<T extends Record<string, unknown>>({
           {fields.map((f) => {
             const v = item[f.key];
             return (
-              <Field key={f.key} label={f.label} hint={f.kind === "lines" ? "פריט אחד בכל שורה" : undefined}>
+              <Field key={f.key} label={f.label} hint={f.kind === "lines" ? "One item per line" : undefined}>
                 {f.kind === "text" ? (
                   <Input value={String(v ?? "")} placeholder={f.placeholder} onChange={(e) => update(i, f.key, e.target.value)} />
                 ) : f.kind === "textarea" ? (
@@ -78,7 +78,7 @@ function RecordList<T extends Record<string, unknown>>({
             );
           })}
           <button type="button" onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-xs text-red-600 hover:underline">
-            הסרה
+            Remove
           </button>
         </div>
       ))}
@@ -116,21 +116,21 @@ export function KnowledgeForm({ initial }: { initial: K }) {
     <form action={action} className="space-y-4">
       <input type="hidden" name="data" value={JSON.stringify(cleaned(k))} />
 
-      <Section title="המאמן" hint="איך הבוט מציג אותך" open>
+      <Section title="The coach" hint="How the bot introduces you" open>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="שם">
+          <Field label="Name">
             <Input value={k.coach.name} onChange={(e) => set("coach", { name: e.target.value })} required />
           </Field>
-          <Field label="שם העסק">
+          <Field label="Business name">
             <Input value={k.coach.businessName} onChange={(e) => set("coach", { businessName: e.target.value })} />
           </Field>
         </div>
-        <Field label="קצת עליך">
+        <Field label="About you">
           <Textarea value={k.coach.bio} onChange={(e) => set("coach", { bio: e.target.value })} />
         </Field>
-        <Field label="שפת ברירת מחדל ללקוחות חדשים" hint="הבוט תמיד עונה בשפה שבה הלקוח כותב">
+        <Field label="Default language for new clients" hint="The bot always answers in the language the client writes in">
           <Select value={k.coach.language} onChange={(e) => set("coach", { language: e.target.value })}>
-            <option value="he">עברית</option>
+            <option value="he">Hebrew</option>
             <option value="en">English</option>
             <option value="ar">العربية</option>
             <option value="ru">Русский</option>
@@ -138,8 +138,8 @@ export function KnowledgeForm({ initial }: { initial: K }) {
         </Field>
       </Section>
 
-      <Section title="טון דיבור" hint="איך הבוט נשמע">
-        <Field label="סגנון">
+      <Section title="Tone of voice" hint="How the bot sounds">
+        <Field label="Style">
           <div className="flex flex-wrap gap-4">
             {Object.entries(TONE_LABEL).map(([value, label]) => (
               <label key={value} className="flex items-center gap-2 text-sm">
@@ -160,22 +160,22 @@ export function KnowledgeForm({ initial }: { initial: K }) {
             ))}
           </div>
         </Field>
-        <Field label="תיאור הסגנון">
+        <Field label="Style description">
           <Textarea value={k.tone.description} onChange={(e) => set("tone", { description: e.target.value })} />
         </Field>
-        <LinesField label="ביטויים שלך" value={k.tone.phrases} onChange={(phrases) => set("tone", { phrases })} rows={3} />
-        <Field label="אימוג'ים">
+        <LinesField label="Your phrases" value={k.tone.phrases} onChange={(phrases) => set("tone", { phrases })} rows={3} />
+        <Field label="Emojis">
           <Input value={k.tone.emojis} onChange={(e) => set("tone", { emojis: e.target.value })} />
         </Field>
       </Section>
 
-      <Section title="פילוסופיית אימון ועקרונות">
+      <Section title="Training philosophy and principles">
         <Textarea rows={8} value={k.philosophy} onChange={(e) => setK({ ...k, philosophy: e.target.value })} />
       </Section>
 
-      <Section title="תזונה">
+      <Section title="Nutrition">
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="גישה">
+          <Field label="Approach">
             <Select value={k.nutrition.approach} onChange={(e) => set("nutrition", { approach: e.target.value as K["nutrition"]["approach"] })}>
               {Object.entries(NUTRITION_APPROACH_LABEL).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -191,88 +191,88 @@ export function KnowledgeForm({ initial }: { initial: K }) {
               checked={k.nutrition.showNumbersToClients}
               onChange={(e) => set("nutrition", { showNumbersToClients: e.target.checked })}
             />
-            להציג ללקוחות מספרי קלוריות ומאקרו
+            Show clients calorie and macro numbers
           </label>
         </div>
-        <Field label="פירוט השיטה" hint="מנות, תזמון, כללים. הבוט בונה תפריטים בדיוק לפי זה.">
+        <Field label="Method details" hint="Portions, timing, rules. The bot builds meal plans exactly by this.">
           <Textarea rows={8} value={k.nutrition.details} onChange={(e) => set("nutrition", { details: e.target.value })} />
         </Field>
       </Section>
 
-      <Section title="אימונים">
-        <Field label="עקרונות ומבנה תוכניות">
+      <Section title="Training">
+        <Field label="Principles and program structure">
           <Textarea rows={6} value={k.training.principles} onChange={(e) => set("training", { principles: e.target.value })} />
         </Field>
-        <LinesField label="תרגילים מועדפים" value={k.training.preferredExercises} onChange={(preferredExercises) => set("training", { preferredExercises })} rows={6} />
-        <Field label="תרגילים שאת/ה נמנע/ת מהם" hint="הבוט לא יכניס אותם לתוכנית: הנתון הזה נאכף בקוד, לא רק בהנחיה.">
+        <LinesField label="Preferred exercises" value={k.training.preferredExercises} onChange={(preferredExercises) => set("training", { preferredExercises })} rows={6} />
+        <Field label="Exercises you avoid" hint="The bot won't put them in a plan: this is enforced in code, not just in the prompt.">
           <RecordList
             items={k.training.avoidedExercises}
             empty={{ name: "", aliases: [], reason: "", alternative: "" }}
-            addLabel="תרגיל"
+            addLabel="exercise"
             fields={[
-              { key: "name", label: "שם התרגיל", kind: "text" },
-              { key: "aliases", label: "שמות נוספים (עברית, אנגלית, סלנג)", kind: "lines" },
-              { key: "reason", label: "למה", kind: "text" },
-              { key: "alternative", label: "מה עושים במקום", kind: "text" },
+              { key: "name", label: "Exercise name", kind: "text" },
+              { key: "aliases", label: "Other names (other languages, slang)", kind: "lines" },
+              { key: "reason", label: "Why", kind: "text" },
+              { key: "alternative", label: "What to do instead", kind: "text" },
             ]}
             onChange={(avoidedExercises) => set("training", { avoidedExercises })}
           />
         </Field>
-        <Field label="תוכניות לדוגמה">
+        <Field label="Sample programs">
           <RecordList
             items={k.training.samplePrograms}
             empty={{ name: "", description: "" }}
-            addLabel="תוכנית"
+            addLabel="program"
             fields={[
-              { key: "name", label: "שם", kind: "text" },
-              { key: "description", label: "התוכנית", kind: "textarea" },
+              { key: "name", label: "Name", kind: "text" },
+              { key: "description", label: "The program", kind: "textarea" },
             ]}
             onChange={(samplePrograms) => set("training", { samplePrograms })}
           />
         </Field>
       </Section>
 
-      <Section title="פציעות" hint="ההנחיות שלך לכל אזור. הבוט לא מאבחן, ובכאב חריף תמיד מפנה לרופא.">
+      <Section title="Injuries" hint="Your guidance per area. The bot doesn't diagnose, and always refers sharp pain to a doctor.">
         <RecordList
           items={k.injuries}
           empty={{ area: "", guidance: "", allowed: [], forbidden: [] }}
-          addLabel="אזור"
+          addLabel="area"
           fields={[
-            { key: "area", label: "אזור / מצב", kind: "text" },
-            { key: "guidance", label: "הנחיות", kind: "textarea" },
-            { key: "allowed", label: "מותר", kind: "lines" },
-            { key: "forbidden", label: "אסור", kind: "lines" },
+            { key: "area", label: "Area / condition", kind: "text" },
+            { key: "guidance", label: "Guidance", kind: "textarea" },
+            { key: "allowed", label: "Allowed", kind: "lines" },
+            { key: "forbidden", label: "Forbidden", kind: "lines" },
           ]}
           onChange={(injuries) => setK({ ...k, injuries })}
         />
       </Section>
 
-      <Section title="תוספים" hint="הבוט ממליץ רק על מה שברשימה, ולעולם לא על חומרים מסוכנים">
-        <LinesField label="תוספים מאושרים" value={k.supplements.allowed} onChange={(allowed) => set("supplements", { allowed })} rows={3} />
-        <Field label="מדיניות">
+      <Section title="Supplements" hint="The bot recommends only what's on the list, and never dangerous substances">
+        <LinesField label="Approved supplements" value={k.supplements.allowed} onChange={(allowed) => set("supplements", { allowed })} rows={3} />
+        <Field label="Policy">
           <Textarea value={k.supplements.policy} onChange={(e) => set("supplements", { policy: e.target.value })} />
         </Field>
       </Section>
 
-      <Section title="שאלות נפוצות" hint="הבוט עונה עליהן במילים שלך">
+      <Section title="FAQ" hint="The bot answers these in your words">
         <RecordList
           items={k.faq}
           empty={{ q: "", a: "" }}
-          addLabel="שאלה"
+          addLabel="question"
           fields={[
-            { key: "q", label: "שאלה", kind: "text" },
-            { key: "a", label: "תשובה", kind: "textarea" },
+            { key: "q", label: "Question", kind: "text" },
+            { key: "a", label: "Answer", kind: "textarea" },
           ]}
           onChange={(faq) => setK({ ...k, faq })}
         />
       </Section>
 
-      <Section title="נושאים שתמיד עוברים אליך" hint="הבוט לא עונה עליהם: אומר שיבדוק איתך ופותח התראה">
-        <LinesField label="נושאים" value={k.alwaysEscalate} onChange={(alwaysEscalate) => setK({ ...k, alwaysEscalate })} />
+      <Section title="Topics that always go to you" hint="The bot doesn't answer these: it says it will check with you and opens an alert">
+        <LinesField label="Topics" value={k.alwaysEscalate} onChange={(alwaysEscalate) => setK({ ...k, alwaysEscalate })} />
       </Section>
 
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-xl md:border">
-        <Button disabled={pending}>{pending ? "שומר…" : "שמור ופרסם גרסה חדשה"}</Button>
+        <Button disabled={pending}>{pending ? "Saving…" : "Save and publish a new version"}</Button>
         {state.error && <span className="text-sm text-red-700">{state.error}</span>}
         {state.ok && <span className="text-sm text-emerald-700">{state.ok}</span>}
       </div>

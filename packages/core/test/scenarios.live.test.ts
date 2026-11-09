@@ -75,7 +75,8 @@ async function newClient(profile?: ClientProfile) {
 describe.skipIf(!hasKey)("live scenarios (real Claude)", () => {
   it("greets after consent and starts onboarding", async () => {
     const { greeting } = await newClient();
-    expect(greeting.replies.join(" ")).toMatch(/[֐-׿]/);
+    // The demo coach's default language is English.
+    expect(greeting.replies.join(" ")).toMatch(/[A-Za-z]{3}/);
     expect(greeting.replies.join(" ").length).toBeLessThan(1200);
   });
 
@@ -136,8 +137,8 @@ describe.skipIf(!hasKey)("live scenarios (real Claude)", () => {
 
   it("question outside the knowledge base: says it will check and escalates", async () => {
     const { t, client, say } = await newClient(READY_PROFILE);
-    const reply = await say("כמה עולה חבילת ליווי חודשית אצל גל?");
-    expect(reply).toMatch(/בודק|אבדוק|אברר|גל|המאמן/);
+    const reply = await say("How much is a monthly coaching package with Alex?");
+    expect(reply).toMatch(/check|Alex|coach/i);
     const alerts = await listAlerts(handle.db, t, { clientId: client.id });
     expect(alerts.some((a) => a.type === "unknown_question")).toBe(true);
   });

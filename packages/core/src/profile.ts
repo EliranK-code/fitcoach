@@ -54,27 +54,27 @@ interface FieldDef {
 }
 
 export const PROFILE_FIELDS: FieldDef[] = [
-  { key: "name", label: "שם", spec: { kind: "text" }, onboarding: true },
-  { key: "age", label: "גיל", spec: { kind: "int", min: 5, max: 110 }, onboarding: true },
-  { key: "sex", label: "מין", spec: { kind: "enum", values: SEXES }, onboarding: true },
-  { key: "heightCm", label: "גובה (ס\"מ)", spec: { kind: "int", min: 100, max: 250 }, onboarding: true },
-  { key: "weightKg", label: "משקל (ק\"ג)", spec: { kind: "number", min: 25, max: 350 }, onboarding: true },
-  { key: "goal", label: "מטרה", spec: { kind: "enum", values: GOALS }, onboarding: true },
-  { key: "goalDetails", label: "פירוט המטרה", spec: { kind: "text" }, onboarding: false },
-  { key: "experience", label: "ניסיון", spec: { kind: "enum", values: EXPERIENCE }, onboarding: true },
-  { key: "trainingDaysPerWeek", label: "ימי אימון בשבוע", spec: { kind: "int", min: 0, max: 7 }, onboarding: true },
-  { key: "sessionMinutes", label: "דקות לאימון", spec: { kind: "int", min: 10, max: 300 }, onboarding: true },
-  { key: "availableDays", label: "ימים ושעות פנויים", spec: { kind: "text" }, onboarding: false },
-  { key: "equipment", label: "ציוד", spec: { kind: "enum", values: EQUIPMENT }, onboarding: true },
-  { key: "equipmentDetails", label: "פירוט ציוד", spec: { kind: "text" }, onboarding: false },
-  { key: "activityLevel", label: "רמת פעילות יומית", spec: { kind: "enum", values: ACTIVITY }, onboarding: false },
-  { key: "injuries", label: "פציעות ומגבלות", spec: { kind: "list" }, onboarding: true },
-  { key: "medicalConditions", label: "מחלות רקע", spec: { kind: "list" }, onboarding: true },
-  { key: "medications", label: "תרופות", spec: { kind: "list" }, onboarding: true },
-  { key: "dietaryPreferences", label: "העדפות תזונה", spec: { kind: "list" }, onboarding: true },
-  { key: "dietaryRestrictions", label: "הגבלות תזונה", spec: { kind: "list" }, onboarding: false },
-  { key: "allergies", label: "אלרגיות", spec: { kind: "list" }, onboarding: true },
-  { key: "notes", label: "הערות (מה עובד ומה לא)", spec: { kind: "note" }, onboarding: false },
+  { key: "name", label: "Name", spec: { kind: "text" }, onboarding: true },
+  { key: "age", label: "Age", spec: { kind: "int", min: 5, max: 110 }, onboarding: true },
+  { key: "sex", label: "Sex", spec: { kind: "enum", values: SEXES }, onboarding: true },
+  { key: "heightCm", label: "Height (cm)", spec: { kind: "int", min: 100, max: 250 }, onboarding: true },
+  { key: "weightKg", label: "Weight (kg)", spec: { kind: "number", min: 25, max: 350 }, onboarding: true },
+  { key: "goal", label: "Goal", spec: { kind: "enum", values: GOALS }, onboarding: true },
+  { key: "goalDetails", label: "Goal details", spec: { kind: "text" }, onboarding: false },
+  { key: "experience", label: "Experience", spec: { kind: "enum", values: EXPERIENCE }, onboarding: true },
+  { key: "trainingDaysPerWeek", label: "Training days per week", spec: { kind: "int", min: 0, max: 7 }, onboarding: true },
+  { key: "sessionMinutes", label: "Minutes per session", spec: { kind: "int", min: 10, max: 300 }, onboarding: true },
+  { key: "availableDays", label: "Available days and times", spec: { kind: "text" }, onboarding: false },
+  { key: "equipment", label: "Equipment", spec: { kind: "enum", values: EQUIPMENT }, onboarding: true },
+  { key: "equipmentDetails", label: "Equipment details", spec: { kind: "text" }, onboarding: false },
+  { key: "activityLevel", label: "Daily activity level", spec: { kind: "enum", values: ACTIVITY }, onboarding: false },
+  { key: "injuries", label: "Injuries and limitations", spec: { kind: "list" }, onboarding: true },
+  { key: "medicalConditions", label: "Medical conditions", spec: { kind: "list" }, onboarding: true },
+  { key: "medications", label: "Medications", spec: { kind: "list" }, onboarding: true },
+  { key: "dietaryPreferences", label: "Dietary preferences", spec: { kind: "list" }, onboarding: true },
+  { key: "dietaryRestrictions", label: "Dietary restrictions", spec: { kind: "list" }, onboarding: false },
+  { key: "allergies", label: "Allergies", spec: { kind: "list" }, onboarding: true },
+  { key: "notes", label: "Notes (what works and what doesn't)", spec: { kind: "note" }, onboarding: false },
 ];
 
 export const PROFILE_FIELD_KEYS = PROFILE_FIELDS.map((f) => f.key) as [string, ...string[]];
@@ -157,13 +157,13 @@ export function describeProfile(profile: ClientProfile): string {
   for (const f of PROFILE_FIELDS) {
     const v = profile[f.key];
     if (v === undefined) {
-      if (f.onboarding) lines.push(`${f.label}: (עוד לא נאסף)`);
+      if (f.onboarding) lines.push(`${f.label}: (not collected yet)`);
       continue;
     }
     if (f.spec.kind === "note") {
-      for (const n of v as ProfileNote[]) lines.push(`הערה ${n.date}: ${n.text}`);
+      for (const n of v as ProfileNote[]) lines.push(`Note ${n.date}: ${n.text}`);
     } else if (Array.isArray(v)) {
-      lines.push(`${f.label}: ${v.length ? v.join("; ") : "אין"}`);
+      lines.push(`${f.label}: ${v.length ? v.join("; ") : "none"}`);
     } else {
       lines.push(`${f.label}: ${v}`);
     }

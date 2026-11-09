@@ -184,6 +184,15 @@ describe("consent and deletion intents", () => {
     expect(isConsentDecline("לא מאשר")).toBe(true);
   });
 
+  it("understands the English replies the consent notice asks for", () => {
+    expect(isConsentAccept("I agree")).toBe(true);
+    expect(isConsentAccept("I agree ✅")).toBe(true);
+    expect(isConsentDecline("I don't agree")).toBe(true);
+    expect(isConsentDecline("I don't agree.")).toBe(true);
+    expect(isConsentAccept("I don't agree")).toBe(false);
+    expect(isDeletionConfirmation("Delete permanently")).toBe(true);
+  });
+
   it("recognizes deletion requests and confirmation", () => {
     expect(isDeletionRequest("תמחקו בבקשה, מחק את המידע שלי")).toBe(true);
     expect(isDeletionRequest("please delete my data")).toBe(true);

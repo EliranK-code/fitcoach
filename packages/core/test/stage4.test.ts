@@ -106,10 +106,10 @@ describe("engine: photos, voice, STOP, platform changes", () => {
     await send({ text: "ארוחת צהריים", image });
     const user = app.llm.chatRequests.at(-1)!.messages.findLast((m) => m.role === "user") as { content: { type: string; source?: { type: string; data: string }; text?: string }[] };
     expect(user.content[0]).toMatchObject({ type: "image", source: { type: "base64", data: image.data } });
-    expect(user.content[1]!.text).toContain("[תמונה, עם הכיתוב:] ארוחת צהריים");
+    expect(user.content[1]!.text).toContain("[Photo, with the caption:] ארוחת צהריים");
     const t = await app.tenant();
     const log = await listChatMessages(app.handle.db, t, (await findClientByPhone(app.handle.db, t, "0501234567"))!.id);
-    expect(log.find((m) => m.kind === "image")?.body).toBe("[תמונה] ארוחת צהריים");
+    expect(log.find((m) => m.kind === "image")?.body).toBe("[photo] ארוחת צהריים");
   });
 
   it("marks voice transcripts and runs red-flag detection on them", async () => {
@@ -117,7 +117,7 @@ describe("engine: photos, voice, STOP, platform changes", () => {
     app.llm.push(message([text("עצור ופנה לרופא")]));
     await send({ text: "יש לי כאב בחזה כשאני רץ", voice: true });
     const user = app.llm.chatRequests.at(-1)!.messages.findLast((m) => m.role === "user") as { content: { text: string }[] };
-    expect(user.content[0]!.text).toContain("[הודעה קולית, תמלול אוטומטי] יש לי כאב בחזה");
+    expect(user.content[0]!.text).toContain("[Voice message, automatic transcription] יש לי כאב בחזה");
     const alerts = await listAlerts(app.handle.db, await app.tenant(), { status: "open" });
     expect(alerts.some((a) => a.type === "medical")).toBe(true);
   });
@@ -126,7 +126,7 @@ describe("engine: photos, voice, STOP, platform changes", () => {
     await consentedClient(app);
     const before = app.llm.requests.length;
     const res = await send({ unsupported: "audio" });
-    expect(res.replies[0]).toContain("להאזין");
+    expect(res.replies[0]).toContain("voice messages");
     expect(app.llm.requests.length).toBe(before);
   });
 
@@ -137,7 +137,7 @@ describe("engine: photos, voice, STOP, platform changes", () => {
     await setClientReminders(app.handle.db, t, app.cfg, client.id, [{ kind: "weigh_in", days: [0], time: "09:00" }], app.clock.now);
     const before = app.llm.requests.length;
     const res = await send({ text: "STOP" });
-    expect(res.replies[0]).toContain("לא אשלח");
+    expect(res.replies[0]).toContain("won't send");
     expect(app.llm.requests.length).toBe(before);
     expect((await getClient(app.handle.db, t, client.id))!.flags.remindersOptOut).toBe(true);
     expect((await listClientReminders(app.handle.db, t, client.id)).every((r) => !r.enabled)).toBe(true);
@@ -205,7 +205,7 @@ describe("reminder scheduler", () => {
     app.clock.now = zonedTimeToUtc("2026-10-18", "08:31", TZ);
     expect(await scheduler.tick()).toMatchObject({ sent: 1 });
     expect(api.sent.at(-1)).toMatchObject({ type: "text", to: PHONE });
-    expect(api.sent.at(-1)!.body).toContain("שקילה");
+    expect(api.sent.at(-1)!.body).toContain("weigh in");
     expect(await scheduler.tick()).toMatchObject({ sent: 0 }); // moved to next week
     const [row] = await app.handle.db.select().from(reminders);
     expect(row!.nextRunAt!.toISOString()).toBe(zonedTimeToUtc("2026-10-25", "08:30", TZ).toISOString());
@@ -286,6 +286,6 @@ describe("worker media handling", () => {
     app.llm.push(message([text("רשמתי")]));
     await receive({ kind: "audio", mediaId: "aud1" });
     const voiceReq = app.llm.chatRequests.at(-1)!.messages.findLast((m) => m.role === "user") as { content: { text: string }[] };
-    expect(voiceReq.content[0]!.text).toContain("[הודעה קולית, תמלול אוטומטי] שקלתי היום 70");
+    expect(voiceReq.content[0]!.text).toContain("[Voice message, automatic transcription] שקלתי היום 70");
   });
 });

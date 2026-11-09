@@ -34,7 +34,7 @@ export async function addClientAction(_prev: FormState, form: FormData): Promise
   try {
     const { created } = await addApprovedClient(s.handle.db, s.t, String(form.get("phone") ?? "").slice(0, 40), s.actor);
     revalidatePath("/", "layout");
-    return { ok: created ? "נוסף. כשהלקוח/ה יכתוב/תכתוב למספר, הבוט ישלח את הודעת ההסכמה ויתחיל לעבוד." : "המספר כבר ברשימה, ועכשיו הוא מאושר." };
+    return { ok: created ? "Added. When the client writes to the number, the bot sends the consent notice and gets started." : "The number was already on the list, and now it's approved." };
   } catch (err) {
     if (err instanceof ClientAccessError) return { error: err.message };
     throw err;
@@ -90,12 +90,12 @@ export async function sendMessageAction(_prev: FormState, form: FormData): Promi
   const result = await sendAsCoach(s, client, String(form.get("text") ?? ""));
   if (!result.ok) return { error: result.error };
   revalidatePath(`/clients/${client.id}`);
-  return { ok: "נשלח" };
+  return { ok: "Sent" };
 }
 
 export async function deleteClientAction(_prev: FormState, form: FormData): Promise<FormState> {
   const { s, client } = await load(String(form.get("clientId")));
-  if (String(form.get("confirm") ?? "").trim() !== "מחק") return { error: 'כדי למחוק, הקלידו "מחק"' };
+  if (String(form.get("confirm") ?? "").trim() !== "delete") return { error: 'To delete, type "delete"' };
   await deleteClientData(s.handle.db, s.t, client.id, s.actor);
   revalidatePath("/", "layout");
   redirect("/clients");

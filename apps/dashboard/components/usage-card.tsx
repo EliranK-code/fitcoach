@@ -15,7 +15,7 @@ export function UsageSummary({ usage, budgetUsd, capUsd }: { usage: MonthUsage; 
             {formatUsd(usage.costMicros)}
           </span>
           <span className="text-xs text-slate-500">
-            {budget.percent === null ? "עלות משוערת החודש" : `${budget.percent}% מתקציב של $${budgetUsd} לחודש`}
+            {budget.percent === null ? "Estimated cost this month" : `${budget.percent}% of a $${budgetUsd} monthly budget`}
           </span>
         </div>
         {budget.percent !== null && (
@@ -25,32 +25,32 @@ export function UsageSummary({ usage, budgetUsd, capUsd }: { usage: MonthUsage; 
         )}
         {capUsd ? (
           <p className="mt-2 text-xs text-slate-500">
-            תקרה קשיחה: <span dir="ltr">${capUsd}</span> לחודש. כשמגיעים אליה הבוט מפסיק לענות ללקוחות, וההודעות נשמרות בשיחה.
+            Hard cap: <span dir="ltr">${capUsd}</span> a month. When it's reached the bot stops answering clients, and their messages are kept in the conversation.
           </p>
         ) : null}
       </div>
       <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-500">
         <div className="rounded-lg bg-slate-50 p-2">
           <div className="text-base font-semibold text-slate-800">{usage.messagesIn.toLocaleString()}</div>
-          הודעות נכנסות
+          Incoming messages
         </div>
         <div className="rounded-lg bg-slate-50 p-2">
           <div className="text-base font-semibold text-slate-800">{usage.messagesOut.toLocaleString()}</div>
-          הודעות יוצאות
+          Outgoing messages
         </div>
         <div className="rounded-lg bg-slate-50 p-2">
           <div className="text-base font-semibold text-slate-800">{usage.templates.toLocaleString()}</div>
-          תבניות
+          Templates
         </div>
       </div>
       {usage.byKind.length > 0 && (
         <table className="w-full text-sm">
           <thead className="text-xs text-slate-500">
             <tr>
-              <th className="pb-2 text-start font-medium">סוג</th>
-              <th className="pb-2 text-end font-medium">פעמים</th>
-              <th className="pb-2 text-end font-medium">טוקנים</th>
-              <th className="pb-2 text-end font-medium">עלות</th>
+              <th className="pb-2 text-start font-medium">Type</th>
+              <th className="pb-2 text-end font-medium">Count</th>
+              <th className="pb-2 text-end font-medium">Tokens</th>
+              <th className="pb-2 text-end font-medium">Cost</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -68,7 +68,7 @@ export function UsageSummary({ usage, budgetUsd, capUsd }: { usage: MonthUsage; 
         </table>
       )}
       <p className="text-xs text-slate-500">
-        הערכה לפי המחירון של Anthropic ו-OpenAI. הודעות בתוך חלון 24 השעות לא עולות כסף ב-WhatsApp; תבניות כן.
+        Estimated from Anthropic and OpenAI pricing. Messages inside the 24-hour window are free on WhatsApp; templates are not.
       </p>
     </div>
   );
@@ -81,8 +81,8 @@ export function BudgetNotice({ usage, budgetUsd }: { usage: MonthUsage; budgetUs
   return (
     <div className="mb-6">
       <Notice tone={budget.level === "over" ? "red" : "yellow"}>
-        השימוש החודש הגיע ל-{budget.percent}% מהתקציב ({formatUsd(usage.costMicros)} מתוך ${budgetUsd}). הבוט ממשיך לעבוד כרגיל, ומנהל המערכת רואה את זה
-        בפאנל.
+        Usage this month reached {budget.percent}% of the budget ({formatUsd(usage.costMicros)} of ${budgetUsd}). The bot keeps working as usual, and the administrator sees this
+        in the admin panel.
       </Notice>
     </div>
   );

@@ -15,4 +15,4 @@ export async function throttled(scope: string): Promise<boolean> {
   return (await hitRateLimit(handle.db, `ip:${scope}:${ip}`, IP_WINDOW_MS)) > IP_LIMIT;
 }
 
-export const THROTTLED = "יותר מדי ניסיונות. נסו שוב בעוד כמה דקות.";
+export const THROTTLED = "Too many attempts. Try again in a few minutes.";

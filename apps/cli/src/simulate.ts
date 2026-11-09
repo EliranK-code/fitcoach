@@ -53,19 +53,19 @@ export function buildWebhookPayload(opts: SimulateOptions, now = new Date()) {
 
 /** Sends a signed fake webhook to the local server: tests the whole pipeline without Meta. */
 export async function simulateWebhook(cfg: AppConfig, opts: SimulateOptions): Promise<void> {
-  if (!cfg.WHATSAPP_APP_SECRET) throw new Error("WHATSAPP_APP_SECRET חסר ב-.env (כל מחרוזת מתאימה לבדיקה מקומית)");
+  if (!cfg.WHATSAPP_APP_SECRET) throw new Error("WHATSAPP_APP_SECRET is missing in .env (any string works for local testing)");
   if (opts.file) {
     const src = resolve(opts.file);
-    if (!existsSync(src)) throw new Error(`הקובץ לא נמצא: ${opts.file}`);
+    if (!existsSync(src)) throw new Error(`File not found: ${opts.file}`);
     const ext = extname(src).toLowerCase();
     const isImage = [".jpg", ".jpeg", ".png", ".webp"].includes(ext);
-    if (!isImage && ![".ogg", ".opus", ".mp3", ".m4a", ".wav"].includes(ext)) throw new Error("נתמכים: jpg, png, webp, ogg, mp3, m4a, wav");
+    if (!isImage && ![".ogg", ".opus", ".mp3", ".m4a", ".wav"].includes(ext)) throw new Error("Supported: jpg, png, webp, ogg, mp3, m4a, wav");
     mkdirSync(simulatedMediaDir(), { recursive: true });
     const mediaId = `sim-${randomBytes(6).toString("hex")}${ext}`;
     copyFileSync(src, join(simulatedMediaDir(), mediaId));
     opts = { ...opts, type: isImage ? "image" : "audio", mediaId };
   }
-  if (!opts.text && !opts.buttonId && !opts.type) throw new Error('חסר טקסט: npm run wa:simulate -- "היי"');
+  if (!opts.text && !opts.buttonId && !opts.type) throw new Error('Missing text: npm run wa:simulate -- "hi"');
   const body = JSON.stringify(buildWebhookPayload(opts));
   const signature = `sha256=${createHmac("sha256", cfg.WHATSAPP_APP_SECRET).update(body).digest("hex")}`;
   const url = `http://localhost:${cfg.PORT}/webhook`;
@@ -74,8 +74,8 @@ export async function simulateWebhook(cfg: AppConfig, opts: SimulateOptions): Pr
     headers: { "Content-Type": "application/json", "X-Hub-Signature-256": signature },
     body,
   }).catch((err: unknown) => {
-    throw new Error(`השרת לא זמין ב-${url} (הריצו npm run server). ${err instanceof Error ? err.message : ""}`);
+    throw new Error(`The server isn't available at ${url} (run npm run server). ${err instanceof Error ? err.message : ""}`);
   });
   const ok = res.status === 200;
-  console.log(styleText(ok ? "green" : "red", `${res.status} ${ok ? "נשלח לשרת. התשובה תודפס בחלון של השרת אחרי כמה שניות." : await res.text()}`));
+  console.log(styleText(ok ? "green" : "red", `${res.status} ${ok ? "Sent to the server. The reply will print in the server window in a few seconds." : await res.text()}`));
 }

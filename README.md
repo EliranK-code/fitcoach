@@ -13,7 +13,25 @@ An AI bot that talks to a real fitness coach's clients in that coach's voice and
 >
 > Since then: a security hardening pass, approved-clients-only access, and a verified Supabase setup.
 
-The user interface (dashboard, bot messages, CLI output) is in Hebrew.
+The dashboard, the bot's fixed messages (consent, notices, errors) and the CLI are in English. The AI itself replies in the language the client writes in, so a coach can still serve clients in Hebrew, Spanish or any other language Claude speaks.
+
+## Screenshots
+
+The coach dashboard, with the demo coach and sample clients:
+
+![The coach dashboard](docs/screenshots/dashboard.gif)
+
+A conversation in the Playground, the same engine clients reach on WhatsApp (consent first, then onboarding in the coach's voice):
+
+![Chatting with the bot](docs/screenshots/chat.gif)
+
+| Overview | Client page |
+|---|---|
+| ![Overview](docs/screenshots/overview.png) | ![Client page](docs/screenshots/client.png) |
+| **Needs attention** | **Knowledge base** |
+| ![Alerts](docs/screenshots/alerts.png) | ![Knowledge base](docs/screenshots/knowledge.png) |
+
+All data in the screenshots is fictional and was created with `npm run seed` and `npm run admin -- sample-data` on a local database.
 
 ---
 
@@ -37,7 +55,7 @@ Open `.env` and paste an Anthropic API key (from [console.anthropic.com](https:/
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Load the demo coach ("Gal Barak", a fictional strength coach):
+Load the demo coach ("Alex Carter", a fictional strength coach):
 
 ```bash
 npm run seed
@@ -186,7 +204,7 @@ Inside the chat:
 
 > **Important:** the local database (PGlite) works with only one process at a time. While the chat or the server runs, `admin` commands fail with a clear message. Stop the other process first, or use Supabase (below), which supports many processes in parallel.
 
-### Hebrew in the terminal
+### Right-to-left text in the terminal
 
 Windows and VS Code terminals don't support right-to-left text, so Hebrew appears reversed. The CLI reorders the text for display itself. If your terminal does support RTL and the text comes out reversed, add `--no-bidi`.
 
@@ -200,21 +218,21 @@ Run `npm run chat -- --new --debug` for each scenario, so each one starts from a
 
 | # | What to write | What should happen |
 |---|---|---|
-| 1 | `היי` | The consent notice. **Nothing has been sent to the AI yet** |
-| 2 | `מאשר` | The bot introduces itself as Gal's AI assistant and asks the first question |
-| 3 | Details about yourself, e.g. `אני דנה, בת 32, 1.65, 68 קילו, רוצה לרדת במשקל, 3 אימונים בשבוע בחדר כושר, בלי פציעות` | `/profile` fills in. The bot naturally asks only for what's missing |
-| 4 | `תבני לי תפריט` | A palm-method meal plan **with no calorie numbers** (Gal doesn't count). `/plans` holds an internal estimate that's not below the safe floor |
-| 5 | `תבני לי תוכנית אימונים` | A plan matching the goal, days and equipment, without the exercises Gal avoids (e.g. upright rows) |
-| 6 | `יש לי כאב בברך כשאני עושה סקוואט` | Exercises adjusted per Gal's knee guidelines |
-| 7 | `שקלתי היום 67.5` | Logged in `/logs`, with a short reply |
-| 8 | `עשיתי סקוואט 3 סטים של 10 עם 40 קילו` | Logged. Next time the bot compares with the previous workout |
-| 9 | `היה לי כאב בחזה באימון` | Referral to a doctor (and to emergency services, 101, if needed) and an urgent alert. Check with `npm run admin -- alerts` |
-| 10 | `אני מקיאה אחרי ארוחות כדי לא להשמין` | A sensitive reply **with no numbers**, a referral to a professional, an alert and a flag. Meal plans are blocked |
-| 11 | New client: `אני בן 15` | A minor alert and extra caution |
-| 12 | `כמה עולה חבילת ליווי?` | "I'll check with Gal" and an `unknown_question` alert with the question |
-| 13 | `Hi, how many times a week should I train?` | An answer in English |
-| 14 | `/pause`, a message as the client, `/coach נדבר מחר בטלפון`, `/resume`, then another message | While paused the bot stays quiet and an alert opens. After `/resume` the bot knows what the coach said |
-| 15 | `/delete-me` then `מחק לצמיתות` | All data is deleted (`/profile` no longer finds a client) |
+| 1 | `Hi` | The consent notice. **Nothing has been sent to the AI yet** |
+| 2 | `I agree` | The bot introduces itself as Alex's AI assistant and asks the first question |
+| 3 | Details about yourself, e.g. `I'm Dana, 32, 165 cm, 68 kg, I want to lose weight, 3 workouts a week at the gym, no injuries` | `/profile` fills in. The bot naturally asks only for what's missing |
+| 4 | `Make me a meal plan` | A hand-method meal plan **with no calorie numbers** (Alex doesn't count). `/plans` holds an internal estimate that's not below the safe floor |
+| 5 | `Make me a workout plan` | A plan matching the goal, days and equipment, without the exercises Alex avoids (e.g. upright rows) |
+| 6 | `My knee hurts when I squat` | Exercises adjusted per Alex's knee guidelines |
+| 7 | `Weighed in at 67.5 today` | Logged in `/logs`, with a short reply |
+| 8 | `Did squats, 3 sets of 10 with 40 kg` | Logged. Next time the bot compares with the previous workout |
+| 9 | `I had chest pain during the workout` | Referral to a doctor (and to emergency services if needed) and an urgent alert. Check with `npm run admin -- alerts` |
+| 10 | `I throw up after meals so I don't gain weight` | A sensitive reply **with no numbers**, a referral to a professional, an alert and a flag. Meal plans are blocked |
+| 11 | New client: `I'm 15` | A minor alert and extra caution |
+| 12 | `How much is a coaching package?` | "I'll check with Alex" and an `unknown_question` alert with the question |
+| 13 | `היי, כמה פעמים בשבוע כדאי להתאמן?` (Hebrew) | An answer in Hebrew: the AI follows the client's language |
+| 14 | `/pause`, a message as the client, `/coach Let's talk tomorrow by phone`, `/resume`, then another message | While paused the bot stays quiet and an alert opens. After `/resume` the bot knows what the coach said |
+| 15 | `/delete-me` then `delete permanently` | All data is deleted (`/profile` no longer finds a client) |
 
 The client ID appears on the chat's first line.
 
@@ -259,13 +277,13 @@ This tests the whole pipeline (webhook, queue, worker, engine and sending) witho
    ```
 4. In a second terminal, send messages as if from WhatsApp:
    ```bash
-   npm run wa:simulate -- "היי, אני רוצה להתחיל"
+   npm run wa:simulate -- "Hi, I want to get started"
    ```
    ```bash
-   npm run wa:simulate -- --button consent_yes "מאשר/ת"
+   npm run wa:simulate -- --button consent_yes "I agree"
    ```
    ```bash
-   npm run wa:simulate -- "אני דנה, בת 32"
+   npm run wa:simulate -- "I'm Dana, 32"
    ```
    `wa:simulate` talks to the server over HTTP only, so it works while the server holds the database.
 
@@ -357,12 +375,12 @@ Supabase supports many processes in parallel, so the server, chat and admin comm
 
 | # | What to do | What should happen |
 |---|---|---|
-| 1 | Send "היי" | The consent notice with two buttons |
-| 2 | Tap "מאשר/ת ✅" | A greeting and a first question (in dry run: printed in the server window) |
+| 1 | Send "Hi" | The consent notice with two buttons |
+| 2 | Tap "I agree ✅" | A greeting and a first question (in dry run: printed in the server window) |
 | 3 | Send 3 short messages in a row | One reply covering all of them |
 | 4 | `npm run admin -- history <number>` | The conversation with statuses: `sent`, and on real WhatsApp also `delivered` and `read` |
-| 5 | `pause <number>`, a message from the phone, `send <number> "כאן גל, נדבר מחר"`, `resume <number>`, another message | No reply during the pause, and an alert (`alerts`). After `resume` the bot knows what Gal said |
-| 6 | "מחק את המידע שלי" then "מחק לצמיתות" | A deletion confirmation, and the client disappears from `clients` |
+| 5 | `pause <number>`, a message from the phone, `send <number> "Alex here, let's talk tomorrow"`, `resume <number>`, another message | No reply during the pause, and an alert (`alerts`). After `resume` the bot knows what Gal said |
+| 6 | "delete my data" then "delete permanently" | A deletion confirmation, and the client disappears from `clients` |
 | 7 | `send` to a client who hasn't written in 24 hours | An error explaining only a template is allowed |
 
 ---
@@ -426,8 +444,8 @@ Supabase supports many processes in parallel, so the server, chat and admin comm
 | 4 | "Needs attention" → reply to Dana's question, with "save to FAQ" | The alert closes, and the knowledge base has a new version with the question in the FAQ |
 | 5 | Dana's client page | Conversation, a falling weight chart, plans and profile |
 | 6 | "Take over the conversation", then write in the box | A "bot paused" badge. Your message appears in purple |
-| 7 | Playground: "היי", "מאשר/ת", then chat | Full onboarding. "Behind the scenes" shows tools and token usage |
-| 8 | Playground: "יש לי כאב בחזה" | An urgent alert in the queue, and the bot refers to a doctor |
+| 7 | Playground: "Hi", "I agree", then chat | Full onboarding. "Behind the scenes" shows tools and token usage |
+| 8 | Playground: "I have chest pain" | An urgent alert in the queue, and the bot refers to a doctor |
 | 9 | Knowledge base: add an exercise to "avoided" and save | A new version. After that the bot won't put the exercise in a plan |
 | 10 | Settings: activity log | Entries for sign-in, client views, knowledge saves and more |
 
@@ -455,7 +473,7 @@ npm run admin -- sample-data --remove
 - **Who chooses:** the client. After onboarding the bot offers reminders once: weigh-in, training days or a weekly check-in. It saves only what the client wants, at the time they choose.
 - **Check-in after silence:** if a client hasn't written for 4 days (configurable), one "how are you" message is sent, during the day.
 - **Quiet hours:** no reminders between 21:30 and 08:00, and by default not from Friday 15:00 until Saturday night. All configurable in settings.
-- **Stopping:** the client writes "הסר" or "STOP" and reminders stop at once, without AI. They can also ask the bot in words, or the coach can stop them from the client page.
+- **Stopping:** the client writes "STOP" (or "stop reminders") and reminders stop at once, without AI. They can also ask the bot in words, or the coach can stop them from the client page.
 - **WhatsApp rules:**
   - Within 24 hours of the client's last message a free-form text is sent, editable in settings.
   - Outside the window **only an approved template** may be sent. Without a configured template, the reminder isn't sent.
@@ -463,14 +481,14 @@ npm run admin -- sample-data --remove
 - **The bot knows:** sent reminders reach the bot as context with the client's next message, so if the client answers "66.5" to a weigh-in reminder, the bot understands.
 - **Channel:** reminders go only to WhatsApp clients, not the terminal or the playground.
 
-**Suggested templates for WhatsApp Manager.** Create them under Message Templates with Hebrew as the language and the Utility category, then enter their names in the dashboard settings, in the "Proactive reminders" card:
+**Suggested templates for WhatsApp Manager.** Create them under Message Templates with English as the language and the Utility category, then enter their names in the dashboard settings, in the "Proactive reminders" card:
 
 | Template name | Body |
 |---|---|
-| `weigh_in_reminder` | בוקר טוב {{1}}! זה הזמן לשקילה ⚖️ שלח/י לי את המספר כשיש. |
-| `workout_reminder` | היי {{1}}, היום יום אימון לפי התוכנית שלך 💪 עדכן/י אותי איך היה. |
-| `weekly_checkin` | היי {{1}}! איך עבר השבוע? ספר/י לי מה הלך טוב ומה היה קשה. |
-| `inactivity_checkin` | היי {{1}}, מה שלומך? לא שמעתי ממך כמה ימים. אני כאן אם צריך משהו 🙂 |
+| `weigh_in_reminder` | Good morning {{1}}! Time to weigh in ⚖️ Send me the number when you have it. |
+| `workout_reminder` | Hi {{1}}, today is a training day in your plan 💪 Let me know how it went. |
+| `weekly_checkin` | Hi {{1}}! How was your week? Tell me what went well and what was hard. |
+| `inactivity_checkin` | Hi {{1}}, how are you? I haven't heard from you in a few days. I'm here if you need anything 🙂 |
 
 `{{1}}` is the first name. Meta usually approves templates within minutes to hours, and sometimes changes the category (Utility or Marketing). Each category has a different price.
 
@@ -481,14 +499,14 @@ When a conversation episode closes and is summarized, its raw history is deleted
 
 | # | What to do | What should happen |
 |---|---|---|
-| 1 | In the chat: `/image C:\path\meal.jpg ארוחת צהריים` | Meal feedback by Gal's method, with no calorie numbers |
+| 1 | In the chat: `/image C:\path\meal.jpg lunch` | Meal feedback by Alex's method, with no calorie numbers |
 | 2 | `/image` with a photo of an injury or test results | Referral to a doctor and a coach alert, without interpretation |
 | 3 | `/voice C:\path\voice.ogg` (with `OPENAI_API_KEY`) | The transcript is shown and the bot answers it |
 | 4 | At the end of onboarding | The bot offers reminders |
-| 5 | "תזכיר לי לשקול כל יום ב-<in 2 minutes>", as a WhatsApp client in dry run (`wa:simulate`) | Within a minute or two the reminder is printed in the server window. Not in quiet hours or on Shabbat |
+| 5 | "Remind me to weigh in every day at <in 2 minutes>", as a WhatsApp client in dry run (`wa:simulate`) | Within a minute or two the reminder is printed in the server window. Not in quiet hours or on Shabbat |
 | 6 | Reply to the reminder with a number | The bot understands it's a weigh-in and logs it |
-| 7 | `npm run wa:simulate -- "הסר"` | A short confirmation, and reminders stop. The client page shows the client opted out |
-| 8 | `npm run wa:simulate -- --file meal.jpg "צהריים"` | The photo goes through the whole WhatsApp pipeline |
+| 7 | `npm run wa:simulate -- "STOP"` | A short confirmation, and reminders stop. The client page shows the client opted out |
+| 8 | `npm run wa:simulate -- --file meal.jpg "lunch"` | The photo goes through the whole WhatsApp pipeline |
 | 9 | Dashboard → Settings → "Proactive reminders" | Quiet hours, Shabbat, inactivity days, wording and templates are editable |
 
 ## Stage 5: full multi-tenancy
@@ -580,12 +598,31 @@ A full security review found no secrets in git (including history) and verified 
 
 By default **the bot answers only numbers the coach approved**, so strangers can't use the bot at the coach's expense and their data never enters the system. The code is in `packages/core/src/access.ts`.
 
-- **Adding a client:** on the Clients page, by phone number, in any common format (`050-1234567`, `+972501234567`, `00972…`). When the client writes, the bot sends the consent notice as usual. Also from the terminal: `npm run admin -- client:approve <phone>`.
+- **Adding a client:** on the Clients page, by phone number, in international format (`+14155550123` or `0014155550123`). Note: a number that starts with a single `0` is currently treated as an Israeli local number and gets the `972` prefix. When the client writes, the bot sends the consent notice as usual. Also from the terminal: `npm run admin -- client:approve <phone>`.
 - **An unapproved number** gets a short notice at most once a day; nothing it writes reaches the AI or is stored. The coach gets one "join request" alert, and the number appears at the top of the client list.
 - **Approving a request:** "approve client", in the alert or on the client page. If the client wrote in the last 24 hours, they get the consent notice at once.
 - **Removing access:** "remove bot access" on the client page (e.g. for a client who finished coaching). The bot stops answering and sending reminders; data is kept. "Restore access" brings everything back.
 - **Open mode:** Settings → "who can talk to the bot" → "anyone who writes". New numbers are approved automatically on their first message.
 - **Existing clients** were all approved by migration `0011_client_approval`. Terminal and playground clients are always approved.
+
+## Language
+
+Everything the platform itself writes is in English: the dashboard, the admin panel, the consent notice, the fixed bot messages (the notice to unapproved numbers, errors, safe replies, opt-out, reminders), alerts to the coach and the CLI. The AI replies in the language the client writes in; a coach sets the default for new clients under Knowledge base → "Default language for new clients".
+
+Some things deliberately still understand Hebrew, so existing Hebrew-speaking clients keep working: consent and deletion replies ("מאשר", "מחק את המידע שלי"), opt-out words ("הסר") and the safety phrase detector.
+
+The consent notice is a legal text. The English draft must be reviewed by a lawyer against the privacy law where you operate, and you can replace it under Settings → "Consent notice".
+
+**Check it yourself:**
+
+| # | What to do | What should happen |
+|---|---|---|
+| 1 | `npm run seed`, then `npm run dashboard` and sign in | Every page is in English and laid out left to right |
+| 2 | Playground: `Hi` | The English consent notice with "I agree" and "I don't agree" buttons |
+| 3 | `I agree`, then chat | An English greeting from Alex's assistant, then onboarding |
+| 4 | Start over, then write `היי` and `מאשר` | The consent notice is in English, but after consent the AI answers in Hebrew |
+| 5 | Write `STOP` | The fixed English opt-out confirmation, without the AI |
+| 6 | `npm run admin -- help` | The command list in English |
 
 ## Automated tests
 
@@ -593,7 +630,7 @@ By default **the bot answers only numbers the coach approved**, so strangers can
 npm test
 ```
 
-198 tests that run with a mocked Claude and an in-memory database. They cost nothing. They cover approved-clients access, the security hardening (spend caps, IP, TLS, webhook size, CSP, leak guard), Embedded Signup against a mocked Graph API, metering and limits, TOTP (RFC 6238 vectors) and links, coach suspension and deletion, RLS on every table and two coaches running end to end in parallel, reminders (DST, quiet hours, Shabbat), media, authentication, the consent gate, tool loop, episodes, safety rules, encryption and WhatsApp formatting, webhook signatures, debounce, duplicates, delivery statuses and the real Postgres path.
+199 tests that run with a mocked Claude and an in-memory database. They cost nothing. They cover approved-clients access, the security hardening (spend caps, IP, TLS, webhook size, CSP, leak guard), Embedded Signup against a mocked Graph API, metering and limits, TOTP (RFC 6238 vectors) and links, coach suspension and deletion, RLS on every table and two coaches running end to end in parallel, reminders (DST, quiet hours, Shabbat), media, authentication, the consent gate, tool loop, episodes, safety rules, encryption and WhatsApp formatting, webhook signatures, debounce, duplicates, delivery statuses and the real Postgres path.
 
 ```bash
 npm run test:live
@@ -692,10 +729,10 @@ However, **the consent wording in `packages/core/src/consent.ts` is a draft**. B
 
 | Problem | Solution |
 |---|---|
-| `ANTHROPIC_API_KEY חסר` | Paste the key into `.env` |
-| `MASTER_ENCRYPTION_KEY חסר` | `npm run setup` |
-| `למאמן ... אין עדיין בסיס ידע` (no knowledge base yet) | `npm run seed` |
-| Hebrew is reversed in the terminal | Try `--no-bidi`, or read the transcript in `.data/transcripts/` |
+| `ANTHROPIC_API_KEY is missing` | Paste the key into `.env` |
+| `MASTER_ENCRYPTION_KEY is missing` | `npm run setup` |
+| `Coach ... has no knowledge base yet` | `npm run seed` |
+| Hebrew or Arabic replies are reversed in the terminal | Try `--no-bidi`, or read the transcript in `.data/transcripts/` |
 | The local database is already open in another process | A chat, server or dashboard is running. Stop it (Ctrl+C), or move to Supabase |
 | Supabase: `password authentication failed` | Remove the square brackets around the password in `DATABASE_URL` and URL-encode special characters (`@` → `%40`) |
 | "Account suspended" when signing in | The coach was suspended. `npm run admin -- coach:resume <slug>` |
@@ -705,7 +742,7 @@ However, **the consent wording in `packages/core/src/consent.ts` is a draft**. B
 | Lost the phone with the authenticator app | Coach: the admin resets it from the panel, or `user:reset-mfa --email ...`. Admin: `superadmin:reset --email ...` |
 | No dashboard user, or forgot the password | `npm run admin -- user:create --email ...` or `user:reset-password --email ...` |
 | A voice message gets "can't listen" | `OPENAI_API_KEY` is missing in `.env` |
-| A reminder wasn't sent | Check: is the client on WhatsApp? Inside the 24-hour window, or is a template configured? Not in quiet hours or on Shabbat? Didn't the client write "הסר"? |
+| A reminder wasn't sent | Check: is the client on WhatsApp? Inside the 24-hour window, or is a template configured? Not in quiet hours or on Shabbat? Didn't the client write "STOP"? |
 | Port 3000 is taken | The dashboard and `npm run server` both use 3000. Usually the dashboard alone is enough |
 | Meta can't verify the webhook | Make sure the server and tunnel are running, the URL ends in `/api/whatsapp/webhook` (or `/webhook` for `npm run server`), and the verify token matches `.env` |
 | Messages reach the server but there's no reply | Check `WHATSAPP_ACCESS_TOKEN`, `ANTHROPIC_API_KEY`, that the number is connected with `wa:connect`, and that the sender is approved |
@@ -718,7 +755,7 @@ However, **the consent wording in `packages/core/src/consent.ts` is a draft**. B
 
 1. ~~Conversation engine, client profile and one coach in the CLI~~ ✅
 2. ~~WhatsApp Cloud API: secure webhook, message queue, 24-hour window, takeover, Supabase~~ ✅
-3. ~~Coach dashboard (Next.js, Hebrew): alerts, clients, charts, knowledge editing, playground~~ ✅
+3. ~~Coach dashboard (Next.js): alerts, clients, charts, knowledge editing, playground~~ ✅
 4. ~~Meal photos, voice messages and proactive reminders~~ ✅
 5. ~~Full multi-tenancy: RLS, coach suspension and deletion, admin panel, invitations and MFA, usage metering and budget, Embedded Signup~~ ✅
 

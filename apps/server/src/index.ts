@@ -67,15 +67,15 @@ async function main() {
   await server.listen({ port: cfg.PORT, host: "0.0.0.0" });
 
   console.log(styleText("bold", `FitCoach server: http://localhost:${cfg.PORT}  (webhook: /webhook)`));
-  console.log(`DB: ${handle.kind === "pglite" ? `PGlite מקומי (${cfg.PGLITE_DIR})` : "Postgres (DATABASE_URL)"}`);
-  if (cfg.WHATSAPP_DRY_RUN) console.log(styleText("yellow", "WHATSAPP_DRY_RUN=true: הודעות יוצאות מודפסות כאן ולא נשלחות לוואטסאפ"));
+  console.log(`DB: ${handle.kind === "pglite" ? `local PGlite (${cfg.PGLITE_DIR})` : "Postgres (DATABASE_URL)"}`);
+  if (cfg.WHATSAPP_DRY_RUN) console.log(styleText("yellow", "WHATSAPP_DRY_RUN=true: outgoing messages are printed here, not sent to WhatsApp"));
   const missing = [
     !cfg.WHATSAPP_APP_SECRET && "WHATSAPP_APP_SECRET",
     !cfg.WHATSAPP_VERIFY_TOKEN && "WHATSAPP_VERIFY_TOKEN",
     !cfg.WHATSAPP_DRY_RUN && !cfg.WHATSAPP_ACCESS_TOKEN && "WHATSAPP_ACCESS_TOKEN",
     !cfg.ANTHROPIC_API_KEY && "ANTHROPIC_API_KEY",
   ].filter(Boolean);
-  if (missing.length) console.log(styleText("yellow", `חסר ב-.env: ${missing.join(", ")}`));
+  if (missing.length) console.log(styleText("yellow", `Missing in .env: ${missing.join(", ")}`));
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, "shutting down");

@@ -96,7 +96,7 @@ export function createMockOnboardingApi(): MetaOnboardingApi {
     async wabaPhoneNumbers(_wabaId, token) {
       // The simulated code carries the number it was issued for: "mock:<phoneNumberId>:<display>".
       const [, id, display] = (issued.get(token) ?? "").split(":");
-      return id ? [{ id, displayPhone: display || null, verifiedName: "סימולציה" }] : [];
+      return id ? [{ id, displayPhone: display || null, verifiedName: "Simulation" }] : [];
     },
     async subscribeApp() {},
     async registerNumber() {},
@@ -114,14 +114,14 @@ export async function completeEmbeddedSignup(
   actor: string,
 ): Promise<WhatsAppAccount> {
   if (!input.code || !ID.test(input.wabaId) || !ID.test(input.phoneNumberId)) {
-    throw new EmbeddedSignupError("הפרטים שחזרו מ-Meta לא שלמים. נסו שוב.");
+    throw new EmbeddedSignupError("The details returned from Meta are incomplete. Please try again.");
   }
   // Before spending the one-time code: the coach may connect a number at all, and this one isn't someone else's.
   const existing = await assertNumberAvailable(db, t, input.phoneNumberId);
   try {
     const token = await api.exchangeCode(input.code);
     const number = (await api.wabaPhoneNumbers(input.wabaId, token)).find((n) => n.id === input.phoneNumberId);
-    if (!number) throw new EmbeddedSignupError("המספר שנבחר לא שייך לחשבון העסקי שנבחר ב-Meta.");
+    if (!number) throw new EmbeddedSignupError("The selected number doesn't belong to the business account selected in Meta.");
     await api.subscribeApp(input.wabaId, token);
     // Keep the PIN of a number this coach already registered, so a repeat run doesn't change it.
     const pin = decryptOptional(t, existing?.registrationPinEnc) ?? String(randomInt(0, 1_000_000)).padStart(6, "0");
@@ -140,7 +140,7 @@ export async function completeEmbeddedSignup(
   } catch (err) {
     if (err instanceof EmbeddedSignupError || err instanceof WhatsAppConfigError) throw err;
     if (err instanceof WhatsAppApiError) {
-      throw new EmbeddedSignupError(`Meta החזירה שגיאה (${err.code ?? err.status}): ${err.message}. אפשר לנסות שוב.`);
+      throw new EmbeddedSignupError(`Meta returned an error (${err.code ?? err.status}): ${err.message}. You can try again.`);
     }
     throw err;
   }

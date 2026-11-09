@@ -36,9 +36,9 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="הגדרות" />
+      <PageHeader title="Settings" />
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="פרטי המאמן ובטיחות">
+        <Card title="Coach details and safety">
           <CoachSettingsForm
             name={s.t.coachName}
             timezone={tz}
@@ -49,9 +49,9 @@ export default async function SettingsPage() {
           />
         </Card>
 
-        <Card title="וואטסאפ">
+        <Card title="WhatsApp">
           {accounts.length === 0 ? (
-            <p className="mb-4 text-sm text-slate-500">עוד לא חובר מספר.</p>
+            <p className="mb-4 text-sm text-slate-500">No number connected yet.</p>
           ) : (
             <ul className="mb-4 space-y-2 text-sm">
               {accounts.map((a) => (
@@ -59,19 +59,19 @@ export default async function SettingsPage() {
                   <span dir="ltr" className="font-medium">
                     {a.displayPhone ?? a.phoneNumberId}
                   </span>
-                  <Badge tone={a.status === "active" ? "green" : "gray"}>{a.status === "active" ? "פעיל" : a.status}</Badge>
-                  <Badge>{a.mode === "managed" ? "מנוהל בפלטפורמה" : "מחובר ע\"י המאמן"}</Badge>
+                  <Badge tone={a.status === "active" ? "green" : "gray"}>{a.status === "active" ? "Active" : a.status}</Badge>
+                  <Badge>{a.mode === "managed" ? "Managed by the platform" : "Connected by the coach"}</Badge>
                   {s.cfg.WHATSAPP_DRY_RUN && <Badge tone="yellow">dry run</Badge>}
                 </li>
               ))}
             </ul>
           )}
           {s.t.settings.starterKnowledge ? (
-            <Notice tone="yellow">אפשר לחבר מספר אחרי שממלאים ומפרסמים את בסיס הידע, כדי שהבוט לא יענה ללקוחות לפי תבנית ריקה.</Notice>
+            <Notice tone="yellow">You can connect a number after you fill in and publish the knowledge base, so the bot doesn't answer clients from an empty template.</Notice>
           ) : accounts.some((a) => a.status === "active") ? (
-            <p className="text-xs text-slate-500">להחלפת המספר או לניתוק שלו, פנו למנהל המערכת.</p>
+            <p className="text-xs text-slate-500">To change or disconnect the number, contact the administrator.</p>
           ) : signupMode === "unavailable" ? (
-            <Notice>חיבור מספר עצמאי עוד לא מוגדר בפלטפורמה. מנהל המערכת יכול לחבר לך מספר.</Notice>
+            <Notice>Connecting your own number isn't set up on this platform yet. The administrator can connect a number for you.</Notice>
           ) : (
             <EmbeddedSignup
               mode={signupMode}
@@ -82,11 +82,11 @@ export default async function SettingsPage() {
           )}
         </Card>
 
-        <Card title="גישה לבוט" className="lg:col-span-2">
+        <Card title="Bot access" className="lg:col-span-2">
           <ClientAccessForm mode={clientAccessMode(s.t.settings)} />
         </Card>
 
-        <Card title="הודעת ההסכמה (פרטיות)" className="lg:col-span-2">
+        <Card title="Consent notice (privacy)" className="lg:col-span-2">
           <ConsentForm
             text={s.t.settings.consentText ?? consentText(s.t.coachName)}
             version={s.t.settings.consentVersion ?? CONSENT_VERSION}
@@ -94,26 +94,26 @@ export default async function SettingsPage() {
           />
         </Card>
 
-        <Card title="תזכורות יזומות" className="lg:col-span-2">
+        <Card title="Proactive reminders" className="lg:col-span-2">
           <ReminderSettingsForm values={resolveReminderSettings(s.t.settings.reminders)} />
         </Card>
 
-        <Card title="שימוש החודש">
+        <Card title="Usage this month">
           <UsageSummary usage={usage} budgetUsd={s.t.settings.monthlyBudgetUsd} capUsd={coachCapUsd(s.t, spendCaps(s.cfg))} />
-          <p className="mt-2 text-xs text-slate-500">מודל: {s.cfg.CLAUDE_MODEL}</p>
+          <p className="mt-2 text-xs text-slate-500">Model: {s.cfg.CLAUDE_MODEL}</p>
         </Card>
 
         <div className="space-y-6">
-          <Card title="החלפת סיסמה">
+          <Card title="Change password">
             <PasswordForm />
           </Card>
-          <Card title="אימות דו-שלבי">
+          <Card title="Two-step verification">
             <MfaCard enabled={mfaEnabled(s.user)} />
           </Card>
         </div>
 
-        <Card title="יומן פעולות (פרטיות)" className="lg:col-span-2">
-          <p className="mb-3 text-xs text-slate-500">כל צפייה בלקוח, ייצוא, מחיקה ושינוי הגדרות נרשמים כאן.</p>
+        <Card title="Audit log (privacy)" className="lg:col-span-2">
+          <p className="mb-3 text-xs text-slate-500">Every client view, export, deletion and settings change is logged here.</p>
           <ul className="divide-y divide-slate-100 text-sm">
             {auditRows.map((r) => (
               <li key={r.id} className="flex flex-wrap gap-x-3 py-1.5">

@@ -29,7 +29,7 @@ export type CoachRow = typeof coaches.$inferSelect;
 
 export async function findCoachBySlug(db: Db, slug: string): Promise<CoachRow> {
   const [row] = await db.select().from(coaches).where(eq(coaches.slug, slug));
-  if (!row) throw new CoachLifecycleError(`לא נמצא מאמן "${slug}"`);
+  if (!row) throw new CoachLifecycleError(`No coach "${slug}"`);
   return row;
 }
 
@@ -80,7 +80,7 @@ export function starterKnowledge(name: string): CoachKnowledge {
     nutrition: { approach: "no_counting", details: "" },
     training: { principles: "" },
     supplements: {},
-    alwaysEscalate: ["מחירים, תשלומים וחבילות", "ביטול או הקפאה של ליווי"],
+    alwaysEscalate: ["Prices, payments and packages", "Cancelling or pausing coaching"],
   });
 }
 
@@ -91,10 +91,10 @@ export function starterKnowledge(name: string): CoachKnowledge {
 export async function createCoachFromPanel(db: Db, input: { slug: string; name: string; timezone?: string }, actor: string): Promise<string> {
   const slug = input.slug.trim().toLowerCase();
   const name = input.name.trim();
-  if (!SLUG.test(slug)) throw new CoachLifecycleError("ה-slug: אותיות באנגלית קטנות, ספרות ומקפים, 2 עד 40 תווים");
-  if (!name) throw new CoachLifecycleError("חסר שם");
+  if (!SLUG.test(slug)) throw new CoachLifecycleError("The slug: lowercase English letters, digits and hyphens, 2 to 40 characters");
+  if (!name) throw new CoachLifecycleError("Name is missing");
   const [existing] = await db.select({ id: coaches.id }).from(coaches).where(eq(coaches.slug, slug));
-  if (existing) throw new CoachLifecycleError(`כבר יש מאמן עם ה-slug ${slug}`);
+  if (existing) throw new CoachLifecycleError(`A coach with the slug ${slug} already exists`);
   const coachId = await createCoach(db, { slug, name, settings: input.timezone ? { timezone: input.timezone } : {} });
   const t = await openTenant(db, coachId);
   await publishKnowledge(db, t, { data: starterKnowledge(name) }, null);
@@ -233,8 +233,8 @@ export async function deleteCoach(db: Db, coachId: string, opts: { actor: string
   const summary = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(coaches).where(eq(coaches.id, coachId)).for("update");
     if (!row) throw new CoachLifecycleError(`Coach ${coachId} not found`);
-    if (row.status !== "suspended") throw new CoachLifecycleError(`צריך להשעות את המאמן ${row.slug} לפני מחיקה`);
-    if (opts.confirmSlug !== row.slug) throw new CoachLifecycleError(`האישור לא תואם: צריך להקליד ${row.slug}`);
+    if (row.status !== "suspended") throw new CoachLifecycleError(`Suspend coach ${row.slug} before deleting it`);
+    if (opts.confirmSlug !== row.slug) throw new CoachLifecycleError(`The confirmation doesn't match: type ${row.slug}`);
 
     const [clientCount] = await tx.select({ n: count() }).from(clients).where(and(eq(clients.coachId, coachId), eq(clients.isTest, false)));
     const usage = await tx
@@ -287,7 +287,7 @@ export async function listPlatformAudit(db: Db, opts: { since?: Date; limit?: nu
 
 /** The fixed reply a suspended coach's clients get: no AI, nothing about them is stored. */
 export function suspendedNoticeText(coachName: string): string {
-  return `השירות של ${coachName} בוואטסאפ לא זמין כרגע. אפשר לפנות ל${coachName} ישירות.`;
+  return `${coachName}'s WhatsApp service isn't available right now. You can contact ${coachName} directly.`;
 }
 
 /** True if this client should still get the notice in the current suspension. */

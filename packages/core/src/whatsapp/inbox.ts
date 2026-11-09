@@ -144,8 +144,8 @@ interface Hold {
 }
 
 const CLIENT_WINDOWS = [
-  { option: "clientHourlyLimit", key: "client-messages", ms: CLIENT_RATE_WINDOW_MS, period: "בשעה האחרונה", until: "שהשעה תעבור" },
-  { option: "clientDailyLimit", key: "client-messages-day", ms: CLIENT_DAY_WINDOW_MS, period: "ביממה האחרונה", until: "שהיממה תעבור" },
+  { option: "clientHourlyLimit", key: "client-messages", ms: CLIENT_RATE_WINDOW_MS, period: "in the last hour", until: "the hour passes" },
+  { option: "clientDailyLimit", key: "client-messages-day", ms: CLIENT_DAY_WINDOW_MS, period: "in the last 24 hours", until: "the day passes" },
 ] as const;
 
 /** Whether the bot must not answer this message: the client's limits first, then the spending caps. */
@@ -155,7 +155,7 @@ async function holdReason(db: Db, t: TenantContext, client: ClientRow, opts: Enq
     if (limit <= 0) continue;
     const count = await hitRateLimit(db, `${w.key}:${client.id}`, w.ms, now);
     if (count <= limit) continue;
-    const summary = `הלקוח/ה שלח/ה יותר מ-${limit} הודעות ${w.period}. הבוט לא עונה עד ${w.until}, וההודעות נשמרות כאן בשיחה.`;
+    const summary = `The client sent more than ${limit} messages ${w.period}. The bot won't answer until ${w.until}; the messages are kept here in the conversation.`;
     return { status: "rate_limited", alert: count === limit + 1 ? { type: "rate_limited", severity: "medium", summary } : null };
   }
   if (!opts.spendCaps) return null;

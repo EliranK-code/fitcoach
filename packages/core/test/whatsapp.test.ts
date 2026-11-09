@@ -244,7 +244,7 @@ describe("WhatsApp pipeline", () => {
     await receive(incoming("", { kind: "video", mediaId: "m1" }));
     await runDue();
     expect(app.llm.requests.length).toBe(before);
-    expect(textsSent().at(-1)?.body).toContain("עוד לא יודע לקרוא");
+    expect(textsSent().at(-1)?.body).toContain("can't read this kind");
   });
 
   it("human takeover: silent while paused, then the bot gets the record of what the coach said", async () => {
@@ -344,7 +344,7 @@ describe("account routing", () => {
       await connectWhatsAppNumber(app.handle.db, t, { phoneNumberId: "shared" });
       const { createCoach, openTenant } = await import("../src/tenancy");
       const other = await openTenant(app.handle.db, await createCoach(app.handle.db, { slug: "x", name: "X" }));
-      await expect(connectWhatsAppNumber(app.handle.db, other, { phoneNumberId: "shared" })).rejects.toThrow(/מאמן אחר/);
+      await expect(connectWhatsAppNumber(app.handle.db, other, { phoneNumberId: "shared" })).rejects.toThrow(/another coach/);
     } finally {
       await app.handle.close();
     }

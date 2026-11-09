@@ -4,10 +4,10 @@ import { addDays } from "../time";
 // Time math for proactive reminders, in the coach's IANA time zone, without a date library.
 
 export const DEFAULT_REMINDER_TEXTS: Record<ReminderMessageKind, string> = {
-  weigh_in: "בוקר טוב {name}! ⚖️ זה הזמן לשקילה. שלח/י לי את המספר כשיש 💪",
-  workout: "היי {name}, היום יום אימון! 🔥 עדכן/י אותי איך היה כשסיימת",
-  checkin: "היי {name}! איך עבר השבוע? ספר/י לי מה הלך טוב ומה היה קשה 🙂",
-  inactivity: "היי {name}, מה שלומך? 🙂 לא שמעתי ממך כמה ימים. אני כאן אם צריך משהו, גם אם זה רק להתחיל מחדש בקטן",
+  weigh_in: "Good morning {name}! ⚖️ Time to weigh in. Send me the number when you have it 💪",
+  workout: "Hi {name}, today is a training day! 🔥 Let me know how it went when you're done",
+  checkin: "Hi {name}! How was your week? Tell me what went well and what was hard 🙂",
+  inactivity: "Hi {name}, how are you? 🙂 I haven't heard from you in a few days. I'm here if you need anything, even if it's just to restart small",
 };
 
 export interface ResolvedReminderSettings {

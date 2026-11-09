@@ -18,17 +18,17 @@ export const clientAccessMode = (settings: CoachSettings): ClientAccessMode => s
 export const ACCESS_NOTICE_INTERVAL_MS = 24 * 3600_000;
 
 export function accessNoticeText(coachName: string): string {
-  return `שלום! המספר הזה משמש את הלקוחות של ${coachName}. העברתי את הפנייה שלך, ונחזור אליך בהקדם 🙂`;
+  return `Hi! This number is used by ${coachName}'s clients. I've passed your message on, and we'll get back to you soon 🙂`;
 }
 
 export function joinRequestSummary(): string {
-  return "מספר שעוד לא אושר כתב לבוט. הבוט לא עונה לו ולא שומר את מה שכתב. אם זה לקוח/ה שלך, אשרו בעמוד הלקוח, והבוט ישלח מיד את הודעת ההסכמה.";
+  return "A number that isn't approved yet wrote to the bot. The bot doesn't answer it or keep what it wrote. If this is your client, approve them on the client page and the bot will send the consent notice right away.";
 }
 
 /** A phone number the coach typed, in the international form WhatsApp uses (972…), or an error. */
 export function parseClientPhone(raw: string): string {
   const phone = normalizePhone(raw);
-  if (!/^\d{9,15}$/.test(phone)) throw new ClientAccessError("מספר טלפון לא תקין. אפשר לכתוב 050-1234567 או ‎+972501234567");
+  if (!/^\d{9,15}$/.test(phone)) throw new ClientAccessError("Invalid phone number. Write it in international form, for example +14155550123");
   return phone;
 }
 
@@ -38,7 +38,7 @@ export async function approveClient(db: Db, t: TenantContext, client: ClientRow,
   if (!row.approvedAt) row = await updateClient(db, t, row.id, { approvedAt: now });
   row = await setClientFlags(db, t, row, { accessRevokedAt: undefined, accessNoticeAt: undefined });
   for (const alert of await listAlerts(db, t, { clientId: row.id, status: "open" })) {
-    if (alert.type === "join_request") await resolveAlert(db, t, alert.id, "אושר");
+    if (alert.type === "join_request") await resolveAlert(db, t, alert.id, "Approved");
   }
   await audit(db, t, { actor, action: "client_approved", targetType: "client", targetId: row.id });
   return row;
@@ -52,7 +52,7 @@ export async function addApprovedClient(db: Db, t: TenantContext, rawPhone: stri
     await audit(db, t, { actor, action: "client_added", targetType: "client", targetId: client.id });
     return { client, created };
   }
-  if (client.channel !== "whatsapp") throw new ClientAccessError("המזהה הזה שייך ללקוח שלא בוואטסאפ");
+  if (client.channel !== "whatsapp") throw new ClientAccessError("This id belongs to a client who isn't on WhatsApp");
   return { client: client.approvedAt ? client : await approveClient(db, t, client, actor), created: false };
 }
 

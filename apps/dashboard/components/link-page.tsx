@@ -11,15 +11,15 @@ export async function LinkPage({ token, expected }: { token: string; expected: "
   const link = await inspectLink(handle.db, token);
   if (!link || link.purpose !== expected) {
     return (
-      <AuthShell subtitle="קישור">
-        <Notice tone="red">הקישור לא תקף: אולי כבר השתמשו בו או שפג תוקפו. בקשו קישור חדש ממנהל המערכת.</Notice>
+      <AuthShell subtitle="Link">
+        <Notice tone="red">This link isn't valid: it may have been used already or expired. Ask the administrator for a new link.</Notice>
       </AuthShell>
     );
   }
   const invite = link.purpose === "invite";
   return (
-    <AuthShell subtitle={invite ? `הצטרפות לדשבורד של ${link.coachName}` : "בחירת סיסמה חדשה"}>
-      <LinkPasswordForm action={redeemLinkAction.bind(null, token)} email={link.email} submitLabel={invite ? "יצירת משתמש וכניסה" : "שמירה וכניסה"} />
+    <AuthShell subtitle={invite ? `Join ${link.coachName}'s dashboard` : "Choose a new password"}>
+      <LinkPasswordForm action={redeemLinkAction.bind(null, token)} email={link.email} submitLabel={invite ? "Create user and sign in" : "Save and sign in"} />
     </AuthShell>
   );
 }

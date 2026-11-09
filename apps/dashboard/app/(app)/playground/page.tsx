@@ -9,13 +9,13 @@ export default async function PlaygroundPage() {
   return (
     <>
       <PageHeader
-        title="מגרש משחקים"
-        description="בדקו את הבוט לפני שהוא מדבר עם לקוחות אמיתיים: אותו מנוע, אותו ידע, אותם כללי בטיחות"
+        title="Playground"
+        description="Test the bot before it talks to real clients: the same engine, the same knowledge, the same safety rules"
       />
       {!s.cfg.ANTHROPIC_API_KEY && (
         <div className="mb-4">
           <Notice tone="yellow">
-            חסר ANTHROPIC_API_KEY בקובץ .env. בלי המפתח עובדת רק הודעת ההסכמה, והבוט לא יוכל לענות.
+            ANTHROPIC_API_KEY is missing in .env. Without it only the consent notice works, and the bot can't answer.
           </Notice>
         </div>
       )}
@@ -23,8 +23,8 @@ export default async function PlaygroundPage() {
         <Playground history={history} />
       </Card>
       <p className="mt-3 text-xs text-slate-500">
-        השיחה כאן נשמרת כלקוח בדיקה נפרד: היא לא מופיעה ברשימת הלקוחות ובסטטיסטיקות, אבל התראות שהיא פותחת כן מופיעות בתור. "התחל מחדש" מוחק את
-        לקוח הבדיקה.
+        The conversation here is saved as a separate test client: it doesn't appear in the client list or the stats, but alerts it opens do appear in the queue. "Start over" deletes
+        the test client.
       </p>
     </>
   );

@@ -410,9 +410,9 @@ describe("coach lifecycle", () => {
   });
 
   it("deletes a suspended coach completely, keeps a platform record, and frees the number", async () => {
-    await expect(deleteCoach(db, b.coachId, { actor: "test", confirmSlug: "other" })).rejects.toThrow(/להשעות/);
+    await expect(deleteCoach(db, b.coachId, { actor: "test", confirmSlug: "other" })).rejects.toThrow(/Suspend coach/);
     await suspendCoach(db, b.coachId, "test", app.clock.now);
-    await expect(deleteCoach(db, b.coachId, { actor: "test", confirmSlug: "demo" })).rejects.toThrow(/האישור/);
+    await expect(deleteCoach(db, b.coachId, { actor: "test", confirmSlug: "demo" })).rejects.toThrow(/confirmation/);
 
     const tenantTables = (await publicTables(db)).map((t) => t.name).filter((n) => !PLATFORM_TABLES.includes(n));
     const rowsOf = async (coachId: string) => {
